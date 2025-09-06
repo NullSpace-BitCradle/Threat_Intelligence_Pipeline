@@ -297,8 +297,8 @@ class ErrorHandler:
         """Get error summary statistics"""
         with self._lock:
             total_errors = len(self.error_records)
-            errors_by_category = {}
-            errors_by_severity = {}
+            errors_by_category: Dict[str, int] = {}
+            errors_by_severity: Dict[str, int] = {}
             
             for record in self.error_records:
                 # Count by category

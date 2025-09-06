@@ -229,7 +229,7 @@ class Config:
             level=level,
             format=format_str,
             filename=log_file if log_file else None,
-            filemode='a' if log_file else None
+            filemode='a' if log_file else 'w'
         )
 
 # Global configuration instance

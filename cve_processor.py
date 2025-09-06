@@ -5,9 +5,9 @@ Combines all CVE processing steps into a single, efficient class
 """
 import json
 import sys
-import requests
+import requests  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
@@ -52,6 +52,95 @@ class CVEProcessor:
         self.cwe_db = self._load_cwe_db()
         self.capec_db = self._load_capec_db()
         self.techniques_db = self._load_techniques_db()
+    
+    def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
+        """Retrieve CVEs from NVD API"""
+        try:
+            api_key = self.config.get_api_key('nvd')
+            base_url = self.config.get('api.nvd.base_url')
+            
+            headers = {}
+            if api_key:
+                headers['apiKey'] = api_key
+            
+            params = {
+                'resultsPerPage': self.config.get('api.nvd.results_per_page', 2000),
+                'startIndex': 0
+            }
+            
+            if start_date:
+                params['pubStartDate'] = start_date
+            if end_date:
+                params['pubEndDate'] = end_date
+            
+            all_cves = []
+            start_index = 0
+            
+            self.logger.info("Retrieving CVEs from NVD API...")
+            
+            while True:
+                params['startIndex'] = start_index
+                response = requests.get(base_url, headers=headers, params=params, 
+                                     timeout=self.config.get('api.nvd.timeout', 30))
+                response.raise_for_status()
+                
+                data = response.json()
+                cves = data.get('vulnerabilities', [])
+                
+                if not cves:
+                    break
+                    
+                all_cves.extend(cves)
+                start_index += len(cves)
+                
+                self.logger.info(f"Retrieved {len(cves)} CVEs (total: {len(all_cves)})")
+                
+                if len(cves) < params['resultsPerPage']:
+                    break
+            
+            self.logger.info(f"Total CVEs retrieved: {len(all_cves)}")
+            return all_cves
+            
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve CVEs from NVD: {e}")
+            return []
+    
+    def process_nvd_cves(self, nvd_cves: List[Dict]) -> Dict[str, Any]:
+        """Process NVD CVE data into our format"""
+        processed_cves = {}
+        
+        for cve_data in nvd_cves:
+            try:
+                cve_id = cve_data.get('cve', {}).get('id', '')
+                if not cve_id:
+                    continue
+                
+                # Extract CWE IDs from descriptions
+                cwe_ids = []
+                descriptions = cve_data.get('cve', {}).get('descriptions', [])
+                for desc in descriptions:
+                    if desc.get('lang') == 'en':
+                        desc_text = desc.get('value', '')
+                        # Look for CWE patterns in description
+                        import re
+                        cwe_matches = re.findall(r'CWE-(\d+)', desc_text)
+                        cwe_ids.extend([f"CWE-{match}" for match in cwe_matches])
+                
+                # Remove duplicates
+                cwe_ids = list(set(cwe_ids))
+                
+                processed_cves[cve_id] = {
+                    'CWE': cwe_ids,
+                    'CAPEC': [],
+                    'TECHNIQUES': [],
+                    'DEFEND': []
+                }
+                
+            except Exception as e:
+                self.logger.warning(f"Error processing CVE {cve_id}: {e}")
+                continue
+        
+        return processed_cves
     
     def _load_cwe_db(self) -> Dict[str, Any]:
         """Load CWE database"""

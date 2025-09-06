@@ -2,10 +2,10 @@
 Performance optimization utilities for Threat Intelligence Pipeline
 """
 import time
-import requests
+import requests  # type: ignore
 try:
     import asyncio
-    import aiohttp
+    import aiohttp  # type: ignore
     ASYNC_AVAILABLE = True
 except ImportError:
     ASYNC_AVAILABLE = False
@@ -56,7 +56,7 @@ class PerformanceMonitor:
     
     def end_operation(self, operation_id: str, items_processed: int = 0, 
                      memory_usage: Optional[float] = None,
-                     cache_hits: int = 0, cache_misses: int = 0) -> PerformanceMetrics:
+                     cache_hits: int = 0, cache_misses: int = 0) -> Optional[PerformanceMetrics]:
         """End timing an operation and record metrics"""
         with self._lock:
             if operation_id not in self.active_operations:
@@ -107,7 +107,7 @@ class PerformanceMonitor:
 # Global performance monitor
 performance_monitor = PerformanceMonitor()
 
-def performance_timer(operation_name: str = None):
+def performance_timer(operation_name: Optional[str] = None):
     """Decorator to time function execution"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -257,7 +257,7 @@ class OptimizedThreadPool:
         self.max_workers = max_workers or config.get('processing.max_threads', 10)
         self.queue_size = queue_size
         self.executor = None
-        self.task_queue = Queue(maxsize=queue_size)
+        self.task_queue: Queue = Queue(maxsize=queue_size)
         self._lock = threading.Lock()
     
     def __enter__(self):
@@ -285,7 +285,7 @@ class OptimizedThreadPool:
 class BatchProcessor:
     """Efficient batch processing with configurable batch sizes"""
     
-    def __init__(self, batch_size: int = None, max_workers: int = None):
+    def __init__(self, batch_size: Optional[int] = None, max_workers: Optional[int] = None):
         self.batch_size = batch_size or config.get('processing.batch_size', 1000)
         self.max_workers = max_workers or config.get('processing.max_threads', 10)
     
@@ -357,15 +357,15 @@ class AsyncAPIClient:
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
-            await self.session.close()
+            await self.session.close()  # type: ignore
     
     async def get(self, url: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         """Asynchronous GET request"""
-        async with self.session.get(url, params=params) as response:
+        async with self.session.get(url, params=params) as response:  # type: ignore
             if response.status == 200:
-                return await response.json()
+                return await response.json()  # type: ignore
             else:
-                raise aiohttp.ClientError(f"HTTP {response.status}: {await response.text()}")
+                raise aiohttp.ClientError(f"HTTP {response.status}: {await response.text()}")  # type: ignore
     
     async def get_multiple(self, urls: List[str], params_list: Optional[List[Dict]] = None) -> List[Dict[str, Any]]:
         """Get multiple URLs concurrently"""
@@ -377,7 +377,9 @@ class AsyncAPIClient:
             task = self.get(url, params)
             tasks.append(task)
         
-        return await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Filter out exceptions and return only successful results
+        return [r for r in results if isinstance(r, dict)]
 
 class PerformanceProfiler:
     """Performance profiler for identifying bottlenecks"""
