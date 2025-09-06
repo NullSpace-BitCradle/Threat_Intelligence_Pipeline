@@ -4,14 +4,14 @@ Unified database management system
 Combines all database update operations into a single, efficient manager
 """
 import os
-import requests
+import requests  # type: ignore
 import json
 import csv
 import logging
 from zipfile import ZipFile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-import pandas as pd
+import pandas as pd  # type: ignore
 from datetime import datetime
 
 from config import get_config
@@ -140,18 +140,61 @@ class DatabaseManager:
     def _process_cwe_data(self, zip_file: str) -> Dict[str, Any]:
         """Process CWE XML data"""
         try:
+            import xml.etree.ElementTree as ET
+            
             # Extract XML from zip
             with ZipFile(zip_file, 'r') as zip_ref:
-                zip_ref.extractall()
+                # List files in the zip to find the actual XML filename
+                file_list = zip_ref.namelist()
+                xml_files = [f for f in file_list if f.endswith('.xml')]
+                
+                if not xml_files:
+                    raise FileOperationError("No XML file found in CWE zip")
+                
+                # Extract the first XML file found
+                xml_file = xml_files[0]
+                zip_ref.extract(xml_file)
             
-            xml_file = "cwec_latest.xml"
             if not validate_file_exists(xml_file):
                 raise FileOperationError("CWE XML file not found after extraction")
             
-            # Process XML data (simplified - would need proper XML parsing)
+            # Process XML data
             cwe_data: Dict[str, Any] = {}
-            # TODO: Implement proper XML parsing for CWE data
-            # This is a placeholder - the actual implementation would parse the XML
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+            
+            # Parse CWE entries
+            for weakness in root.findall('.//{http://cwe.mitre.org/cwe-6}Weakness'):
+                cwe_id = weakness.get('ID')
+                if cwe_id:
+                    # Extract name
+                    name_elem = weakness.find('.//{http://cwe.mitre.org/cwe-6}Name')
+                    name = name_elem.text if name_elem is not None else ''
+                    
+                    # Extract description
+                    desc_elem = weakness.find('.//{http://cwe.mitre.org/cwe-6}Description')
+                    description = desc_elem.text if desc_elem is not None else ''
+                    
+                    # Extract parent relationships
+                    child_of = []
+                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-6}ChildOf/{http://cwe.mitre.org/cwe-6}Weakness'):
+                        parent_id = rel.get('CWE_ID')
+                        if parent_id:
+                            child_of.append(parent_id)
+                    
+                    # Extract related attack patterns
+                    related_capecs = []
+                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-6}Related_Attack_Patterns/{http://cwe.mitre.org/cwe-6}Related_Attack_Pattern'):
+                        capec_id = rel.get('CAPEC_ID')
+                        if capec_id:
+                            related_capecs.append(capec_id)
+                    
+                    cwe_data[cwe_id] = {
+                        'name': name,
+                        'description': description,
+                        'ChildOf': child_of,
+                        'RelatedAttackPatterns': related_capecs
+                    }
             
             # Clean up
             os.remove(xml_file)

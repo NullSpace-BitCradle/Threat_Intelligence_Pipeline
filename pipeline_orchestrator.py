@@ -8,7 +8,7 @@ import sys
 import json
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import argparse
@@ -163,24 +163,57 @@ class PipelineOrchestrator:
         try:
             start_time = time.time()
             
-            # CVE retrieval is now handled by the CVEProcessor
-            # For now, we'll assume there are CVEs to process
-            # The actual retrieval logic is in the CVEProcessor
+            # Get recent CVEs (last 7 days)
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+            
+            # Retrieve CVEs from NVD
+            nvd_cves = self.cve_processor.retrieve_cves_from_nvd(
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat()
+            )
+            
+            if not nvd_cves:
+                log_info("No new CVEs found")
+                duration = time.time() - start_time
+                
+                self.results['cve_retrieval'] = {
+                    'status': 'success',
+                    'duration': duration,
+                    'cve_count': 0,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                return {
+                    'success': True,
+                    'cve_count': 0,
+                    'data': {}
+                }
+            
+            # Process NVD data into our format
+            processed_cves = self.cve_processor.process_nvd_cves(nvd_cves)
+            
+            # Save to file for processing
+            cve_file = self.config.get_output_path('cve_output')
+            with open(cve_file, 'w', encoding='utf-8') as f:
+                for cve_id, data in processed_cves.items():
+                    f.write(json.dumps({cve_id: data}) + "\n")
+            
             duration = time.time() - start_time
             
             self.results['cve_retrieval'] = {
                 'status': 'success',
                 'duration': duration,
-                'cve_count': 0,  # Will be determined during processing
+                'cve_count': len(processed_cves),
                 'timestamp': datetime.now().isoformat()
             }
             
-            log_info("CVE retrieval step completed")
+            log_info(f"CVE retrieval completed: {len(processed_cves)} CVEs retrieved")
             
             return {
                 'success': True,
-                'cve_count': 0,
-                'data': {}
+                'cve_count': len(processed_cves),
+                'data': processed_cves
             }
             
         except Exception as e:
