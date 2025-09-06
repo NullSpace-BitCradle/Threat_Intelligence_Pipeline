@@ -1,0 +1,109 @@
+{
+    "api": {
+        "nvd": {
+            "base_url": "https://services.nvd.nist.gov/rest/json/cves/2.0/",
+            "api_key_env": "NVD_API_KEY",
+            "timeout": 30,
+            "retry_limit": 3,
+            "retry_delay": 5,
+            "results_per_page": 2000
+        },
+        "d3fend": {
+            "base_url": "https://d3fend.mitre.org/api/offensive-technique/attack/",
+            "timeout": 30
+        }
+    },
+    "database": {
+        "capec": {
+            "url": "https://capec.mitre.org/data/csv/1000.csv.zip",
+            "file": "resources/capec_db.json"
+        },
+        "cwe": {
+            "url": "http://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
+            "file": "resources/cwe_db.json"
+        },
+        "techniques": {
+            "enterprise": {
+                "url": "https://attack.mitre.org/docs/enterprise-attack-v17.1/enterprise-attack-v17.1-techniques.xlsx",
+                "column": 9
+            },
+            "mobile": {
+                "url": "https://attack.mitre.org/docs/mobile-attack-v17.1/mobile-attack-v17.1-techniques.xlsx",
+                "column": 10
+            },
+            "ics": {
+                "url": "https://attack.mitre.org/docs/ics-attack-v17.1/ics-attack-v17.1-techniques.xlsx",
+                "column": 9
+            },
+            "file": "resources/techniques_db.json"
+        },
+        "defend": {
+            "file": "resources/defend_db.jsonl"
+        }
+    },
+    "processing": {
+        "max_threads": 10,
+        "batch_size": 1000,
+        "enable_concurrent_processing": true,
+        "cache_size": 1000,
+        "cache_ttl": 3600,
+        "use_async_processing": false,
+        "max_connections": 100,
+        "connection_pool_size": 20
+    },
+    "database_optimization": {
+        "use_sqlite": false,
+        "cache_size": 1000,
+        "enable_streaming": true,
+        "batch_insert_size": 500,
+        "enable_indexing": true
+    },
+    "files": {
+        "cve_output": "results/new_cves.jsonl",
+        "last_update": "lastUpdate.txt",
+        "database_dir": "database"
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(levelname)s - %(message)s",
+        "file": "logs/tip.log",
+        "json_file": "logs/tip_errors.json",
+        "max_file_size": 10485760,
+        "backup_count": 5
+    },
+    "error_handling": {
+        "enable_circuit_breaker": true,
+        "enable_retry": true,
+        "enable_recovery": true,
+        "alert_thresholds": {
+            "critical": 1,
+            "high": 5,
+            "medium": 20,
+            "low": 50
+        },
+        "retry_configs": {
+            "api_calls": {
+                "max_attempts": 3,
+                "base_delay": 1.0,
+                "max_delay": 30.0,
+                "strategy": "exponential"
+            },
+            "file_operations": {
+                "max_attempts": 2,
+                "base_delay": 0.5,
+                "max_delay": 10.0,
+                "strategy": "fixed"
+            }
+        },
+        "circuit_breaker_configs": {
+            "api_calls": {
+                "failure_threshold": 5,
+                "recovery_timeout": 60.0
+            },
+            "database_operations": {
+                "failure_threshold": 3,
+                "recovery_timeout": 30.0
+            }
+        }
+    }
+}
