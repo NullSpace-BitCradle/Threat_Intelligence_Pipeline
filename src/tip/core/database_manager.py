@@ -164,27 +164,27 @@ class DatabaseManager:
             root = tree.getroot()
             
             # Parse CWE entries
-            for weakness in root.findall('.//{http://cwe.mitre.org/cwe-6}Weakness'):
+            for weakness in root.findall('.//{http://cwe.mitre.org/cwe-7}Weakness'):
                 cwe_id = weakness.get('ID')
                 if cwe_id:
                     # Extract name
-                    name_elem = weakness.find('.//{http://cwe.mitre.org/cwe-6}Name')
+                    name_elem = weakness.find('.//{http://cwe.mitre.org/cwe-7}Name')
                     name = name_elem.text if name_elem is not None else ''
                     
                     # Extract description
-                    desc_elem = weakness.find('.//{http://cwe.mitre.org/cwe-6}Description')
+                    desc_elem = weakness.find('.//{http://cwe.mitre.org/cwe-7}Description')
                     description = desc_elem.text if desc_elem is not None else ''
                     
                     # Extract parent relationships
                     child_of = []
-                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-6}ChildOf/{http://cwe.mitre.org/cwe-6}Weakness'):
+                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}ChildOf/{http://cwe.mitre.org/cwe-7}Weakness'):
                         parent_id = rel.get('CWE_ID')
                         if parent_id:
                             child_of.append(parent_id)
                     
                     # Extract related attack patterns
                     related_capecs = []
-                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-6}Related_Attack_Patterns/{http://cwe.mitre.org/cwe-6}Related_Attack_Pattern'):
+                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}Related_Attack_Patterns/{http://cwe.mitre.org/cwe-7}Related_Attack_Pattern'):
                         capec_id = rel.get('CAPEC_ID')
                         if capec_id:
                             related_capecs.append(capec_id)

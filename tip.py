@@ -91,7 +91,7 @@ Examples:
             return 0
         
         if args.web_interface:
-            from web_interface import start_web_interface
+            from tip.monitoring.web_interface import start_web_interface
             start_web_interface(args.web_host, args.web_port)
             return 0
         
