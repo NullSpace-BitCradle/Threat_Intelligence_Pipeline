@@ -168,26 +168,26 @@ async function process(page_load = false) {
             'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/techniques_association.json',
             'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/techniques_association.json',
             'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/techniques_association.json',
-            '../resources/techniques_association.json'
+            '/resources/techniques_association.json'
         ]);
         cweDataRaw = await fetchWithFallback([
             'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/cwe_db.json',
             'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/cwe_db.json',
             'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/cwe_db.json',
-            '../resources/cwe_db.json'
+            '/resources/cwe_db.json'
         ]);
         capecDataRaw = await fetchWithFallback([
             'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/capec_db.json',
             'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/capec_db.json',
             'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/capec_db.json',
-            '../resources/capec_db.json'
+            '/resources/capec_db.json'
         ]);
         if (wantDefend) {
             defendText = await fetchWithFallback([
                 'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/defend_db.jsonl',
                 'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/defend_db.jsonl',
                 'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/defend_db.jsonl',
-                '../resources/defend_db.jsonl'
+                '/resources/defend_db.jsonl'
             ], true);
         }
     } catch (error) {
@@ -225,7 +225,7 @@ async function process(page_load = false) {
                 `https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/database/CVE-${year}.jsonl`,
                 `https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/database/CVE-${year}.jsonl`,
                 `https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/database/CVE-${year}.jsonl`,
-                `../database/CVE-${year}.jsonl`
+                `/database/CVE-${year}.jsonl`
             ], true);
             database = {};
             responseText.split('\n').forEach(line => {

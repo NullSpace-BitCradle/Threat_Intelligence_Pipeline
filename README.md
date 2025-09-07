@@ -19,7 +19,7 @@ The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability anal
 - **Request Tracking**: Context-aware logging with request ID correlation
 - **Health Monitoring**: System health checks with database, API, and resource monitoring
 - **Prometheus Metrics**: Full metrics collection with counters, gauges, histograms, and summaries
-- **Web Interface**: REST API for monitoring, control, and metrics export
+- **Interactive Web Interface**: Full-featured web UI with CVE analysis, MITRE ATT&CK matrix visualization, and real-time monitoring
 - **Configuration Validation**: JSON schema validation with detailed error reporting
 - **Flexible Configuration**: JSON-based config, environment variables, multiple execution modes
 - **Single Command Operation**: Run entire pipeline with one command
@@ -180,7 +180,7 @@ curl http://localhost:8080/requests    # Request tracking
   - **Health Checker**: System health monitoring and alerting
   - **Metrics Collector**: Prometheus-compatible metrics collection
   - **Request Tracker**: Request ID correlation and context-aware logging
-  - **Web Interface**: REST API for monitoring and control
+  - **Web Interface**: Interactive web UI with CVE analysis and MITRE ATT&CK visualization
 
 - **`tip.utils`**: Utility components
   - **Config Manager**: Configuration management and validation
@@ -304,13 +304,29 @@ Threat_Intelligence_Pipeline/
 
 ## 🌐 Web Interface
 
-### Monitoring & Control API
+### Interactive CVE Analysis & Visualization
+
+The web interface provides a comprehensive dashboard for CVE analysis with interactive MITRE ATT&CK matrix visualization:
 
 ```bash
-# Start web interface
+# Start the integrated web interface
 python tip.py --web-interface --web-port 8080
 
-# Available endpoints
+# Open your browser to:
+# http://localhost:8080
+```
+
+**Features:**
+- **CVE Input & Analysis**: Enter CVEs and get instant correlation analysis
+- **Interactive MITRE ATT&CK Matrix**: Visual mapping of CVE → CWE → CAPEC → Attack Techniques
+- **Real-time Data Processing**: Live correlation with CWE, CAPEC, and MITRE ATT&CK data
+- **Sankey Diagram Visualization**: Interactive flow diagrams showing vulnerability relationships
+- **D3FEND Integration**: Defensive technique mapping and visualization
+
+### API Endpoints
+
+```bash
+# Monitoring endpoints
 curl http://localhost:8080/health      # Health status
 curl http://localhost:8080/metrics     # Prometheus metrics
 curl http://localhost:8080/status      # Pipeline status
@@ -321,14 +337,6 @@ curl http://localhost:8080/config      # Configuration info
 curl -X POST http://localhost:8080/api/run              # Run pipeline
 curl -X POST http://localhost:8080/api/update-databases # Update databases
 curl -X POST http://localhost:8080/api/process-cves     # Process CVEs
-```
-
-### MITRE ATT&CK Visualization
-
-```bash
-python setup.py                    # Run setup (if not done)
-python -m http.server 8000         # Start server
-# Open http://localhost:8000/docs/index.html
 ```
 
 ---
@@ -350,6 +358,14 @@ python -m http.server 8000         # Start server
 - **Scalable Architecture**: Easy to add new modules in appropriate locations
 - **Python Best Practices**: Follows standard Python packaging conventions
 - **Clean Root Directory**: Only essential files remain in the root directory
+
+### Integrated Web Interface
+
+- **Unified Experience**: Single command starts both data processing and web interface
+- **Interactive CVE Analysis**: Real-time CVE input and correlation analysis
+- **MITRE ATT&CK Visualization**: Interactive matrix showing CVE → CWE → CAPEC → Attack Techniques
+- **Comprehensive Data Serving**: Automatic serving of all required static files and databases
+- **Modern UI**: Clean, responsive interface with real-time data processing
 
 ### Production-Ready Features
 

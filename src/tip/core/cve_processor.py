@@ -350,7 +350,9 @@ class CVEProcessor:
                 cwe_list = set(data.get('CWE', []))
                 for cwe in data.get('CWE', []):
                     cwe_list.add(cwe)
-                    parent_cwes = self.get_parent_cwe(cwe)
+                    # Extract numeric CWE ID (remove "CWE-" prefix if present)
+                    cwe_id = cwe.replace("CWE-", "") if cwe.startswith("CWE-") else cwe
+                    parent_cwes = self.get_parent_cwe(cwe_id)
                     if parent_cwes:
                         cwe_list.update(parent_cwes)
                 
@@ -359,7 +361,9 @@ class CVEProcessor:
                 # Step 2: Get CAPEC entries
                 capec_list = set()
                 for cwe in cwe_list:
-                    capecs = self.fetch_capec_for_cwe(cwe)
+                    # Extract numeric CWE ID (remove "CWE-" prefix if present)
+                    cwe_id = cwe.replace("CWE-", "") if cwe.startswith("CWE-") else cwe
+                    capecs = self.fetch_capec_for_cwe(cwe_id)
                     capec_list.update(capecs)
                 
                 result[cve_id]["CAPEC"] = list(sorted(capec_list))

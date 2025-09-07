@@ -9,6 +9,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import threading
 import logging
+from pathlib import Path
 from typing import Dict, Any
 
 from tip.monitoring.health_check import get_health_status, health_check_endpoint
@@ -47,6 +48,20 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
                 self._handle_config()
             elif path == '/api/status':
                 self._handle_api_status()
+            elif path == '/api/process-cves':
+                self._handle_process_cves()
+            elif path == '/api/run':
+                self._handle_run_pipeline()
+            elif path == '/api/update-databases':
+                self._handle_update_databases()
+            elif path.startswith('/resources/'):
+                self._handle_static_file(path)
+            elif path.startswith('/database/'):
+                self._handle_static_file(path)
+            elif path.startswith('/css/') or path.startswith('/js/'):
+                self._handle_docs_file(path)
+            elif path.startswith('/mitre/'):
+                self._handle_mitre_file(path)
             else:
                 self._handle_404()
         
@@ -74,25 +89,36 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
             self._handle_500(str(e))
     
     def _handle_root(self):
-        """Handle root path - return API documentation"""
-        response = {
-            "name": "Threat Intelligence Pipeline API",
-            "version": "1.0.0",
-            "description": "REST API for Threat Intelligence Pipeline monitoring and control",
-            "endpoints": {
-                "GET /health": "Get system health status",
-                "GET /metrics": "Get Prometheus metrics",
-                "GET /status": "Get pipeline status",
-                "GET /requests": "Get request tracking information",
-                "GET /config": "Get current configuration",
-                "GET /api/status": "Get detailed API status",
-                "POST /api/run": "Run the complete pipeline",
-                "POST /api/update-databases": "Update all databases",
-                "POST /api/process-cves": "Process CVEs only"
-            }
-        }
-        
-        self._send_json_response(200, response)
+        """Handle root path - serve the main HTML page"""
+        try:
+            # Serve the main HTML page
+            html_path = Path(__file__).parent.parent.parent.parent / "docs" / "index.html"
+            if html_path.exists():
+                with open(html_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self._send_html_response(content)
+            else:
+                # Fallback to API documentation if HTML not found
+                response = {
+                    "name": "Threat Intelligence Pipeline API",
+                    "version": "1.0.0",
+                    "description": "REST API for Threat Intelligence Pipeline monitoring and control",
+                    "endpoints": {
+                        "GET /health": "Get system health status",
+                        "GET /metrics": "Get Prometheus metrics",
+                        "GET /status": "Get pipeline status",
+                        "GET /requests": "Get request tracking information",
+                        "GET /config": "Get current configuration",
+                        "GET /api/status": "Get detailed API status",
+                        "POST /api/run": "Run the complete pipeline",
+                        "POST /api/update-databases": "Update all databases",
+                        "POST /api/process-cves": "Process CVEs only"
+                    }
+                }
+                self._send_json_response(200, response)
+        except Exception as e:
+            logger.error(f"Error serving HTML page: {e}")
+            self._send_error_response(500, f"Error serving page: {str(e)}")
     
     def _handle_health(self):
         """Handle health check endpoint"""
@@ -269,6 +295,18 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
         """Send text response"""
         self._send_response(status_code, text, content_type)
     
+    def _send_html_response(self, html_content: str):
+        """Send HTML response"""
+        self._send_response(200, html_content, 'text/html')
+    
+    def _send_error_response(self, status_code: int, message: str):
+        """Send error response"""
+        error_response = {
+            "error": message,
+            "status_code": status_code
+        }
+        self._send_json_response(status_code, error_response)
+    
     def _send_response(self, status_code: int, body: str, content_type: str):
         """Send HTTP response"""
         self.send_response(status_code)
@@ -291,6 +329,176 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Override to use our logger"""
         logger.info(f"{self.address_string()} - {format % args}")
+    
+    def _handle_process_cves(self):
+        """Handle CVE processing endpoint"""
+        try:
+            # This would need to be implemented to process CVEs
+            # For now, return a placeholder response
+            response = {
+                "message": "CVE processing endpoint",
+                "status": "not_implemented",
+                "note": "This endpoint needs to be implemented to process CVEs from the web interface"
+            }
+            self._send_json_response(200, response)
+        except Exception as e:
+            logger.error(f"Error processing CVEs: {e}")
+            self._send_json_response(500, {"error": str(e)})
+    
+    def _handle_run_pipeline(self):
+        """Handle pipeline run endpoint"""
+        try:
+            # This would need to be implemented to run the pipeline
+            # For now, return a placeholder response
+            response = {
+                "message": "Pipeline run endpoint",
+                "status": "not_implemented",
+                "note": "This endpoint needs to be implemented to run the pipeline from the web interface"
+            }
+            self._send_json_response(200, response)
+        except Exception as e:
+            logger.error(f"Error running pipeline: {e}")
+            self._send_json_response(500, {"error": str(e)})
+    
+    def _handle_update_databases(self):
+        """Handle database update endpoint"""
+        try:
+            # This would need to be implemented to update databases
+            # For now, return a placeholder response
+            response = {
+                "message": "Database update endpoint",
+                "status": "not_implemented",
+                "note": "This endpoint needs to be implemented to update databases from the web interface"
+            }
+            self._send_json_response(200, response)
+        except Exception as e:
+            logger.error(f"Error updating databases: {e}")
+            self._send_json_response(500, {"error": str(e)})
+    
+    def _handle_static_file(self, path: str):
+        """Handle static file requests"""
+        try:
+            # Remove leading slash and construct file path
+            file_path = path.lstrip('/')
+            full_path = Path(__file__).parent.parent.parent.parent / file_path
+            
+            # Security check - ensure the file is within our project directory
+            project_root = Path(__file__).parent.parent.parent.parent
+            if not full_path.resolve().is_relative_to(project_root.resolve()):
+                self._send_error_response(403, "Access denied")
+                return
+            
+            if not full_path.exists():
+                self._send_error_response(404, f"File not found: {path}")
+                return
+            
+            # Determine content type based on file extension
+            content_type = 'application/octet-stream'
+            if file_path.endswith('.json'):
+                content_type = 'application/json'
+            elif file_path.endswith('.jsonl'):
+                content_type = 'application/jsonl'
+            elif file_path.endswith('.html'):
+                content_type = 'text/html'
+            elif file_path.endswith('.css'):
+                content_type = 'text/css'
+            elif file_path.endswith('.js'):
+                content_type = 'application/javascript'
+            
+            # Read and serve the file
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            self._send_response(200, content, content_type)
+            
+        except Exception as e:
+            logger.error(f"Error serving static file {path}: {e}")
+            self._send_error_response(500, f"Error serving file: {str(e)}")
+    
+    def _handle_docs_file(self, path: str):
+        """Handle docs file requests (CSS, JS, etc.)"""
+        try:
+            file_path = path.lstrip('/')
+            full_path = Path(__file__).parent.parent.parent.parent / "docs" / file_path
+            
+            # Security check
+            project_root = Path(__file__).parent.parent.parent.parent / "docs"
+            if not full_path.resolve().is_relative_to(project_root.resolve()):
+                self._send_error_response(403, "Access denied")
+                return
+            
+            if not full_path.exists():
+                self._send_error_response(404, f"File not found: {path}")
+                return
+            
+            # Determine content type
+            content_type = 'application/octet-stream'
+            if file_path.endswith('.css'):
+                content_type = 'text/css'
+            elif file_path.endswith('.js'):
+                content_type = 'application/javascript'
+            elif file_path.endswith('.html'):
+                content_type = 'text/html'
+            elif file_path.endswith('.json'):
+                content_type = 'application/json'
+            
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            self._send_response(200, content, content_type)
+            
+        except Exception as e:
+            logger.error(f"Error serving docs file {path}: {e}")
+            self._send_error_response(500, f"Error serving file: {str(e)}")
+    
+    def _handle_mitre_file(self, path: str):
+        """Handle MITRE ATT&CK file requests"""
+        try:
+            file_path = path.lstrip('/')
+            full_path = Path(__file__).parent.parent.parent.parent / "docs" / file_path
+            
+            # Security check
+            project_root = Path(__file__).parent.parent.parent.parent / "docs" / "mitre"
+            if not full_path.resolve().is_relative_to(project_root.resolve()):
+                self._send_error_response(403, "Access denied")
+                return
+            
+            if not full_path.exists():
+                self._send_error_response(404, f"File not found: {path}")
+                return
+            
+            # Determine content type
+            content_type = 'application/octet-stream'
+            if file_path.endswith('.html'):
+                content_type = 'text/html'
+            elif file_path.endswith('.css'):
+                content_type = 'text/css'
+            elif file_path.endswith('.js'):
+                content_type = 'application/javascript'
+            elif file_path.endswith('.json'):
+                content_type = 'application/json'
+            elif file_path.endswith('.woff') or file_path.endswith('.woff2'):
+                content_type = 'font/woff2'
+            elif file_path.endswith('.ttf'):
+                content_type = 'font/ttf'
+            elif file_path.endswith('.svg'):
+                content_type = 'image/svg+xml'
+            elif file_path.endswith('.png'):
+                content_type = 'image/png'
+            
+            # Read file as binary for binary files, text for text files
+            if content_type.startswith('text/') or content_type == 'application/json' or content_type == 'application/javascript':
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                with open(full_path, 'rb') as f:
+                    content = f.read()
+            
+            self._send_response(200, content, content_type)
+            
+        except Exception as e:
+            logger.error(f"Error serving MITRE file {path}: {e}")
+            self._send_error_response(500, f"Error serving file: {str(e)}")
 
 def start_web_interface(host: str = 'localhost', port: int = 8080):
     """Start the web interface server"""
