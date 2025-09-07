@@ -7,16 +7,16 @@ import sys
 import argparse
 from pathlib import Path
 
-# Add current directory to Python path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add src directory to Python path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from pipeline_orchestrator import PipelineOrchestrator
-from database_manager import DatabaseManager
-from cve_processor import CVEProcessor
-from error_handler import get_logger, log_info, log_critical
-from health_check import get_health_status, is_healthy
-from metrics import get_pipeline_metrics
-from request_tracker import get_request_summary
+from tip.core.pipeline_orchestrator import PipelineOrchestrator
+from tip.core.database_manager import DatabaseManager
+from tip.core.cve_processor import CVEProcessor
+from tip.utils.error_handler import get_logger, log_info, log_critical
+from tip.monitoring.health_check import get_health_status, is_healthy
+from tip.monitoring.metrics import get_pipeline_metrics
+from tip.monitoring.request_tracker import get_request_summary
 
 def main():
     """Main entry point for Threat Intelligence Pipeline"""
@@ -25,10 +25,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  tip                          # Run complete pipeline
+  tip                          # Run complete pipeline (fetches all CVEs from 1999)
   tip --force                 # Force update even if not needed
+  tip --cve-only              # Process CVEs only (with resume capability)
+  tip --cve-only --clear-progress  # Start CVE retrieval from beginning
   tip --db-only               # Update databases only
-  tip --cve-only              # Process CVEs only
   tip --status                # Show pipeline status
   tip --verbose               # Enable verbose logging
   tip --health-check          # Run health check
@@ -44,6 +45,8 @@ Examples:
                        help='Run only database updates')
     parser.add_argument('--cve-only', action='store_true',
                        help='Run only CVE processing')
+    parser.add_argument('--clear-progress', action='store_true',
+                       help='Clear progress file and start CVE retrieval from beginning')
     parser.add_argument('--status', action='store_true',
                        help='Show pipeline status')
     parser.add_argument('--verbose', '-v', action='store_true',
@@ -123,6 +126,15 @@ Examples:
             print(f"\nPipeline Ready: {'Yes' if ready else 'No'}")
             
             return 0
+        
+        # Clear progress if requested
+        if args.clear_progress:
+            progress_file = Path("cve_progress.json")
+            if progress_file.exists():
+                progress_file.unlink()
+                log_info("Progress file cleared - will start CVE retrieval from beginning")
+            else:
+                log_info("No progress file found - already starting from beginning")
         
         # Run pipeline
         if args.db_only:

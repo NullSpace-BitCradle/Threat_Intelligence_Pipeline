@@ -13,9 +13,9 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from dataclasses import dataclass, asdict
 
-from config import get_config
-from database_manager import DatabaseManager
-from error_handler import get_error_summary
+from tip.utils.config import get_config
+from tip.core.database_manager import DatabaseManager
+from tip.utils.error_handler import get_error_summary
 
 logger = logging.getLogger(__name__)
 

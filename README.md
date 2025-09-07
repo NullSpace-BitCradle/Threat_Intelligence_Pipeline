@@ -6,10 +6,13 @@ The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability anal
 
 ## 🚀 Key Features
 
+- **Complete Historical Data**: Fetches ALL CVEs from 1999 to present (308,619+ CVEs) in a single run
+- **Adaptive Rate Limiting**: Intelligent rate limiting that adjusts to API responses and handles 429 errors gracefully
+- **Progress Tracking & Resume**: Saves progress every 5,000 CVEs and can resume from interruptions
 - **Enterprise Performance**: Connection pooling, advanced caching, parallel processing
 - **Robust Error Handling**: Custom exceptions, retry strategies, automatic recovery
 - **Comprehensive Monitoring**: Real-time metrics, health checks, detailed reporting
-- **API Rate Limiting**: Token bucket and sliding window rate limiters with adaptive backoff
+- **Smart API Management**: Exponential backoff, jitter, and dynamic delay adjustment
 - **Request Tracking**: Context-aware logging with request ID correlation
 - **Health Monitoring**: System health checks with database, API, and resource monitoring
 - **Prometheus Metrics**: Full metrics collection with counters, gauges, histograms, and summaries
@@ -36,7 +39,7 @@ python setup.py
 ## 🎯 Quick Start
 
 ```bash
-# Run complete pipeline
+# Run complete pipeline (fetches all CVEs from 1999)
 python tip.py
 
 # Check system status
@@ -50,11 +53,39 @@ python tip.py --metrics
 python tip.py --web-interface
 
 # Advanced options
-python tip.py --force        # Force update
-python tip.py --db-only      # Database updates only
-python tip.py --cve-only     # CVE processing only
-python tip.py --verbose      # Verbose logging
+python tip.py --force                 # Force update even if not needed
+python tip.py --cve-only             # Process CVEs only (with resume capability)
+python tip.py --cve-only --clear-progress  # Start CVE retrieval from beginning
+python tip.py --db-only              # Update databases only
+python tip.py --verbose              # Enable verbose logging
 ```
+
+---
+
+## 📊 CVE Data Coverage
+
+**Complete Historical Coverage:**
+
+- **Total CVEs**: 308,619+ vulnerabilities from 1999 to present
+- **Year Range**: 1999-2025 (complete NVD database)
+- **Single Run**: Retrieves all CVEs in one execution (~15 minutes)
+- **Resume Capability**: Can resume from interruptions using progress tracking
+- **Adaptive Performance**: Automatically adjusts to API rate limits
+
+**Data Distribution by Year:**
+
+- **1999-2005**: Early vulnerability data (1,000-5,000 CVEs/year)
+- **2006-2010**: Growing security awareness (5,000-7,000 CVEs/year)  
+- **2011-2015**: Rapid expansion (8,000-10,000 CVEs/year)
+- **2016-2020**: Peak vulnerability reporting (17,000-20,000 CVEs/year)
+- **2021-2025**: Current era (23,000-38,000 CVEs/year)
+
+**Performance Features:**
+
+- **Smart Rate Limiting**: Starts at 0.5s delay, adapts up to 30s based on API responses
+- **Progress Tracking**: Saves progress every 5,000 CVEs for resume capability
+- **Error Recovery**: 5 retry attempts with exponential backoff and jitter
+- **Memory Efficient**: Processes CVEs in batches to handle large datasets
 
 ---
 
@@ -135,19 +166,28 @@ curl http://localhost:8080/requests    # Request tracking
 
 ## 🏗️ Architecture
 
-**Core Components:**
+**Package Structure:**
 
-- **CVE Processor**: Handles CVE → CWE → CAPEC → Techniques → D3FEND mapping
-- **Database Manager**: Downloads and processes CAPEC, CWE, Techniques, D3FEND data
-- **Pipeline Orchestrator**: Manages pipeline execution and monitoring
-- **Performance Optimizer**: HTTP session management, caching, thread pooling
-- **Error Handler**: Custom exceptions, structured logging, recovery strategies
-- **Rate Limiter**: API rate limiting with token bucket and sliding window algorithms
-- **Health Checker**: System health monitoring and alerting
-- **Request Tracker**: Request ID correlation and context-aware logging
-- **Metrics Collector**: Prometheus-compatible metrics collection
-- **Web Interface**: REST API for monitoring and control
-- **Config Validator**: JSON schema validation for configuration
+- **`tip.core`**: Core processing components
+  - **CVE Processor**: Handles CVE → CWE → CAPEC → ATT&CK → D3FEND mapping
+  - **Database Manager**: Downloads and processes CAPEC, CWE, ATT&CK, D3FEND data
+  - **Pipeline Orchestrator**: Manages pipeline execution and monitoring
+
+- **`tip.monitoring`**: Observability and monitoring
+  - **Health Checker**: System health monitoring and alerting
+  - **Metrics Collector**: Prometheus-compatible metrics collection
+  - **Request Tracker**: Request ID correlation and context-aware logging
+  - **Web Interface**: REST API for monitoring and control
+
+- **`tip.utils`**: Utility components
+  - **Config Manager**: Configuration management and validation
+  - **Error Handler**: Custom exceptions, structured logging, recovery strategies
+  - **Rate Limiter**: API rate limiting with token bucket and sliding window algorithms
+  - **Performance Optimizer**: HTTP session management, caching, thread pooling
+  - **Validation**: Data validation and integrity checks
+
+- **`tip.database`**: Database utilities
+  - **Database Optimizer**: Database performance and optimization
 
 **Data Flow:** Database Updates → CVE Retrieval → CVE Processing → Output Generation
 
@@ -203,25 +243,38 @@ curl http://localhost:8080/requests    # Request tracking
 Threat_Intelligence_Pipeline/
 ├── tip.py                    # 🎯 Main entry point
 ├── setup.py                  # 🛠️ Setup script for initialization
-├── pipeline_orchestrator.py  # 🎭 Unified orchestration
-├── cve_processor.py          # ⚙️ Unified CVE processing
-├── database_manager.py       # 🗄️ Unified database management
-├── config.py                 # ⚙️ Configuration management
 ├── config.json               # 📋 Configuration file
-├── database_optimizer.py     # 🚀 Database optimization
-├── performance_optimizer.py  # ⚡ Performance optimization
-├── error_handler.py          # 🛡️ Error handling
-├── error_recovery.py         # 🔄 Error recovery
-├── validation.py             # ✅ Data validation
-├── rate_limiter.py           # 🚦 API rate limiting
-├── health_check.py           # 🏥 Health monitoring
-├── request_tracker.py        # 📊 Request tracking
-├── metrics.py                # 📈 Metrics collection
-├── web_interface.py          # 🌐 Web API interface
-├── config_validator.py       # ✅ Configuration validation
 ├── requirements.txt          # 📦 Dependencies
+├── pyproject.toml            # 📦 Project configuration
 ├── LICENSE                   # 📄 License
 ├── lastUpdate.txt            # 🕒 Last update timestamp (generated)
+├── cve_progress.json         # 📊 CVE retrieval progress (temporary, auto-cleaned)
+├── src/                      # 📁 Source code package
+│   └── tip/                  # 🐍 Main package
+│       ├── __init__.py       # Package initialization
+│       ├── core/             # 🎯 Core functionality
+│       │   ├── __init__.py
+│       │   ├── pipeline_orchestrator.py  # 🎭 Unified orchestration
+│       │   ├── cve_processor.py          # ⚙️ Unified CVE processing
+│       │   └── database_manager.py       # 🗄️ Unified database management
+│       ├── monitoring/       # 📊 Monitoring & metrics
+│       │   ├── __init__.py
+│       │   ├── health_check.py           # 🏥 Health monitoring
+│       │   ├── metrics.py                # 📈 Metrics collection
+│       │   ├── request_tracker.py        # 📊 Request tracking
+│       │   └── web_interface.py          # 🌐 Web API interface
+│       ├── utils/            # 🛠️ Utilities
+│       │   ├── __init__.py
+│       │   ├── config.py                 # ⚙️ Configuration management
+│       │   ├── config_validator.py       # ✅ Configuration validation
+│       │   ├── error_handler.py          # 🛡️ Error handling
+│       │   ├── error_recovery.py         # 🔄 Error recovery
+│       │   ├── rate_limiter.py           # 🚦 API rate limiting
+│       │   ├── validation.py             # ✅ Data validation
+│       │   └── performance_optimizer.py  # ⚡ Performance optimization
+│       └── database/         # 🗄️ Database utilities
+│           ├── __init__.py
+│           └── database_optimizer.py     # 🚀 Database optimization
 ├── database/                 # 📊 CVE database files
 │   ├── CVE-1999.jsonl
 │   ├── CVE-2000.jsonl
@@ -279,6 +332,22 @@ python -m http.server 8000         # Start server
 
 ## 🆕 Recent Enhancements
 
+### Complete Historical Data Access
+
+- **Full CVE Database**: Now retrieves ALL 308,619+ CVEs from 1999 to present in a single run
+- **Adaptive Rate Limiting**: Intelligent rate limiting that starts at 0.5s and adapts up to 30s based on API responses
+- **Progress Tracking**: Saves progress every 5,000 CVEs for resume capability after interruptions
+- **Smart Error Handling**: 5 retry attempts with exponential backoff, jitter, and dynamic delay adjustment
+- **Single Run Completion**: No more need to run the script multiple times - gets everything in ~15 minutes
+
+### Professional Package Structure
+
+- **Clean Organization**: All Python modules organized into logical packages (`core`, `monitoring`, `utils`, `database`)
+- **Better Maintainability**: Related functionality grouped together for easier development and debugging
+- **Scalable Architecture**: Easy to add new modules in appropriate locations
+- **Python Best Practices**: Follows standard Python packaging conventions
+- **Clean Root Directory**: Only essential files remain in the root directory
+
 ### Production-Ready Features
 
 - **API Rate Limiting**: Prevents rate limit violations with token bucket and sliding window algorithms
@@ -303,6 +372,35 @@ python -m http.server 8000         # Start server
 - Comprehensive error recovery mechanisms
 - Production-grade logging and monitoring
 - Web-based operational interface
+- Resume capability for long-running operations
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Q: The pipeline stops with 429 errors - what should I do?**
+A: The pipeline now handles this automatically! It uses adaptive rate limiting and will retry with exponential backoff. Just let it run - it will complete all 308,619 CVEs in about 15 minutes.
+
+**Q: Can I resume if the pipeline gets interrupted?**
+A: Yes! The pipeline saves progress every 5,000 CVEs. If interrupted, just run `python tip.py --cve-only` again and it will resume from where it left off.
+
+**Q: How do I start fresh if I want to re-download everything?**
+A: Use `python tip.py --cve-only --clear-progress` to clear the progress file and start from the beginning.
+
+**Q: The pipeline seems slow - is this normal?**
+A: Yes! Retrieving 308,619 CVEs takes time. The adaptive rate limiting starts fast (0.5s delays) but increases delays as needed to respect API limits. This is normal and ensures you get all the data.
+
+**Q: Do I need an NVD API key?**
+A: It's highly recommended! Without it, you'll hit rate limits much faster. Get one free at: [NVD API Key Request](https://nvd.nist.gov/developers/request-an-api-key)
+
+### Performance Tips
+
+- **Use an NVD API key** for optimal performance
+- **Run during off-peak hours** for better API response times
+- **Ensure stable internet connection** for the ~15 minute download
+- **Monitor logs** to see progress (every 10,000 CVEs)
 
 ---
 
@@ -324,10 +422,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Original Author**: [Galeax](https://github.com/Galeax) for the initial design and implementation of the Threat Intelligence Pipeline
+- **Original Author**: [Galeax](https://github.com/Galeax) for the initial design and implementation that lead to this project.
 - **NVD (National Vulnerability Database)** for providing CVE data
-- **MITRE Corporation** for CAPEC, CWE, and ATT&CK frameworks
-- **D3FEND** for defensive countermeasure mappings
+- **MITRE Corporation** for CAPEC, CWE, ATT&CK and D3FEND frameworks
 - **Open source community** for the excellent tools and libraries
 
 ---
