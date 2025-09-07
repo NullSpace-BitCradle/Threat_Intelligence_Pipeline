@@ -9,7 +9,7 @@ from functools import wraps
 from enum import Enum
 from dataclasses import dataclass
 from error_handler import (
-    ErrorHandler, ErrorContext, ErrorCategory, ErrorSeverity,
+    ErrorContext, ErrorCategory, ErrorSeverity,
     APIError, NetworkError, DatabaseError, ProcessingError,
     global_error_handler
 )
@@ -69,8 +69,9 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except self.config.expected_exception as e:
-            self._on_failure()
+        except Exception as e:
+            if isinstance(e, self.config.expected_exception):
+                self._on_failure()
             raise e
     
     def _should_attempt_reset(self) -> bool:
@@ -121,7 +122,10 @@ class RetryManager:
                 self.logger.warning(f"Attempt {attempt} failed: {e}. Retrying in {delay:.2f}s...")
                 time.sleep(delay)
         
-        raise last_exception
+        if last_exception:
+            raise last_exception
+        else:
+            raise RuntimeError("No attempts were made")
     
     def _calculate_delay(self, attempt: int) -> float:
         """Calculate delay based on retry strategy"""
@@ -201,7 +205,10 @@ class ErrorRecoveryManager:
                     self.logger.error(f"Recovery strategy failed: {recovery_error}")
             
             # Log error and re-raise
-            global_error_handler.handle_error(e, context)
+            if context:
+                global_error_handler.handle_error(e, context)
+            else:
+                global_error_handler.handle_error(e)
             raise
 
 # Global recovery manager

@@ -15,6 +15,7 @@ from pathlib import Path
 import threading
 from functools import wraps
 from config import get_config
+from request_tracker import get_current_request_id, log_with_request_context
 
 config = get_config()
 
@@ -215,8 +216,22 @@ class ErrorHandler:
             category = self._classify_error(error)
             severity = self._determine_severity(error)
         
-        # Generate unique error ID
+        # Generate unique error ID with request context
+        request_id = get_current_request_id()
         error_id = f"{category.value}_{int(datetime.now().timestamp())}"
+        if request_id:
+            error_id = f"{request_id}_{error_id}"
+        
+        # Enhance context with request information
+        if context:
+            context.additional_data = context.additional_data or {}
+            context.additional_data['request_id'] = request_id
+        else:
+            context = ErrorContext(
+                operation="unknown", 
+                component="unknown",
+                additional_data={'request_id': request_id}
+            )
         
         return ErrorRecord(
             timestamp=datetime.now().isoformat(),
@@ -227,7 +242,7 @@ class ErrorHandler:
             exception_type=type(error).__name__,
             exception_message=str(error),
             traceback=traceback.format_exc(),
-            context=context or ErrorContext(operation="unknown", component="unknown"),
+            context=context,
             retry_count=retry_count
         )
     

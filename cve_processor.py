@@ -4,6 +4,7 @@ Unified CVE processing pipeline
 Combines all CVE processing steps into a single, efficient class
 """
 import json
+import re
 import sys
 import requests  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,6 +30,9 @@ from validation import (
     validate_cve_data, validate_cwe_id, validate_capec_id,
     safe_parse_capec_techniques, logger
 )
+from rate_limiter import rate_limit, adaptive_rate_limit
+from metrics import track_api_metrics, track_cve_processing_metrics, record_error
+from request_tracker import track_request, get_current_request_id
 
 config = get_config()
 config.setup_logging()
@@ -53,6 +57,9 @@ class CVEProcessor:
         self.capec_db = self._load_capec_db()
         self.techniques_db = self._load_techniques_db()
     
+    @rate_limit("nvd_api", 10.0, burst_size=20)  # 10 calls per second with burst of 20
+    @track_api_metrics("nvd", "GET")
+    @track_request("retrieve_cves", "cve_processor")
     def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Retrieve CVEs from NVD API"""
         try:
@@ -122,7 +129,6 @@ class CVEProcessor:
                     if desc.get('lang') == 'en':
                         desc_text = desc.get('value', '')
                         # Look for CWE patterns in description
-                        import re
                         cwe_matches = re.findall(r'CWE-(\d+)', desc_text)
                         cwe_ids.extend([f"CWE-{match}" for match in cwe_matches])
                 
@@ -235,6 +241,8 @@ class CVEProcessor:
         return []
     
     @log_operation("process_cve_pipeline", "cve_processing")
+    @track_cve_processing_metrics("process_cve_pipeline")
+    @track_request("process_cve_pipeline", "cve_processor")
     def process_cve_pipeline(self, cve_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single CVE through the entire pipeline"""
         result = {}

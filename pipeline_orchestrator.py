@@ -25,6 +25,8 @@ from error_recovery import with_recovery, create_data_context
 from performance_optimizer import (
     performance_timer, get_performance_monitor, get_performance_summary
 )
+from health_check import get_health_status, is_healthy
+from metrics import get_pipeline_metrics, update_pipeline_status
 
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
@@ -334,10 +336,15 @@ class PipelineOrchestrator:
     
     def get_pipeline_status(self) -> Dict[str, Any]:
         """Get current pipeline status"""
+        # Update pipeline status metrics
+        pipeline_ready = self._is_pipeline_ready()
+        update_pipeline_status("pipeline_orchestrator", pipeline_ready)
+        
         return {
             'database_status': self.db_manager.get_database_status(),
             'last_update': self._get_last_update_time(),
-            'pipeline_ready': self._is_pipeline_ready()
+            'pipeline_ready': pipeline_ready,
+            'health_status': get_health_status()
         }
     
     def _get_last_update_time(self) -> Optional[str]:
