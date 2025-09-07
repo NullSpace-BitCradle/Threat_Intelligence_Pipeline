@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
+from config_validator import validate_config, ConfigValidator
 
 logger = logging.getLogger(__name__)
 
@@ -148,37 +149,25 @@ class Config:
     
     def validate(self) -> bool:
         """
-        Validate configuration
+        Validate configuration using JSON schema validation
         
         Returns:
             True if configuration is valid
         """
-        required_keys = [
-            'api.nvd.base_url',
-            'database.capec.url',
-            'database.cwe.url',
-            'files.cve_output'
-        ]
+        # Use the comprehensive validator
+        validator = ConfigValidator()
+        is_valid = validator.validate_config(self.config)
         
-        for key in required_keys:
-            if self.get(key) is None:
-                logger.error(f"Missing required configuration key: {key}")
-                return False
+        if not is_valid:
+            logger.error("Configuration validation failed:")
+            for error in validator.get_errors():
+                logger.error(f"  - {error}")
         
-        # Validate numeric values
-        numeric_keys = [
-            'api.nvd.timeout',
-            'api.nvd.retry_limit',
-            'processing.max_threads'
-        ]
+        # Log warnings
+        for warning in validator.get_warnings():
+            logger.warning(f"Configuration warning: {warning}")
         
-        for key in numeric_keys:
-            value = self.get(key)
-            if not isinstance(value, (int, float)) or value <= 0:
-                logger.error(f"Invalid numeric value for {key}: {value}")
-                return False
-        
-        return True
+        return is_valid
     
     def get_api_key(self, api_name: str) -> Optional[str]:
         """
