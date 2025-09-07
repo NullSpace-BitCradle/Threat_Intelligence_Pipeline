@@ -11,11 +11,11 @@ import threading
 import logging
 from typing import Dict, Any
 
-from health_check import get_health_status, health_check_endpoint
-from metrics import export_metrics, get_metrics_summary
-from request_tracker import get_request_summary
-from pipeline_orchestrator import PipelineOrchestrator
-from config import get_config
+from tip.monitoring.health_check import get_health_status, health_check_endpoint
+from tip.monitoring.metrics import export_metrics, get_metrics_summary
+from tip.monitoring.request_tracker import get_request_summary
+from tip.core.pipeline_orchestrator import PipelineOrchestrator
+from tip.utils.config import get_config
 
 logger = logging.getLogger(__name__)
 
