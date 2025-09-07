@@ -11,12 +11,13 @@ The ATT&CK Navigator is hosted live via GitHub Pages. [You can find a live insta
 Version 4.0+ of the ATT&CK Navigator supports all ATT&CK domains in a single instance of the application instead of requiring a different instance for each domain. Additionally, older versions of ATT&CK can be loaded in the application. The ATT&CK Navigator supports ATT&CK versions 4+. Older versions do not work in the application since their data model is too outdated.
 
 Previous versions of the Navigator application are also hosted via GitHub Pages for users who want a more classic experience:
+
 | ATT&CK Version | Navigator Version | Domains | |
 |:---------------|:------------------|:--------|-|
 | [ATT&CK v7.2](https://attack.mitre.org/resources/versions/) | [Navigator v3.1](https://github.com/mitre-attack/attack-navigator/releases/tag/v3.1) | [Enterprise](https://mitre-attack.github.io/attack-navigator/v3/enterprise/) | [Mobile](https://mitre-attack.github.io/attack-navigator/v3/mobile/) |
 | [ATT&CK v6.3](https://attack.mitre.org/resources/versions/) | [Navigator v2.3.2](https://github.com/mitre-attack/attack-navigator/releases/tag/v2.3.2) | [Enterprise](https://mitre-attack.github.io/attack-navigator/v2/enterprise/) | [Mobile](https://mitre-attack.github.io/attack-navigator/v2/mobile/) |
 
-Please see [Install and Run](#Install-and-Run) for information on how to get the ATT&CK Navigator set up locally.
+Please see [Install and Run](#install-and-run) for information on how to get the ATT&CK Navigator set up locally.
 
 **Important Note:** Layer files uploaded when visiting our Navigator instance hosted on GitHub Pages are **NOT** being stored on the server side, as the Navigator is a client-side only application. However, we still recommend installing and running your own instance of the ATT&CK Navigator if your layer files contain any sensitive content.
 
@@ -33,10 +34,10 @@ Use our [GitHub Issue Tracker](https://github.com/mitre-attack/attack-navigator/
 
 * Chrome
 * Firefox
-* Internet Explorer 11<sup>[1]</sup>
+* Internet Explorer 11^[1]
 * Edge
 * Opera
-* Safari<sup>[2]</sup>
+* Safari^[2]
 
 **[1]** There is a recorded issue with the SVG export feature on Internet Explorer. Because of a [missing functionality on SVGElements](https://developer.mozilla.org/en-US/docs/Web/API/ParentNode/children) in that browser, text will not be properly vertically centered in SVGs exported in that browser. We recommend switching to a more modern browser for optimal results.
 
@@ -59,15 +60,16 @@ Use our [GitHub Issue Tracker](https://github.com/mitre-attack/attack-navigator/
 1. Run `ng build` within the **nav-app** directory
 2. Copy files from `nav-app/dist/` directory
 
-_Note: `ng build --configuration production` does not currently work for ATT&CK Navigator without additional flags. To build the production environment instead use `ng build --configuration production --aot=false --build-optimizer=false`._
+*Note: `ng build --configuration production` does not currently work for ATT&CK Navigator without additional flags. To build the production environment instead use `ng build --configuration production --aot=false --build-optimizer=false`.*
 
 ### Running the Navigator offline
 
 1. Install the Navigator as per instructions above.
-2. Follow instructions under [loading content from local files](#Loading-content-from-local-files) to configure the Navigator to populate the matrix without an internet connection. The latest MITRE ATT&CK data files can be found here:
-	- [Enterprise ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/enterprise-attack/enterprise-attack.json).
-	- [Mobile ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/mobile-attack/mobile-attack.json).
-	- [ICS ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/ics-attack/ics-attack.json).
+2. Follow instructions under [loading content from local files](#loading-content-from-local-files) to configure the Navigator to populate the matrix without an internet connection. The latest MITRE ATT&CK data files can be found here:
+
+* [Enterprise ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/enterprise-attack/enterprise-attack.json)
+* [Mobile ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/mobile-attack/mobile-attack.json)
+* [ICS ATT&CK](https://github.com/mitre-attack/attack-stix-data/raw/master/ics-attack/ics-attack.json)
 
 ## Documentation
 
@@ -130,7 +132,7 @@ Example custom context menu objects:
 
 ### Loading content from a Collection Index
 
-By default, the Navigator loads content from the ATT&CK Collection Index hosted on the [ATT&CK STIX Data repository](#related-mitre-work). More information about Collection Indexes can be found [here](https://github.com/mitre-attack/attack-stix-data?tab=readme-ov-file#collection-indexes).
+By default, the Navigator loads content from the ATT&CK Collection Index hosted on the [ATT&CK STIX Data repository](#related-mitre-work). More information about Collection Indexes can be found [in the repository documentation](https://github.com/mitre-attack/attack-stix-data?tab=readme-ov-file#collection-indexes).
 
 1. Modify the `config.json` file located in the `src/assets` directory.
 2. Set the `collection_index_url` property to the URL of your Collection Index (for example, `"collection_index_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/index.json"`)
@@ -139,52 +141,52 @@ By default, the Navigator loads content from the ATT&CK Collection Index hosted 
 
 ### Loading content from a TAXII server
 
-Both TAXII 2.0 and TAXII 2.1 are currently supported. Support for TAXII 2.0 will be deprecated in December 2024. More information about the TAXII 2.1 Server can be found [here](https://github.com/mitre-attack/attack-workbench-taxii-server/tree/main).
+Both TAXII 2.0 and TAXII 2.1 are currently supported. Support for TAXII 2.0 will be deprecated in December 2024. More information about the TAXII 2.1 Server can be found [in the TAXII server repository](https://github.com/mitre-attack/attack-workbench-taxii-server/tree/main).
 
 1. Modify the `config.json` file located in the `src/assets` directory.
 2. In the `versions` section, set the `enabled` property to `true`.
 3. Define the `taxii_url` property in the list of domains, in place of the domain `data` property, and set its value to the TAXII server URL.
 4. Define the `taxii_collection` property and set its value to the collection UUID as determined by the TAXII server.
 
-#### Example loading content from a TAXII 2.0 server:
+#### Example loading content from a TAXII 2.0 server
 
 ```json
 "versions": {
-	"enabled": true,
-	"entries": [
-		{
-			"name": "Enterprise TAXII 2.0 Data",
-			"version": "14",
-			"domains": [
-				{
-					"name": "Enterprise",
-					"taxii_url": "https://cti-taxii.mitre.org/",
-					"taxii_collection": "95ecc380-afe9-11e4-9b6c-751b66dd541e"
-				}
-			]
-		}
-	]
+    "enabled": true,
+    "entries": [
+        {
+            "name": "Enterprise TAXII 2.0 Data",
+            "version": "14",
+            "domains": [
+                {
+                    "name": "Enterprise",
+                    "taxii_url": "https://cti-taxii.mitre.org/",
+                    "taxii_collection": "95ecc380-afe9-11e4-9b6c-751b66dd541e"
+                }
+            ]
+        }
+    ]
 },
 ```
 
-#### Example loading content from a TAXII 2.1 server:
+#### Example loading content from a TAXII 2.1 server
 
 ```json
 "versions": {
-	"enabled": true,
-	"entries": [
-		{
-			"name": "Enterprise TAXII 2.1 Data",
-			"version": "14",
-			"domains": [
-				{
-					"name": "Enterprise",
-					"taxii_url": "https://attack-taxii.mitre.org/",
-					"taxii_collection": "x-mitre-collection--1f5f1533-f617-4ca8-9ab4-6a02367fa019"
-				}
-			]
-		}
-	]
+    "enabled": true,
+    "entries": [
+        {
+            "name": "Enterprise TAXII 2.1 Data",
+            "version": "14",
+            "domains": [
+                {
+                    "name": "Enterprise",
+                    "taxii_url": "https://attack-taxii.mitre.org/",
+                    "taxii_collection": "x-mitre-collection--1f5f1533-f617-4ca8-9ab4-6a02367fa019"
+                }
+            ]
+        }
+    ]
 },
 ```
 
@@ -197,7 +199,7 @@ Navigator can be populated using files that consist of bundles of STIX objects, 
 3. In the `versions` section, set the `enabled` property to `true`.
 4. Update the URL specified in the `data` array to the path to the STIX bundle (for example, `assets/enterprise-attack.json`). Multiple paths may be added to the `data` array to display multiple STIX bundles in a single instance.
 
-#### Example loading content from local files:
+#### Example loading content from local files
 
 ```json
 "versions": {
@@ -264,7 +266,7 @@ relating to that feature it will not be hidden. For example, if `comments` are d
 ability to add a new comment annotation will be removed, however if a layer is uploaded with
 comments present they will still be displayed in tooltips and and marked with an underline.
 
-Features can also be disabled using the _create customized Navigator_ feature. Refer to the in-application help page section "Customizing the Navigator" for more details.
+Features can also be disabled using the *create customized Navigator* feature. Refer to the in-application help page section "Customizing the Navigator" for more details.
 
 ## Embedding the Navigator in a Webpage
 
@@ -274,9 +276,9 @@ If you want to embed the Navigator in a webpage, use an iframe:
 <iframe src="https://mitre-attack.github.io/attack-navigator/enterprise/" width="1000" height="500"></iframe>
 ```
 
-If you want to embed a version of the Navigator with specific features removed (e.g tabs, adding annotations), or with a default layer, we recommend using the _create customized Navigator_ feature. We highly recommend disabling the "leave site dialog" via this means when embedding the Navigator since otherwise you will be warned whenever you try to leave the embedding page. Refer to the in-application help page section "Customizing the Navigator" for more details.
+If you want to embed a version of the Navigator with specific features removed (e.g tabs, adding annotations), or with a default layer, we recommend using the *create customized Navigator* feature. We highly recommend disabling the "leave site dialog" via this means when embedding the Navigator since otherwise you will be warned whenever you try to leave the embedding page. Refer to the in-application help page section "Customizing the Navigator" for more details.
 
-The following is an example iframe which embeds our [*Bear APTs](layers/samples/Bear_APT.json) layer with tabs and the ability to add annotations removed:
+The following is an example iframe which embeds our [Bear APTs layer](layers/samples/Bear_APT.json) with tabs and the ability to add annotations removed:
 
 ```HTML
 <iframe src="https://mitre-attack.github.io/attack-navigator/enterprise/#layerURL=https%3A%2F%2Fraw.githubusercontent.com%2Fmitre%2Fattack-navigator%2Fmaster%2Flayers%2Fdata%2Fsamples%2FBear_APT.json&tabs=false&selecting_techniques=false" width="1000" height="500"></iframe>
