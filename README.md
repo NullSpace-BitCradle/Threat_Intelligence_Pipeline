@@ -1,5 +1,8 @@
 # Threat Intelligence Pipeline (TIP)
 
+> **⚠️ Work in Progress**  
+> This project is actively under development with many exciting features and integrations planned for the future. While the core functionality is stable and production-ready, expect regular updates and enhancements as time permits.
+
 ## 🎯 Overview
 
 The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability analysis system that automatically retrieves, processes, and correlates Common Vulnerabilities and Exposures (CVEs) with their corresponding Common Weakness Enumeration (CWE), Common Attack Pattern Enumeration and Classification (CAPEC), and MITRE ATT&CK & D3FEND techniques.
