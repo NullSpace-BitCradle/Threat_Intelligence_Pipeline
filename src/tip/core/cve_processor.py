@@ -31,6 +31,7 @@ from tip.utils.validation import (
     validate_cve_data, validate_cwe_id, validate_capec_id,
     safe_parse_capec_techniques, logger
 )
+from tip.core.owasp_processor import OWASPProcessor
 from tip.utils.rate_limiter import rate_limit, adaptive_rate_limit
 from tip.monitoring.metrics import track_api_metrics, track_cve_processing_metrics, record_error
 from tip.monitoring.request_tracker import track_request, get_current_request_id
@@ -57,6 +58,9 @@ class CVEProcessor:
         self.cwe_db = self._load_cwe_db()
         self.capec_db = self._load_capec_db()
         self.techniques_db = self._load_techniques_db()
+        
+        # Initialize OWASP processor
+        self.owasp_processor = OWASPProcessor(self.config.config)
     
     @track_api_metrics("nvd", "GET")
     @track_request("retrieve_cves", "cve_processor")
@@ -384,6 +388,10 @@ class CVEProcessor:
                 
                 result[cve_id]["DEFEND"] = list(sorted(defend_list))
                 
+                # Step 5: Get OWASP Top 10 categories
+                owasp_categories = self.owasp_processor.get_owasp_categories_for_cve(data)
+                result[cve_id]["OWASP"] = owasp_categories
+                
             except Exception as e:
                 self.logger.error(f"Error processing CVE {cve_id}: {e}")
                 # Return partial result
@@ -391,7 +399,8 @@ class CVEProcessor:
                     "CWE": data.get('CWE', []),
                     "CAPEC": [],
                     "TECHNIQUES": [],
-                    "DEFEND": []
+                    "DEFEND": [],
+                    "OWASP": []
                 }
         
         return result

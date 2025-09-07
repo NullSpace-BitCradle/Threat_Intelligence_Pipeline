@@ -165,28 +165,16 @@ async function process(page_load = false) {
     let techniquesAssoc, cweDataRaw, capecDataRaw, defendText = '';
     try {
         techniquesAssoc = await fetchWithFallback([
-            'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/techniques_association.json',
-            'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/techniques_association.json',
-            'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/techniques_association.json',
             '/resources/techniques_association.json'
         ]);
         cweDataRaw = await fetchWithFallback([
-            'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/cwe_db.json',
-            'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/cwe_db.json',
-            'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/cwe_db.json',
             '/resources/cwe_db.json'
         ]);
         capecDataRaw = await fetchWithFallback([
-            'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/capec_db.json',
-            'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/capec_db.json',
-            'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/capec_db.json',
             '/resources/capec_db.json'
         ]);
         if (wantDefend) {
             defendText = await fetchWithFallback([
-                'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/defend_db.jsonl',
-                'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/defend_db.jsonl',
-                'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/defend_db.jsonl',
                 '/resources/defend_db.jsonl'
             ], true);
         }
@@ -222,9 +210,6 @@ async function process(page_load = false) {
         var database;
         try {
             var responseText = await fetchWithFallback([
-                `https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/database/CVE-${year}.jsonl`,
-                `https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/database/CVE-${year}.jsonl`,
-                `https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/database/CVE-${year}.jsonl`,
                 `/database/CVE-${year}.jsonl`
             ], true);
             database = {};
@@ -285,6 +270,13 @@ async function process(page_load = false) {
                     });
                 });
             })
+            
+            // Process OWASP categories
+            if (cveData.OWASP && cveData.OWASP.length > 0) {
+                cveData.OWASP.forEach(owasp => {
+                    data.push({ source: cve, target: 'OWASP-' + owasp, value: 1 });
+                });
+            }
         })
     }
 
@@ -314,7 +306,26 @@ async function process(page_load = false) {
     });
     var chartLinks = Array.from(data);
 
-    chart_nodes = Array.from(chartNodes).map(node => ({ name: node }))
+    chart_nodes = Array.from(chartNodes).map(node => {
+        let nodeStyle = { name: node };
+        
+        // Add styling based on node type
+        if (node.startsWith('CVE-')) {
+            nodeStyle.itemStyle = { color: '#ff6b6b' }; // Red for CVEs
+        } else if (node.startsWith('CWE-')) {
+            nodeStyle.itemStyle = { color: '#4ecdc4' }; // Teal for CWEs
+        } else if (node.startsWith('CAPEC-')) {
+            nodeStyle.itemStyle = { color: '#45b7d1' }; // Blue for CAPEC
+        } else if (node.startsWith('T')) {
+            nodeStyle.itemStyle = { color: '#96ceb4' }; // Green for Techniques
+        } else if (node.startsWith('D3F-')) {
+            nodeStyle.itemStyle = { color: '#feca57' }; // Yellow for D3FEND
+        } else if (node.startsWith('OWASP-')) {
+            nodeStyle.itemStyle = { color: '#ff9ff3' }; // Pink for OWASP
+        }
+        
+        return nodeStyle;
+    })
     chart_links = data
 
     var option = {
