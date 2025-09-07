@@ -97,6 +97,7 @@ echo NVD_API_KEY=your-api-key-here > .env
 ## 📊 System Status & Monitoring
 
 ### Command Line Monitoring
+
 ```bash
 # System health check
 python tip.py --health-check
@@ -109,6 +110,7 @@ python tip.py --status
 ```
 
 ### Web Interface Monitoring
+
 ```bash
 # Start web interface
 python tip.py --web-interface --web-port 8080
@@ -121,6 +123,7 @@ curl http://localhost:8080/requests    # Request tracking
 ```
 
 ### Available Metrics
+
 - **API Metrics**: Request counts, durations, success rates
 - **Database Metrics**: Operation counts, performance, error rates
 - **CVE Processing**: Processing times, success rates, throughput
@@ -157,6 +160,7 @@ curl http://localhost:8080/requests    # Request tracking
 **Main config:** `config.json` - API settings, database URLs, processing parameters, logging
 
 **Configuration Validation:**
+
 - JSON schema validation ensures configuration correctness
 - Detailed error reporting for invalid configurations
 - Automatic validation on startup
@@ -167,6 +171,7 @@ curl http://localhost:8080/requests    # Request tracking
 - `LOG_LEVEL`: Override logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
 **New Configuration Options:**
+
 ```json
 {
   "processing": {
@@ -244,6 +249,7 @@ Threat_Intelligence_Pipeline/
 ## 🌐 Web Interface
 
 ### Monitoring & Control API
+
 ```bash
 # Start web interface
 python tip.py --web-interface --web-port 8080
@@ -262,6 +268,7 @@ curl -X POST http://localhost:8080/api/process-cves     # Process CVEs
 ```
 
 ### MITRE ATT&CK Visualization
+
 ```bash
 python setup.py                    # Run setup (if not done)
 python -m http.server 8000         # Start server
@@ -273,6 +280,7 @@ python -m http.server 8000         # Start server
 ## 🆕 Recent Enhancements
 
 ### Production-Ready Features
+
 - **API Rate Limiting**: Prevents rate limit violations with token bucket and sliding window algorithms
 - **Health Monitoring**: Comprehensive system health checks for database, API, and resource monitoring
 - **Request Tracking**: Context-aware logging with request ID correlation for better debugging
@@ -281,6 +289,7 @@ python -m http.server 8000         # Start server
 - **Web Interface**: REST API for monitoring, control, and metrics export
 
 ### Monitoring & Observability
+
 - Real-time health status monitoring
 - Performance metrics collection and export
 - Request correlation and debugging
@@ -288,6 +297,7 @@ python -m http.server 8000         # Start server
 - System resource monitoring
 
 ### Operational Excellence
+
 - Circuit breaker patterns for fault tolerance
 - Adaptive rate limiting with backoff strategies
 - Comprehensive error recovery mechanisms
