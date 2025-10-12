@@ -7,6 +7,9 @@
 
 The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability analysis system that automatically retrieves, processes, and correlates Common Vulnerabilities and Exposures (CVEs) with their corresponding Common Weakness Enumeration (CWE), Common Attack Pattern Enumeration and Classification (CAPEC), OWASP Top 10 2021 categories, and MITRE ATT&CK & D3FEND techniques.
 
+![CVE Data Flow Visualization](images/CVE_Data_Flow.png)
+*Interactive Sankey diagram showing the complete data flow: CVE → CWE → CAPEC → OWASP → ATT&CK Techniques → D3FEND*
+
 ## 🚀 Key Features
 
 - **Complete Historical Data**: Fetches ALL CVEs from 1999 to present (308,619+ CVEs) in a single run
@@ -328,6 +331,20 @@ python tip.py --web-interface --web-port 8080
 - **Real-time Data Processing**: Live correlation with CWE, CAPEC, OWASP, and MITRE ATT&CK data
 - **Sankey Diagram Visualization**: Interactive flow diagrams showing vulnerability relationships including OWASP categories
 - **D3FEND Integration**: Defensive technique mapping and visualization
+
+#### 📸 Screenshots
+
+**OWASP Top 10 Category Breakdown**
+![OWASP Top 10 Visualization](images/OWASP_Top_10.png)
+*Interactive cards showing affected OWASP security categories with CVE counts*
+
+**MITRE ATT&CK Matrix**
+![MITRE ATT&CK Matrix](images/MITRE_ATT&CK.png)
+*MITRE ATT&CK Navigator showing highlighted attack techniques from CVE analysis*
+
+**MITRE D3FEND Countermeasures**
+![MITRE D3FEND](images/MITRE_D3FEND.png)
+*Defensive techniques mapped from attack patterns*
 
 ### API Endpoints
 
