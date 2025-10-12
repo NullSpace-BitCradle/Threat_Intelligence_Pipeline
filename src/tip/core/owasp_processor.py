@@ -27,8 +27,8 @@ class OWASPProcessor:
         """Initialize OWASP processor with configuration"""
         self.config = config
         self.owasp_db_path = Path("resources/owasp_db.json")
-        self.cwe_owasp_mapping = {}
-        self.owasp_categories = {}
+        self.cwe_owasp_mapping: Dict[str, List[str]] = {}
+        self.owasp_categories: Dict[str, Dict[str, Any]] = {}
         self._load_owasp_database()
     
     def _load_owasp_database(self):
@@ -48,89 +48,97 @@ class OWASPProcessor:
             self._create_default_owasp_mapping()
     
     def _create_default_owasp_mapping(self):
-        """Create default OWASP Top 10 2021 mapping based on MITRE CWE-1344"""
+        """Create default OWASP Top 10 2021 mapping based on MITRE CWE-1344 and official OWASP sources"""
         # OWASP Top 10 2021 categories with their associated CWE IDs
-        # Based on MITRE CWE-1344: Weaknesses in OWASP Top Ten (2021)
+        # Combined from MITRE CWE-1344 and OWASP official documentation
         self.owasp_categories = {
             "A01:2021": {
                 "name": "Broken Access Control",
                 "description": "Access control enforces policy such that users cannot act outside of their intended permissions.",
                 "cwe_ids": [
-                    "285", "639", "639", "200", "285", "639", "200", "285", "639", "200",
-                    "285", "639", "200", "285", "639", "200", "285", "639", "200", "285",
-                    "639", "200", "285", "639", "200", "285", "639", "200", "285", "639"
+                    "22", "23", "35", "59", "200", "201", "219", "264", "275", "276", "284", "285",
+                    "352", "359", "377", "402", "425", "441", "497", "538", "540", "548", "552",
+                    "566", "601", "639", "651", "668", "706", "732", "766", "770", "774", "862",
+                    "863", "913", "922", "1275", "1321", "1220"
                 ]
             },
             "A02:2021": {
                 "name": "Cryptographic Failures",
                 "description": "Previously known as Sensitive Data Exposure, which was broad symptom rather than a root cause.",
                 "cwe_ids": [
-                    "327", "328", "329", "330", "331", "332", "333", "334", "335", "336",
-                    "337", "338", "339", "340", "341", "342", "343", "344", "345", "346"
+                    "261", "296", "310", "319", "321", "322", "323", "324", "325", "326", "327",
+                    "328", "329", "330", "331", "335", "336", "337", "338", "340", "347", "359",
+                    "523", "720", "757", "759", "760", "780", "818", "916"
                 ]
             },
             "A03:2021": {
                 "name": "Injection",
                 "description": "Injection flaws, such as SQL, NoSQL, OS, and LDAP injection, occur when untrusted data is sent to an interpreter as part of a command or query.",
                 "cwe_ids": [
-                    "89", "90", "91", "564", "943", "943", "943", "943", "943", "943",
-                    "943", "943", "943", "943", "943", "943", "943", "943", "943", "943"
+                    "20", "74", "75", "77", "78", "79", "80", "83", "87", "88", "89", "90", "91",
+                    "93", "94", "95", "96", "97", "98", "99", "100", "113", "116", "138", "184",
+                    "470", "471", "564", "610", "643", "644", "652", "917", "1275", "1287", "1321"
                 ]
             },
             "A04:2021": {
                 "name": "Insecure Design",
                 "description": "Insecure design is a broad category representing different weaknesses, expressed as 'missing or ineffective control design'.",
                 "cwe_ids": [
-                    "209", "213", "214", "215", "216", "217", "218", "219", "220", "221",
-                    "222", "223", "224", "225", "226", "227", "228", "229", "230", "231"
+                    "73", "183", "184", "209", "213", "235", "256", "257", "266", "269", "280",
+                    "311", "312", "313", "316", "325", "326", "327", "328", "329", "330", "331",
+                    "335", "336", "337", "338", "340", "347", "359", "384", "400", "434", "441",
+                    "501", "522", "525", "539", "540", "595", "598", "602", "642", "646", "650",
+                    "653", "656", "657", "799", "807", "840", "841", "927", "1021", "1173", "1220"
                 ]
             },
             "A05:2021": {
                 "name": "Security Misconfiguration",
                 "description": "The application might be vulnerable if the application is: Missing appropriate security hardening across any part of the application stack.",
                 "cwe_ids": [
-                    "2", "11", "13", "15", "16", "17", "18", "19", "20", "21",
-                    "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"
+                    "2", "11", "13", "15", "16", "260", "315", "520", "526", "537", "541", "547",
+                    "611", "614", "756", "776", "942", "1004", "1032", "1174", "1177", "1188",
+                    "1233", "1236", "1250", "1260", "1262", "1263", "1272", "1275", "1276"
                 ]
             },
             "A06:2021": {
                 "name": "Vulnerable and Outdated Components",
                 "description": "You are likely vulnerable if you do not know the versions of all components you use (both client-side and server-side).",
                 "cwe_ids": [
-                    "1104", "1105", "1106", "1107", "1108", "1109", "1110", "1111", "1112", "1113",
-                    "1114", "1115", "1116", "1117", "1118", "1119", "1120", "1121", "1122", "1123"
+                    "829", "1035", "1104"
                 ]
             },
             "A07:2021": {
                 "name": "Identification and Authentication Failures",
                 "description": "Confirmation of the user's identity, authentication, and session management is critical to protect against authentication-related attacks.",
                 "cwe_ids": [
-                    "287", "288", "289", "290", "291", "292", "293", "294", "295", "296",
-                    "297", "298", "299", "300", "301", "302", "303", "304", "305", "306"
+                    "255", "259", "287", "288", "290", "294", "295", "297", "300", "302", "304",
+                    "306", "307", "309", "311", "312", "319", "321", "322", "323", "324", "325",
+                    "326", "327", "328", "329", "330", "331", "335", "336", "337", "338", "340",
+                    "347", "384", "521", "522", "523", "549", "560", "561", "562", "563", "564",
+                    "565", "620", "640", "798", "1216", "1244", "1274", "1275", "1295", "1390"
                 ]
             },
             "A08:2021": {
                 "name": "Software and Data Integrity Failures",
                 "description": "Software and data integrity failures relate to code and infrastructure that does not protect against integrity violations.",
                 "cwe_ids": [
-                    "345", "346", "347", "348", "349", "350", "351", "352", "353", "354",
-                    "355", "356", "357", "358", "359", "360", "361", "362", "363", "364"
+                    "345", "353", "426", "494", "502", "565", "784", "829", "830", "912", "915",
+                    "1321"
                 ]
             },
             "A09:2021": {
                 "name": "Security Logging and Monitoring Failures",
                 "description": "This category is to help detect, escalate, and respond to active breaches.",
                 "cwe_ids": [
-                    "223", "224", "225", "226", "227", "228", "229", "230", "231", "232",
-                    "233", "234", "235", "236", "237", "238", "239", "240", "241", "242"
+                    "117", "223", "224", "225", "319", "532", "533", "534", "537", "538", "539",
+                    "540", "541", "778", "779", "780", "862", "863", "1009", "1275", "1295"
                 ]
             },
             "A10:2021": {
                 "name": "Server-Side Request Forgery (SSRF)",
                 "description": "SSRF flaws occur whenever a web application is fetching a remote resource without validating the user-supplied URL.",
                 "cwe_ids": [
-                    "918", "919", "920", "921", "922", "923", "924", "925", "926", "927",
-                    "928", "929", "930", "931", "932", "933", "934", "935", "936", "937"
+                    "918"
                 ]
             }
         }
@@ -207,7 +215,7 @@ class OWASPProcessor:
         total_categories = len(self.owasp_categories)
         
         # Count CWE mappings per category
-        category_counts = {}
+        category_counts: Dict[str, int] = {}
         for cwe_id, categories in self.cwe_owasp_mapping.items():
             for category in categories:
                 category_counts[category] = category_counts.get(category, 0) + 1

@@ -223,21 +223,37 @@ class CVEProcessor:
                 if not cve_id:
                     continue
                 
-                # Extract CWE IDs from descriptions
+                # Extract CWE IDs - Primary method: from weaknesses field
                 cwe_ids = []
-                descriptions = cve_data.get('cve', {}).get('descriptions', [])
-                for desc in descriptions:
-                    if desc.get('lang') == 'en':
-                        desc_text = desc.get('value', '')
-                        # Look for CWE patterns in description
-                        cwe_matches = re.findall(r'CWE-(\d+)', desc_text)
-                        cwe_ids.extend([f"CWE-{match}" for match in cwe_matches])
                 
-                # Remove duplicates
-                cwe_ids = list(set(cwe_ids))
+                # Method 1: Extract from weaknesses field (proper NVD API structure)
+                weaknesses = cve_data.get('cve', {}).get('weaknesses', [])
+                for weakness in weaknesses:
+                    for desc in weakness.get('description', []):
+                        cwe_value = desc.get('value', '')
+                        if cwe_value and cwe_value.startswith('CWE-'):
+                            cwe_ids.append(cwe_value)
+                
+                # Method 2: Fallback - Extract from description text (for incomplete entries)
+                if not cwe_ids:
+                    descriptions = cve_data.get('cve', {}).get('descriptions', [])
+                    for desc in descriptions:
+                        if desc.get('lang') == 'en':
+                            desc_text = desc.get('value', '')
+                            # Look for CWE patterns in description
+                            cwe_matches = re.findall(r'CWE-(\d+)', desc_text)
+                            cwe_ids.extend([f"CWE-{match}" for match in cwe_matches])
+                
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_cwe_ids = []
+                for cwe_id in cwe_ids:
+                    if cwe_id not in seen:
+                        seen.add(cwe_id)
+                        unique_cwe_ids.append(cwe_id)
                 
                 processed_cves[cve_id] = {
-                    'CWE': cwe_ids,
+                    'CWE': unique_cwe_ids,
                     'CAPEC': [],
                     'TECHNIQUES': [],
                     'DEFEND': []
@@ -389,7 +405,8 @@ class CVEProcessor:
                 result[cve_id]["DEFEND"] = list(sorted(defend_list))
                 
                 # Step 5: Get OWASP Top 10 categories
-                owasp_categories = self.owasp_processor.get_owasp_categories_for_cve(data)
+                # Use result[cve_id] which contains enriched CWE list with parent CWEs
+                owasp_categories = self.owasp_processor.get_owasp_categories_for_cve(result[cve_id])
                 result[cve_id]["OWASP"] = owasp_categories
                 
             except Exception as e:

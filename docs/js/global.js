@@ -32,8 +32,9 @@ document.querySelector("#layer_type").addEventListener('change', function () {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Masquer l'onglet D3FEND par défaut
+    // Masquer l'onglet D3FEND et OWASP par défaut
     document.getElementById('defend-tab').style.display = 'none';
+    document.getElementById('owasp-tab').style.display = 'none';
 
     // Gestionnaire d'événements pour les onglets
     document.getElementById('attack-tab').addEventListener('shown.bs.tab', function (e) {
@@ -242,26 +243,52 @@ async function process(page_load = false) {
             }
 
             cveData.CWE.forEach(cwe => {
-                data.push({ source: cve, target: 'CWE-' + cwe, value: 1 });
-                var relatedCapecs = cweDataRaw[cwe]?.RelatedAttackPatterns || [];
+                // Handle both "CWE-287" and "287" formats
+                var cweId = cwe;
+                var cweNumber = cwe;
+                
+                if (cwe.startsWith('CWE-')) {
+                    cweNumber = cwe.substring(4); // Remove "CWE-" prefix for lookup
+                    cweId = cwe; // Keep full ID for display
+                } else {
+                    cweNumber = cwe;
+                    cweId = 'CWE-' + cwe;
+                }
+                
+                data.push({ source: cve, target: cweId, value: 1 });
+                var relatedCapecs = cweDataRaw[cweNumber]?.RelatedAttackPatterns || [];
                 relatedCapecs.forEach(capec => {
-                    data.push({ source: 'CWE-' + cwe, target: 'CAPEC-' + capec, value: 1 });
-                    var lines = capecDataRaw[capec]?.techniques.split("NAME:ATTACK:ENTRY ")
-                    var relatedTechniques = new Set()
+                    data.push({ source: cweId, target: 'CAPEC-' + capec, value: 1 });
+                    
+                    // Check if CAPEC data and techniques exist
+                    var techniquesString = capecDataRaw[capec]?.techniques;
+                    if (!techniquesString) {
+                        return; // Skip if no techniques data
+                    }
+                    
+                    var lines = techniquesString.split("NAME:ATTACK:ENTRY ");
+                    var relatedTechniques = new Set();
+                    
                     for (var i = 1; i < lines.length; i++) {
                         var technique_id = lines[i].split(":")[1];
-                        if (modeSelect === "ics") {
+                        
+                        // Handle different ATT&CK domains
+                        if (attackDomain === "ics") {
                             technique_id = techniquesAssoc[technique_id]?.ics;
-                        } else if (modeSelect === "mobile") {
+                        } else if (attackDomain === "mobile") {
                             technique_id = techniquesAssoc[technique_id]?.mobile;
                         }
+                        // For enterprise, use the technique_id as-is
+                        
                         if (technique_id) {
                             relatedTechniques.add(technique_id);
                         }
                     }
+                    
                     relatedTechniques.forEach(technique => {
                         data.push({ source: 'CAPEC-' + capec, target: 'T' + technique, value: 1 });
                     });
+                    
                     relatedTechniques.forEach(technique => {
                         const atkKey = 'T' + technique;
                         (defendList[atkKey] || []).forEach(d => {
@@ -443,6 +470,9 @@ async function process(page_load = false) {
         document.getElementById('defend_matrix').style.display = 'none';
         document.getElementById('defend-tab').style.display = 'none';
     }
+
+    // Update OWASP stats and display
+    updateOwaspStats();
 }
 
 // ===== UTILITY FUNCTIONS =====
@@ -924,4 +954,122 @@ async function fullscreen() {
             position: 'right top'
         });
     }
+}
+
+// ===== OWASP VISUALIZATION FUNCTIONS =====
+
+function updateOwaspStats() {
+    // Count OWASP nodes in the chart
+    const owaspNodes = chart_nodes.filter(n => n.name && n.name.startsWith('OWASP-'));
+    
+    if (owaspNodes.length > 0) {
+        // Show OWASP summary banner
+        document.getElementById('owasp-summary').style.display = '';
+        document.getElementById('owasp-categories-count').textContent = owaspNodes.length;
+        
+        // Show OWASP tab
+        document.getElementById('owasp-tab').style.display = '';
+        
+        // Collect OWASP data for the matrix
+        const owaspData = {};
+        owaspNodes.forEach(node => {
+            const owaspId = node.name; // e.g., "OWASP-A01:2021"
+            const links = chart_links.filter(link => link.target === owaspId);
+            owaspData[owaspId] = {
+                count: links.length,
+                sources: links.map(link => link.source)
+            };
+        });
+        
+        // Render the OWASP matrix
+        renderOwaspMatrix(owaspData);
+    } else {
+        // Hide OWASP elements if no data
+        document.getElementById('owasp-summary').style.display = 'none';
+        document.getElementById('owasp-tab').style.display = 'none';
+    }
+}
+
+function renderOwaspMatrix(owaspData) {
+    const matrixContainer = document.getElementById('owasp_matrix');
+    const legendContainer = document.getElementById('owasp-legend');
+    
+    // Validate DOM elements exist
+    if (!matrixContainer || !legendContainer) {
+        console.error('OWASP matrix containers not found in DOM');
+        return;
+    }
+    
+    if (!owaspData || Object.keys(owaspData).length === 0) {
+        matrixContainer.style.display = 'none';
+        legendContainer.style.display = 'none';
+        return;
+    }
+    
+    // Show the containers
+    matrixContainer.style.display = '';
+    legendContainer.style.display = '';
+    
+    // OWASP category information
+    const owaspCategories = {
+        'A01:2021': { name: 'Broken Access Control', icon: '🔓', color: '#ff6b6b' },
+        'A02:2021': { name: 'Cryptographic Failures', icon: '🔐', color: '#4ecdc4' },
+        'A03:2021': { name: 'Injection', icon: '💉', color: '#45b7d1' },
+        'A04:2021': { name: 'Insecure Design', icon: '📐', color: '#96ceb4' },
+        'A05:2021': { name: 'Security Misconfiguration', icon: '⚙️', color: '#ffeaa7' },
+        'A06:2021': { name: 'Vulnerable and Outdated Components', icon: '📦', color: '#dfe6e9' },
+        'A07:2021': { name: 'Identification and Authentication Failures', icon: '🔑', color: '#74b9ff' },
+        'A08:2021': { name: 'Software and Data Integrity Failures', icon: '✅', color: '#a29bfe' },
+        'A09:2021': { name: 'Security Logging and Monitoring Failures', icon: '📊', color: '#fd79a8' },
+        'A10:2021': { name: 'Server-Side Request Forgery', icon: '🌐', color: '#fdcb6e' }
+    };
+    
+    // Build HTML for the matrix
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; padding: 16px;">';
+    
+    // Sort OWASP categories by ID
+    const sortedOwaspIds = Object.keys(owaspData).sort();
+    
+    sortedOwaspIds.forEach(owaspId => {
+        const categoryId = owaspId.replace('OWASP-', '');
+        const categoryInfo = owaspCategories[categoryId];
+        const data = owaspData[owaspId];
+        
+        if (!categoryInfo) return;
+        
+        html += `
+            <div style="
+                border: 2px solid ${categoryInfo.color};
+                border-radius: 8px;
+                padding: 16px;
+                background: linear-gradient(135deg, ${categoryInfo.color}15 0%, ${categoryInfo.color}05 100%);
+                transition: transform 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+            " onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                    <span style="font-size: 32px; margin-right: 12px;">${categoryInfo.icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #2d3436; font-size: 14px;">${categoryId}</div>
+                        <div style="font-weight: 700; color: #2d3436; font-size: 16px; margin-top: 4px;">${categoryInfo.name}</div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid ${categoryInfo.color}40;">
+                    <span style="color: #636e72; font-size: 14px;">Affected CVEs:</span>
+                    <span style="
+                        background: ${categoryInfo.color};
+                        color: white;
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-weight: 700;
+                        font-size: 14px;
+                    ">${data.count}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    matrixContainer.innerHTML = html;
 }

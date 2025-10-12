@@ -5,11 +5,12 @@
 
 ## 🎯 Overview
 
-The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability analysis system that automatically retrieves, processes, and correlates Common Vulnerabilities and Exposures (CVEs) with their corresponding Common Weakness Enumeration (CWE), Common Attack Pattern Enumeration and Classification (CAPEC), and MITRE ATT&CK & D3FEND techniques.
+The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability analysis system that automatically retrieves, processes, and correlates Common Vulnerabilities and Exposures (CVEs) with their corresponding Common Weakness Enumeration (CWE), Common Attack Pattern Enumeration and Classification (CAPEC), OWASP Top 10 2021 categories, and MITRE ATT&CK & D3FEND techniques.
 
 ## 🚀 Key Features
 
 - **Complete Historical Data**: Fetches ALL CVEs from 1999 to present (308,619+ CVEs) in a single run
+- **OWASP Top 10 2021 Mapping**: Automatic correlation of CVEs to OWASP security categories via CWE mappings
 - **Adaptive Rate Limiting**: Intelligent rate limiting that adjusts to API responses and handles 429 errors gracefully
 - **Progress Tracking & Resume**: Saves progress every 5,000 CVEs and can resume from interruptions
 - **Enterprise Performance**: Connection pooling, advanced caching, parallel processing
@@ -19,7 +20,7 @@ The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability anal
 - **Request Tracking**: Context-aware logging with request ID correlation
 - **Health Monitoring**: System health checks with database, API, and resource monitoring
 - **Prometheus Metrics**: Full metrics collection with counters, gauges, histograms, and summaries
-- **Interactive Web Interface**: Full-featured web UI with CVE analysis, MITRE ATT&CK matrix visualization, and real-time monitoring
+- **Interactive Web Interface**: Full-featured web UI with CVE analysis, OWASP Top 10 visualization, MITRE ATT&CK matrix, and real-time monitoring
 - **Configuration Validation**: JSON schema validation with detailed error reporting
 - **Flexible Configuration**: JSON-based config, environment variables, multiple execution modes
 - **Single Command Operation**: Run entire pipeline with one command
@@ -172,15 +173,16 @@ curl http://localhost:8080/requests    # Request tracking
 **Package Structure:**
 
 - **`tip.core`**: Core processing components
-  - **CVE Processor**: Handles CVE → CWE → CAPEC → ATT&CK → D3FEND mapping
-  - **Database Manager**: Downloads and processes CAPEC, CWE, ATT&CK, D3FEND data
+  - **CVE Processor**: Handles CVE → CWE → CAPEC → ATT&CK → D3FEND mapping with OWASP correlation
+  - **OWASP Processor**: Maps CWE IDs to OWASP Top 10 2021 security categories
+  - **Database Manager**: Downloads and processes CAPEC, CWE, ATT&CK, D3FEND, OWASP data
   - **Pipeline Orchestrator**: Manages pipeline execution and monitoring
 
 - **`tip.monitoring`**: Observability and monitoring
   - **Health Checker**: System health monitoring and alerting
   - **Metrics Collector**: Prometheus-compatible metrics collection
   - **Request Tracker**: Request ID correlation and context-aware logging
-  - **Web Interface**: Interactive web UI with CVE analysis and MITRE ATT&CK visualization
+  - **Web Interface**: Interactive web UI with CVE analysis, OWASP Top 10, MITRE ATT&CK, and D3FEND visualization
 
 - **`tip.utils`**: Utility components
   - **Config Manager**: Configuration management and validation
@@ -259,6 +261,7 @@ Threat_Intelligence_Pipeline/
 │       │   ├── __init__.py
 │       │   ├── pipeline_orchestrator.py  # 🎭 Unified orchestration
 │       │   ├── cve_processor.py          # ⚙️ Unified CVE processing
+│       │   ├── owasp_processor.py        # 📊 OWASP Top 10 mapping
 │       │   └── database_manager.py       # 🗄️ Unified database management
 │       ├── monitoring/       # 📊 Monitoring & metrics
 │       │   ├── __init__.py
@@ -285,7 +288,9 @@ Threat_Intelligence_Pipeline/
 ├── resources/                # 🗃️ Database resources
 │   ├── capec_db.json
 │   ├── cwe_db.json
+│   ├── owasp_db.json
 │   ├── techniques_db.json
+│   ├── techniques_association.json
 │   └── defend_db.jsonl
 ├── results/                  # 📈 Results and summaries
 │   ├── new_cves.jsonl
@@ -306,7 +311,7 @@ Threat_Intelligence_Pipeline/
 
 ### Interactive CVE Analysis & Visualization
 
-The web interface provides a comprehensive dashboard for CVE analysis with interactive MITRE ATT&CK matrix visualization:
+The web interface provides a comprehensive dashboard for CVE analysis with interactive visualizations for OWASP Top 10, MITRE ATT&CK, and D3FEND:
 
 ```bash
 # Start the integrated web interface
@@ -318,9 +323,10 @@ python tip.py --web-interface --web-port 8080
 
 **Features:**
 - **CVE Input & Analysis**: Enter CVEs and get instant correlation analysis
+- **OWASP Top 10 2021 Visualization**: Interactive category breakdown showing security classification
 - **Interactive MITRE ATT&CK Matrix**: Visual mapping of CVE → CWE → CAPEC → Attack Techniques
-- **Real-time Data Processing**: Live correlation with CWE, CAPEC, and MITRE ATT&CK data
-- **Sankey Diagram Visualization**: Interactive flow diagrams showing vulnerability relationships
+- **Real-time Data Processing**: Live correlation with CWE, CAPEC, OWASP, and MITRE ATT&CK data
+- **Sankey Diagram Visualization**: Interactive flow diagrams showing vulnerability relationships including OWASP categories
 - **D3FEND Integration**: Defensive technique mapping and visualization
 
 ### API Endpoints
@@ -359,10 +365,20 @@ curl -X POST http://localhost:8080/api/process-cves     # Process CVEs
 - **Python Best Practices**: Follows standard Python packaging conventions
 - **Clean Root Directory**: Only essential files remain in the root directory
 
+### OWASP Top 10 2021 Integration
+
+- **Automatic OWASP Mapping**: Maps CVEs to OWASP Top 10 2021 security categories via CWE associations
+- **Official Mappings**: Uses comprehensive MITRE CWE-1344 and OWASP published mappings (200+ CWE-to-OWASP correlations)
+- **Enhanced CWE Extraction**: Extracts CWE IDs from proper NVD API weaknesses field with regex fallback
+- **Interactive Visualization**: Beautiful category cards showing affected OWASP categories with CVE counts
+- **Sankey Diagram Integration**: Pink OWASP nodes in flow diagrams showing security classification
+- **Parent CWE Support**: Includes parent CWE relationships for comprehensive OWASP coverage
+
 ### Integrated Web Interface
 
 - **Unified Experience**: Single command starts both data processing and web interface
 - **Interactive CVE Analysis**: Real-time CVE input and correlation analysis
+- **OWASP Top 10 Tab**: Dedicated tab with interactive category breakdown and statistics
 - **MITRE ATT&CK Visualization**: Interactive matrix showing CVE → CWE → CAPEC → Attack Techniques
 - **Comprehensive Data Serving**: Automatic serving of all required static files and databases
 - **Modern UI**: Clean, responsive interface with real-time data processing
@@ -444,6 +460,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Original Author**: [Galeax](https://github.com/Galeax) for the initial design and implementation that lead to this project.
 - **NVD (National Vulnerability Database)** for providing CVE data
 - **MITRE Corporation** for CAPEC, CWE, ATT&CK and D3FEND frameworks
+- **OWASP Foundation** for OWASP Top 10 2021 security risk categories and CWE mappings
 - **Open source community** for the excellent tools and libraries
 
 ---

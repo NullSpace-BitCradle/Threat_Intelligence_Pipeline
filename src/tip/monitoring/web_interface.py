@@ -10,7 +10,7 @@ from urllib.parse import urlparse, parse_qs
 import threading
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 from tip.monitoring.health_check import get_health_status, health_check_endpoint
 from tip.monitoring.metrics import export_metrics, get_metrics_summary
@@ -328,62 +328,17 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body.encode('utf-8'))
     
-    def _get_query_param(self, param_name: str, default: str = None) -> str:
+    def _get_query_param(self, param_name: str, default: str = "") -> str:
         """Get query parameter value"""
         parsed_path = urlparse(self.path)
         query_params = parse_qs(parsed_path.query)
         if query_params.get(param_name):
             return query_params.get(param_name, [default])[0]
-        return default or ""
+        return default
     
     def log_message(self, format, *args):
         """Override to use our logger"""
         logger.info(f"{self.address_string()} - {format % args}")
-    
-    def _handle_process_cves(self):
-        """Handle CVE processing endpoint"""
-        try:
-            # This would need to be implemented to process CVEs
-            # For now, return a placeholder response
-            response = {
-                "message": "CVE processing endpoint",
-                "status": "not_implemented",
-                "note": "This endpoint needs to be implemented to process CVEs from the web interface"
-            }
-            self._send_json_response(200, response)
-        except Exception as e:
-            logger.error(f"Error processing CVEs: {e}")
-            self._send_json_response(500, {"error": str(e)})
-    
-    def _handle_run_pipeline(self):
-        """Handle pipeline run endpoint"""
-        try:
-            # This would need to be implemented to run the pipeline
-            # For now, return a placeholder response
-            response = {
-                "message": "Pipeline run endpoint",
-                "status": "not_implemented",
-                "note": "This endpoint needs to be implemented to run the pipeline from the web interface"
-            }
-            self._send_json_response(200, response)
-        except Exception as e:
-            logger.error(f"Error running pipeline: {e}")
-            self._send_json_response(500, {"error": str(e)})
-    
-    def _handle_update_databases(self):
-        """Handle database update endpoint"""
-        try:
-            # This would need to be implemented to update databases
-            # For now, return a placeholder response
-            response = {
-                "message": "Database update endpoint",
-                "status": "not_implemented",
-                "note": "This endpoint needs to be implemented to update databases from the web interface"
-            }
-            self._send_json_response(200, response)
-        except Exception as e:
-            logger.error(f"Error updating databases: {e}")
-            self._send_json_response(500, {"error": str(e)})
     
     def _handle_static_file(self, path: str):
         """Handle static file requests"""
@@ -497,6 +452,7 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
                 content_type = 'image/png'
             
             # Read file as binary for binary files, text for text files
+            content: Union[str, bytes]
             if content_type.startswith('text/') or content_type == 'application/json' or content_type == 'application/javascript':
                 with open(full_path, 'r', encoding='utf-8') as f:
                     content = f.read()
