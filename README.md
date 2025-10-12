@@ -10,6 +10,30 @@ The Threat Intelligence Pipeline (TIP) is an enterprise-grade vulnerability anal
 ![CVE Data Flow Visualization](images/CVE_Data_Flow.png)
 *Interactive Sankey diagram showing the complete data flow: CVE → CWE → CAPEC → OWASP → ATT&CK Techniques → D3FEND*
 
+## 💡 Purpose
+
+**Why does this matter?**
+
+When a new CVE is published, security teams face a critical challenge: *understanding what it means for their organization and how to defend against it*. A CVE number alone doesn't tell you:
+
+- 🎯 **What OWASP category** does this fall under? (Is it Injection? Broken Access Control?)
+- ⚔️ **What attack techniques** might adversaries use to exploit this? (MITRE ATT&CK)
+- 🛡️ **What defensive measures** should we implement? (MITRE D3FEND)
+- 🔍 **What's the root cause?** (CWE weakness)
+- 💥 **What attack patterns** are associated? (CAPEC)
+
+This pipeline **automatically answers all these questions** by correlating a CVE across five major security frameworks, transforming raw vulnerability data into actionable threat intelligence.
+
+**Perfect for:**
+
+- 🔒 **Security Teams** - Quickly assess CVE impact and prioritize remediation
+- 🎓 **Security Researchers** - Analyze vulnerability patterns and attack relationships
+- 📊 **Risk Analysts** - Map vulnerabilities to OWASP Top 10 for compliance reporting
+- 🛠️ **Red/Blue Teams** - Understand both attack vectors (ATT&CK) and defenses (D3FEND)
+- 📚 **Security Students** - Learn how different security frameworks interconnect
+
+**Real-world example:** You hear about CVE-2024-27768. Instead of manually researching across multiple databases, this tool instantly shows you it's a CWE-22 (Path Traversal), maps to OWASP A05:2021 (Security Misconfiguration), identifies the CAPEC attack patterns, reveals relevant ATT&CK techniques, and suggests D3FEND countermeasures—all in an interactive visualization.
+
 ## 🚀 Key Features
 
 - **Complete Historical Data**: Fetches ALL CVEs from 1999 to present (308,619+ CVEs) in a single run
@@ -325,6 +349,7 @@ python tip.py --web-interface --web-port 8080
 ```
 
 **Features:**
+
 - **CVE Input & Analysis**: Enter CVEs and get instant correlation analysis
 - **OWASP Top 10 2021 Visualization**: Interactive category breakdown showing security classification
 - **Interactive MITRE ATT&CK Matrix**: Visual mapping of CVE → CWE → CAPEC → Attack Techniques
