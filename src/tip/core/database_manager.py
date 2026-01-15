@@ -8,6 +8,7 @@ import requests  # type: ignore
 import json
 import csv
 import logging
+import time
 from zipfile import ZipFile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -311,7 +312,6 @@ class DatabaseManager:
                         self.logger.debug(f"D3FEND API returned {response.status_code} for {attack_id}")
                     
                     # Rate limiting - be respectful to the API
-                    import time
                     time.sleep(0.1)
                     
                 except requests.exceptions.RequestException as e:

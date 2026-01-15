@@ -398,12 +398,17 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
             resolved_path = full_path.resolve()
             allowed_resolved = allowed_root.resolve()
             
-            # Prevent directory traversal attacks
-            if not str(resolved_path).startswith(str(allowed_resolved)):
-                logger.warning(f"Path traversal attempt detected: {path}")
-                return None
+            # Prevent directory traversal attacks using relative_to()
+            # This properly handles sibling directories with similar names
+            # (e.g., /project/docs vs /project/docs_private)
+            # Raises ValueError if resolved_path is not relative to allowed_resolved
+            resolved_path.relative_to(allowed_resolved)
             
             return resolved_path
+        except ValueError:
+            # relative_to() raises ValueError if path is not within allowed root
+            logger.warning(f"Path traversal attempt detected: {path}")
+            return None
         except Exception as e:
             logger.warning(f"Path validation error: {e}")
             return None
