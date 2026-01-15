@@ -38,8 +38,9 @@ This pipeline **automatically answers all these questions** by correlating a CVE
 
 - **Complete Historical Data**: Fetches ALL CVEs from 1999 to present (308,619+ CVEs) in a single run
 - **OWASP Top 10 2021 Mapping**: Automatic correlation of CVEs to OWASP security categories via CWE mappings
+- **MITRE D3FEND Integration**: Maps attack techniques to defensive countermeasures automatically
 - **Adaptive Rate Limiting**: Intelligent rate limiting that adjusts to API responses and handles 429 errors gracefully
-- **Progress Tracking & Resume**: Saves progress every 5,000 CVEs and can resume from interruptions
+- **Progress Tracking & Resume**: Configurable progress saving with resume capability from interruptions
 - **Enterprise Performance**: Connection pooling, advanced caching, parallel processing
 - **Robust Error Handling**: Custom exceptions, retry strategies, automatic recovery
 - **Comprehensive Monitoring**: Real-time metrics, health checks, detailed reporting
@@ -49,14 +50,15 @@ This pipeline **automatically answers all these questions** by correlating a CVE
 - **Prometheus Metrics**: Full metrics collection with counters, gauges, histograms, and summaries
 - **Interactive Web Interface**: Full-featured web UI with CVE analysis, OWASP Top 10 visualization, MITRE ATT&CK matrix, and real-time monitoring
 - **Configuration Validation**: JSON schema validation with detailed error reporting
-- **Flexible Configuration**: JSON-based config, environment variables, multiple execution modes
+- **Flexible Configuration**: JSON-based config with environment variables support
+- **Comprehensive Test Suite**: 125+ tests with pytest, coverage reporting, and type checking
 - **Single Command Operation**: Run entire pipeline with one command
 
 ---
 
 ## 📦 Installation
 
-**Prerequisites:** Python 3.8+ and NVD API key (recommended)
+**Prerequisites:** Python 3.10+ and NVD API key (recommended)
 
 ```bash
 git clone https://github.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline.git
@@ -65,30 +67,32 @@ pip install -r requirements.txt
 python setup.py
 ```
 
+**Note:** Python 3.12 or 3.13 is recommended for best compatibility. Python 3.14+ (pre-release) may have limited package support.
+
 ---
 
 ## 🎯 Quick Start
 
 ```bash
 # Run complete pipeline (fetches all CVEs from 1999)
-python tip.py
+python run_pipeline.py
 
 # Check system status
-python tip.py --status
+python run_pipeline.py --status
 
 # Health monitoring
-python tip.py --health-check
-python tip.py --metrics
+python run_pipeline.py --health-check
+python run_pipeline.py --metrics
 
 # Start web interface
-python tip.py --web-interface
+python run_pipeline.py --web-interface
 
 # Advanced options
-python tip.py --force                 # Force update even if not needed
-python tip.py --cve-only             # Process CVEs only (with resume capability)
-python tip.py --cve-only --clear-progress  # Start CVE retrieval from beginning
-python tip.py --db-only              # Update databases only
-python tip.py --verbose              # Enable verbose logging
+python run_pipeline.py --force                 # Force update even if not needed
+python run_pipeline.py --cve-only             # Process CVEs only (with resume capability)
+python run_pipeline.py --cve-only --clear-progress  # Start CVE retrieval from beginning
+python run_pipeline.py --db-only              # Update databases only
+python run_pipeline.py --verbose              # Enable verbose logging
 ```
 
 ---
@@ -113,9 +117,9 @@ python tip.py --verbose              # Enable verbose logging
 
 **Performance Features:**
 
-- **Smart Rate Limiting**: Starts at 0.5s delay, adapts up to 30s based on API responses
-- **Progress Tracking**: Saves progress every 5,000 CVEs for resume capability
-- **Error Recovery**: 5 retry attempts with exponential backoff and jitter
+- **Smart Rate Limiting**: Configurable delays (default 0.5s-30s) that adapt based on API responses
+- **Progress Tracking**: Configurable save interval (default: every 5,000 CVEs) for resume capability
+- **Error Recovery**: Configurable retry attempts with exponential backoff and jitter
 - **Memory Efficient**: Processes CVEs in batches to handle large datasets
 
 ---
@@ -126,12 +130,12 @@ python tip.py --verbose              # Enable verbose logging
 
 ```bash
 # Daily updates at 2 AM
-0 2 * * * cd /path/to/Threat_Intelligence_Pipeline && python tip.py
+0 2 * * * cd /path/to/Threat_Intelligence_Pipeline && python run_pipeline.py
 ```
 
 **Windows (Task Scheduler):**
 
-- Create a task to run `python tip.py` daily
+- Create a task to run `python run_pipeline.py` daily
 - Set working directory to Threat_Intelligence_Pipeline folder
 
 ---
@@ -162,20 +166,20 @@ echo NVD_API_KEY=your-api-key-here > .env
 
 ```bash
 # System health check
-python tip.py --health-check
+python run_pipeline.py --health-check
 
 # Show metrics
-python tip.py --metrics
+python run_pipeline.py --metrics
 
 # Pipeline status
-python tip.py --status
+python run_pipeline.py --status
 ```
 
 ### Web Interface Monitoring
 
 ```bash
 # Start web interface
-python tip.py --web-interface --web-port 8080
+python run_pipeline.py --web-interface --web-port 8080
 
 # Access monitoring endpoints
 curl http://localhost:8080/health      # Health status
@@ -242,27 +246,37 @@ curl http://localhost:8080/requests    # Request tracking
 - `NVD_API_KEY`: Your NVD API key for optimal performance
 - `LOG_LEVEL`: Override logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
-**New Configuration Options:**
+**Key Configuration Options:**
 
 ```json
 {
+  "api": {
+    "nvd": {
+      "rate_limit": {
+        "base_delay": 0.5,
+        "max_delay": 30.0,
+        "backoff_multiplier": 2.5,
+        "max_retries": 5
+      }
+    },
+    "d3fend": {
+      "enabled": true
+    }
+  },
   "processing": {
     "cache_size": 1000,
     "cache_ttl": 3600,
-    "use_async_processing": false,
     "max_connections": 100,
     "connection_pool_size": 20
+  },
+  "progress_tracking": {
+    "save_interval": 5000,
+    "log_interval": 10000
   },
   "error_handling": {
     "enable_circuit_breaker": true,
     "enable_retry": true,
-    "enable_recovery": true,
-    "alert_thresholds": {
-      "critical": 1,
-      "high": 5,
-      "medium": 20,
-      "low": 50
-    }
+    "enable_recovery": true
   }
 }
 ```
@@ -273,17 +287,18 @@ curl http://localhost:8080/requests    # Request tracking
 
 ```text
 Threat_Intelligence_Pipeline/
-├── tip.py                    # 🎯 Main entry point
+├── run_pipeline.py           # 🎯 Main entry point
 ├── setup.py                  # 🛠️ Setup script for initialization
 ├── config.json               # 📋 Configuration file
 ├── requirements.txt          # 📦 Dependencies
-├── pyproject.toml            # 📦 Project configuration
+├── pyproject.toml            # 📦 Project configuration (includes pytest config)
 ├── LICENSE                   # 📄 License
 ├── lastUpdate.txt            # 🕒 Last update timestamp (generated)
 ├── cve_progress.json         # 📊 CVE retrieval progress (temporary, auto-cleaned)
 ├── src/                      # 📁 Source code package
 │   └── tip/                  # 🐍 Main package
 │       ├── __init__.py       # Package initialization
+│       ├── py.typed          # PEP 561 marker for type hints
 │       ├── core/             # 🎯 Core functionality
 │       │   ├── __init__.py
 │       │   ├── pipeline_orchestrator.py  # 🎭 Unified orchestration
@@ -308,21 +323,29 @@ Threat_Intelligence_Pipeline/
 │       └── database/         # 🗄️ Database utilities
 │           ├── __init__.py
 │           └── database_optimizer.py     # 🚀 Database optimization
-├── database/                 # 📊 CVE database files
+├── tests/                    # 🧪 Test suite
+│   ├── __init__.py
+│   ├── conftest.py                       # Pytest fixtures
+│   ├── test_validation.py                # Validation tests
+│   ├── test_rate_limiter.py              # Rate limiting tests
+│   ├── test_metrics.py                   # Metrics tests
+│   ├── test_owasp_processor.py           # OWASP processor tests
+│   ├── test_database_optimizer.py        # Database optimizer tests
+│   └── test_performance_optimizer.py     # Performance tests
+├── database/                 # 📊 CVE database files (generated)
 │   ├── CVE-1999.jsonl
 │   ├── CVE-2000.jsonl
 │   └── ... (all years)
-├── resources/                # 🗃️ Database resources
-│   ├── capec_db.json
-│   ├── cwe_db.json
-│   ├── owasp_db.json
-│   ├── techniques_db.json
-│   ├── techniques_association.json
-│   └── defend_db.jsonl
-├── results/                  # 📈 Results and summaries
+├── resources/                # 🗃️ Database resources (generated)
+│   ├── capec_db.json         # CAPEC attack patterns
+│   ├── cwe_db.json           # CWE weaknesses
+│   ├── owasp_db.json         # OWASP Top 10 mappings
+│   ├── techniques_db.json    # MITRE ATT&CK techniques
+│   └── defend_db.jsonl       # MITRE D3FEND countermeasures
+├── results/                  # 📈 Results and summaries (generated)
 │   ├── new_cves.jsonl
 │   └── update_summary.json
-├── logs/                     # 📝 Log files
+├── logs/                     # 📝 Log files (generated)
 │   ├── tip.log
 │   └── tip_errors.json
 └── docs/                     # 🌐 Web interface
@@ -342,7 +365,7 @@ The web interface provides a comprehensive dashboard for CVE analysis with inter
 
 ```bash
 # Start the integrated web interface
-python tip.py --web-interface --web-port 8080
+python run_pipeline.py --web-interface --web-port 8080
 
 # Open your browser to:
 # http://localhost:8080
@@ -451,6 +474,14 @@ curl -X POST http://localhost:8080/api/process-cves     # Process CVEs
 - Web-based operational interface
 - Resume capability for long-running operations
 
+### Testing & Quality Assurance
+
+- **Comprehensive Test Suite**: 125+ tests covering all major components
+- **Pytest Integration**: Modern test framework with fixtures and markers
+- **Coverage Reporting**: Track test coverage with pytest-cov
+- **Type Hints**: Full type annotation support with py.typed marker
+- **Strict Mypy Configuration**: Catches type errors before runtime
+
 ---
 
 ## 🔧 Troubleshooting
@@ -461,10 +492,10 @@ curl -X POST http://localhost:8080/api/process-cves     # Process CVEs
 A: The pipeline now handles this automatically! It uses adaptive rate limiting and will retry with exponential backoff. Just let it run - it will complete all 308,619 CVEs in about 15 minutes.
 
 **Q: Can I resume if the pipeline gets interrupted?**
-A: Yes! The pipeline saves progress every 5,000 CVEs. If interrupted, just run `python tip.py --cve-only` again and it will resume from where it left off.
+A: Yes! The pipeline saves progress periodically (configurable in `config.json`, default: every 5,000 CVEs). If interrupted, just run `python run_pipeline.py --cve-only` again and it will resume from where it left off.
 
 **Q: How do I start fresh if I want to re-download everything?**
-A: Use `python tip.py --cve-only --clear-progress` to clear the progress file and start from the beginning.
+A: Use `python run_pipeline.py --cve-only --clear-progress` to clear the progress file and start from the beginning.
 
 **Q: The pipeline seems slow - is this normal?**
 A: Yes! Retrieving 308,619 CVEs takes time. The adaptive rate limiting starts fast (0.5s delays) but increases delays as needed to respect API limits. This is normal and ensures you get all the data.
@@ -481,13 +512,59 @@ A: It's highly recommended! Without it, you'll hit rate limits much faster. Get 
 
 ---
 
+## 🧪 Development & Testing
+
+### Running Tests
+
+The project includes a comprehensive test suite with 125+ tests:
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_validation.py
+
+# Run with coverage report
+pytest --cov=src/tip --cov-report=html
+
+# Run tests matching a pattern
+pytest -k "test_rate"
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **Validation utilities** - CVE, CWE, CAPEC, technique ID validation
+- **Rate limiting** - Token bucket and sliding window algorithms
+- **Metrics collection** - Counters, gauges, histograms, summaries
+- **OWASP processor** - CWE to OWASP Top 10 mapping
+- **Database optimizer** - Caching and JSONL file operations
+- **Performance optimizer** - Thread pools, batch processing, caching
+
+### Code Quality
+
+```bash
+# Type checking with mypy
+mypy src/tip
+
+# The project uses strict mypy configuration in pyproject.toml
+```
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Run tests to ensure everything works (`pytest`)
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
 ---
 

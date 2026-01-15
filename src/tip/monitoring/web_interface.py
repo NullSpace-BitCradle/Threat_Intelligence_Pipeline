@@ -10,7 +10,7 @@ from urllib.parse import urlparse, parse_qs
 import threading
 import logging
 from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Optional
 
 from tip.monitoring.health_check import get_health_status, health_check_endpoint
 from tip.monitoring.metrics import export_metrics, get_metrics_summary
@@ -20,11 +20,26 @@ from tip.utils.config import get_config
 
 logger = logging.getLogger(__name__)
 
+# Shared orchestrator instance for the web interface
+_shared_orchestrator: Optional[PipelineOrchestrator] = None
+_orchestrator_lock = threading.Lock()
+
+
+def get_shared_orchestrator() -> PipelineOrchestrator:
+    """Get or create the shared orchestrator instance (thread-safe singleton)"""
+    global _shared_orchestrator
+    if _shared_orchestrator is None:
+        with _orchestrator_lock:
+            if _shared_orchestrator is None:
+                _shared_orchestrator = PipelineOrchestrator()
+    return _shared_orchestrator
+
+
 class TIPRequestHandler(BaseHTTPRequestHandler):
     """HTTP request handler for Threat Intelligence Pipeline web interface"""
     
     def __init__(self, *args, **kwargs):
-        self.orchestrator = PipelineOrchestrator()
+        self.orchestrator = get_shared_orchestrator()
         super().__init__(*args, **kwargs)
     
     def do_GET(self):
@@ -75,6 +90,19 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
         path = parsed_path.path
         
         try:
+            # Validate content length to prevent DoS
+            content_length = self.headers.get('Content-Length')
+            if content_length:
+                try:
+                    length = int(content_length)
+                    max_content_length = 1024 * 1024  # 1MB limit
+                    if length > max_content_length:
+                        self._send_error_response(413, f"Request body too large. Maximum size is {max_content_length} bytes")
+                        return
+                except ValueError:
+                    self._send_error_response(400, "Invalid Content-Length header")
+                    return
+            
             if path == '/api/run':
                 self._handle_run_pipeline()
             elif path == '/api/update-databases':
@@ -340,16 +368,54 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
         """Override to use our logger"""
         logger.info(f"{self.address_string()} - {format % args}")
     
+    def _read_json_body(self, max_size: int = 1024 * 1024) -> Optional[Dict[str, Any]]:
+        """Read and parse JSON body with validation"""
+        content_length = self.headers.get('Content-Length')
+        if not content_length:
+            return {}
+        
+        try:
+            length = int(content_length)
+            if length > max_size:
+                return None
+            if length == 0:
+                return {}
+            
+            body = self.rfile.read(length)
+            return json.loads(body.decode('utf-8'))
+        except (ValueError, json.JSONDecodeError) as e:
+            logger.warning(f"Failed to parse JSON body: {e}")
+            return None
+    
+    def _validate_path(self, path: str, allowed_root: Path) -> Optional[Path]:
+        """Validate and resolve a file path, ensuring it's within allowed directory"""
+        try:
+            # Remove leading slash and construct path
+            file_path = path.lstrip('/')
+            full_path = allowed_root / file_path
+            
+            # Resolve to absolute path and check it's within allowed root
+            resolved_path = full_path.resolve()
+            allowed_resolved = allowed_root.resolve()
+            
+            # Prevent directory traversal attacks
+            if not str(resolved_path).startswith(str(allowed_resolved)):
+                logger.warning(f"Path traversal attempt detected: {path}")
+                return None
+            
+            return resolved_path
+        except Exception as e:
+            logger.warning(f"Path validation error: {e}")
+            return None
+    
     def _handle_static_file(self, path: str):
         """Handle static file requests"""
         try:
-            # Remove leading slash and construct file path
-            file_path = path.lstrip('/')
-            full_path = Path(__file__).parent.parent.parent.parent / file_path
-            
-            # Security check - ensure the file is within our project directory
             project_root = Path(__file__).parent.parent.parent.parent
-            if not full_path.resolve().is_relative_to(project_root.resolve()):
+            
+            # Validate path to prevent directory traversal
+            full_path = self._validate_path(path, project_root)
+            if full_path is None:
                 self._send_error_response(403, "Access denied")
                 return
             
@@ -358,16 +424,17 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
                 return
             
             # Determine content type based on file extension
+            file_name = str(full_path)
             content_type = 'application/octet-stream'
-            if file_path.endswith('.json'):
+            if file_name.endswith('.json'):
                 content_type = 'application/json'
-            elif file_path.endswith('.jsonl'):
+            elif file_name.endswith('.jsonl'):
                 content_type = 'application/jsonl'
-            elif file_path.endswith('.html'):
+            elif file_name.endswith('.html'):
                 content_type = 'text/html'
-            elif file_path.endswith('.css'):
+            elif file_name.endswith('.css'):
                 content_type = 'text/css'
-            elif file_path.endswith('.js'):
+            elif file_name.endswith('.js'):
                 content_type = 'application/javascript'
             
             # Read and serve the file
@@ -383,12 +450,11 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
     def _handle_docs_file(self, path: str):
         """Handle docs file requests (CSS, JS, etc.)"""
         try:
-            file_path = path.lstrip('/')
-            full_path = Path(__file__).parent.parent.parent.parent / "docs" / file_path
+            docs_root = Path(__file__).parent.parent.parent.parent / "docs"
             
-            # Security check
-            project_root = Path(__file__).parent.parent.parent.parent / "docs"
-            if not full_path.resolve().is_relative_to(project_root.resolve()):
+            # Validate path to prevent directory traversal
+            full_path = self._validate_path(path, docs_root)
+            if full_path is None:
                 self._send_error_response(403, "Access denied")
                 return
             
@@ -396,15 +462,16 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
                 self._send_error_response(404, f"File not found: {path}")
                 return
             
-            # Determine content type
+            # Determine content type based on file extension
+            file_name = str(full_path)
             content_type = 'application/octet-stream'
-            if file_path.endswith('.css'):
+            if file_name.endswith('.css'):
                 content_type = 'text/css'
-            elif file_path.endswith('.js'):
+            elif file_name.endswith('.js'):
                 content_type = 'application/javascript'
-            elif file_path.endswith('.html'):
+            elif file_name.endswith('.html'):
                 content_type = 'text/html'
-            elif file_path.endswith('.json'):
+            elif file_name.endswith('.json'):
                 content_type = 'application/json'
             
             with open(full_path, 'r', encoding='utf-8') as f:
@@ -419,12 +486,11 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
     def _handle_mitre_file(self, path: str):
         """Handle MITRE ATT&CK file requests"""
         try:
-            file_path = path.lstrip('/')
-            full_path = Path(__file__).parent.parent.parent.parent / "docs" / file_path
+            mitre_root = Path(__file__).parent.parent.parent.parent / "docs" / "mitre"
             
-            # Security check
-            project_root = Path(__file__).parent.parent.parent.parent / "docs" / "mitre"
-            if not full_path.resolve().is_relative_to(project_root.resolve()):
+            # Validate path to prevent directory traversal
+            full_path = self._validate_path(path.replace('/mitre/', ''), mitre_root)
+            if full_path is None:
                 self._send_error_response(403, "Access denied")
                 return
             
@@ -432,23 +498,24 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
                 self._send_error_response(404, f"File not found: {path}")
                 return
             
-            # Determine content type
+            # Determine content type based on file extension
+            file_name = str(full_path)
             content_type = 'application/octet-stream'
-            if file_path.endswith('.html'):
+            if file_name.endswith('.html'):
                 content_type = 'text/html'
-            elif file_path.endswith('.css'):
+            elif file_name.endswith('.css'):
                 content_type = 'text/css'
-            elif file_path.endswith('.js'):
+            elif file_name.endswith('.js'):
                 content_type = 'application/javascript'
-            elif file_path.endswith('.json'):
+            elif file_name.endswith('.json'):
                 content_type = 'application/json'
-            elif file_path.endswith('.woff') or file_path.endswith('.woff2'):
+            elif file_name.endswith('.woff') or file_name.endswith('.woff2'):
                 content_type = 'font/woff2'
-            elif file_path.endswith('.ttf'):
+            elif file_name.endswith('.ttf'):
                 content_type = 'font/ttf'
-            elif file_path.endswith('.svg'):
+            elif file_name.endswith('.svg'):
                 content_type = 'image/svg+xml'
-            elif file_path.endswith('.png'):
+            elif file_name.endswith('.png'):
                 content_type = 'image/png'
             
             # Read file as binary for binary files, text for text files

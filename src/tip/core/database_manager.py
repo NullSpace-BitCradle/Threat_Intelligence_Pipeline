@@ -252,17 +252,127 @@ class DatabaseManager:
     
     @log_operation("process_defend", "database_update")
     def _process_defend_data(self) -> Dict[str, Any]:
-        """Process D3FEND data"""
+        """
+        Process D3FEND data by querying the D3FEND API for defensive techniques
+        that counter ATT&CK techniques.
+        """
         try:
-            # D3FEND processing would go here
-            # For now, return empty dict
             defend_data: Dict[str, Any] = {}
-            self.logger.info("D3FEND processing not yet implemented")
+            
+            # Check if D3FEND is enabled in config
+            if not config.get('api.d3fend.enabled', True):
+                self.logger.info("D3FEND integration is disabled in config")
+                return defend_data
+            
+            # Load the techniques database to get ATT&CK technique IDs
+            techniques_file = config.get_database_path('techniques')
+            if not os.path.exists(techniques_file):
+                self.logger.warning("Techniques database not found, skipping D3FEND update")
+                return defend_data
+            
+            with open(techniques_file, 'r') as f:
+                techniques_db = json.load(f)
+            
+            d3fend_base_url = config.get('api.d3fend.base_url')
+            timeout = config.get('api.d3fend.timeout', 30)
+            
+            self.logger.info(f"Fetching D3FEND countermeasures for {len(techniques_db)} techniques...")
+            
+            # Process each technique to find D3FEND countermeasures
+            processed_count = 0
+            error_count = 0
+            
+            for technique_id in techniques_db.keys():
+                try:
+                    # Normalize technique ID format (e.g., "1059" -> "T1059")
+                    attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
+                    
+                    # Query D3FEND API
+                    url = f"{d3fend_base_url}{attack_id}"
+                    response = requests.get(url, timeout=timeout)
+                    
+                    if response.status_code == 200:
+                        d3fend_response = response.json()
+                        
+                        # Extract defensive techniques from the response
+                        defensive_techniques = self._extract_d3fend_techniques(d3fend_response)
+                        
+                        if defensive_techniques:
+                            defend_data[attack_id] = {
+                                'attack_technique': attack_id,
+                                'defensive_techniques': defensive_techniques
+                            }
+                            processed_count += 1
+                    
+                    elif response.status_code == 404:
+                        # No D3FEND data for this technique - this is expected for some
+                        pass
+                    else:
+                        self.logger.debug(f"D3FEND API returned {response.status_code} for {attack_id}")
+                    
+                    # Rate limiting - be respectful to the API
+                    import time
+                    time.sleep(0.1)
+                    
+                except requests.exceptions.RequestException as e:
+                    error_count += 1
+                    self.logger.debug(f"Error fetching D3FEND data for {technique_id}: {e}")
+                    continue
+                except Exception as e:
+                    error_count += 1
+                    self.logger.warning(f"Unexpected error processing {technique_id}: {e}")
+                    continue
+            
+            self.logger.info(f"D3FEND processing complete: {processed_count} techniques with countermeasures, {error_count} errors")
             return defend_data
             
         except Exception as e:
             self.logger.error(f"Error processing D3FEND data: {e}")
             raise
+    
+    def _extract_d3fend_techniques(self, d3fend_response: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Extract defensive technique information from D3FEND API response"""
+        defensive_techniques = []
+        
+        try:
+            # D3FEND API returns data in a specific format
+            # Navigate the response structure to find defensive techniques
+            bindings = d3fend_response.get('results', {}).get('bindings', [])
+            
+            for binding in bindings:
+                technique_info = {}
+                
+                # Extract defensive technique ID
+                if 'def_tech' in binding:
+                    def_tech_uri = binding['def_tech'].get('value', '')
+                    # Extract ID from URI (e.g., "http://d3fend.mitre.org/ontologies/d3fend.owl#UserAccountManagement")
+                    if '#' in def_tech_uri:
+                        technique_info['id'] = def_tech_uri.split('#')[-1]
+                
+                # Extract technique label/name
+                if 'def_tech_label' in binding:
+                    technique_info['name'] = binding['def_tech_label'].get('value', '')
+                
+                # Extract definition if available
+                if 'def_artifact_rel_label' in binding:
+                    technique_info['relationship'] = binding['def_artifact_rel_label'].get('value', '')
+                
+                if technique_info.get('id'):
+                    defensive_techniques.append(technique_info)
+            
+            # Remove duplicates based on ID
+            seen_ids = set()
+            unique_techniques = []
+            for tech in defensive_techniques:
+                if tech['id'] not in seen_ids:
+                    seen_ids.add(tech['id'])
+                    unique_techniques.append(tech)
+            
+            return unique_techniques
+            
+        except Exception as e:
+            self.logger.debug(f"Error extracting D3FEND techniques: {e}")
+            return []
     
     def _save_database(self, data: Dict[str, Any], file_path: str):
         """Save database data to JSON file"""

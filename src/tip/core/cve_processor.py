@@ -84,8 +84,10 @@ class CVEProcessor:
             if end_date:
                 params['pubEndDate'] = end_date
             
-            # Progress tracking
-            progress_file = Path("cve_progress.json")
+            # Progress tracking - use config value
+            progress_file = Path(self.config.get('files.progress_file', 'cve_progress.json'))
+            save_interval = self.config.get('progress_tracking.save_interval', 5000)
+            log_interval = self.config.get('progress_tracking.log_interval', 10000)
             all_cves = []
             start_index = 0
             
@@ -101,9 +103,12 @@ class CVEProcessor:
             
             self.logger.info("Retrieving CVEs from NVD API...")
             
-            # Adaptive rate limiting variables
-            base_delay = 0.5  # Start with 0.5 second delay
-            max_delay = 30.0  # Maximum delay of 30 seconds
+            # Adaptive rate limiting variables - use config values
+            rate_limit_config = self.config.get('api.nvd.rate_limit', {})
+            base_delay = rate_limit_config.get('base_delay', 0.5)
+            max_delay = rate_limit_config.get('max_delay', 30.0)
+            backoff_multiplier = rate_limit_config.get('backoff_multiplier', 2.5)
+            max_retries = rate_limit_config.get('max_retries', 5)
             current_delay = base_delay
             consecutive_429s = 0
             successful_requests = 0
@@ -112,7 +117,6 @@ class CVEProcessor:
                 params['startIndex'] = start_index
                 
                 # Adaptive retry logic for 429 errors
-                max_retries = 5
                 retry_delay = current_delay
                 
                 for attempt in range(max_retries):
@@ -129,7 +133,7 @@ class CVEProcessor:
                                 
                                 self.logger.warning(f"Rate limited (429), waiting {actual_delay:.2f}s before retry {attempt + 1}/{max_retries}")
                                 time.sleep(actual_delay)
-                                retry_delay *= 2.5  # More aggressive backoff
+                                retry_delay *= backoff_multiplier
                                 continue
                             else:
                                 self.logger.error("Rate limited, max retries exceeded")
@@ -174,11 +178,11 @@ class CVEProcessor:
                 start_index += len(cves)
                 
                 # Progress reporting and saving
-                if len(all_cves) % 10000 == 0 or len(cves) < params['resultsPerPage']:
+                if len(all_cves) % log_interval == 0 or len(cves) < params['resultsPerPage']:
                     self.logger.info(f"Retrieved {len(cves)} CVEs (total: {len(all_cves)}) - Current delay: {current_delay:.2f}s")
                 
-                # Save progress every 5000 CVEs
-                if len(all_cves) % 5000 == 0:
+                # Save progress at configured interval
+                if len(all_cves) % save_interval == 0:
                     progress_data = {
                         'last_index': start_index,
                         'total_retrieved': len(all_cves),
@@ -351,11 +355,46 @@ class CVEProcessor:
             self.logger.warning(f"Exception for CAPEC-{capec_id}: {str(e)}")
             return []
     
-    def get_defend_techniques(self, technique_id: str) -> List[str]:
-        """Get D3FEND techniques for a MITRE technique"""
-        # This would integrate with the D3FEND API
-        # For now, return empty list
-        return []
+    def get_defend_techniques(self, technique_id: str) -> List[Dict[str, str]]:
+        """Get D3FEND defensive techniques for a MITRE ATT&CK technique"""
+        # Load D3FEND database
+        defend_file = self.config.get_database_path('defend')
+        
+        # Check cache first
+        cache_key = f"defend_{technique_id}"
+        cached_result = self.cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+        
+        try:
+            # Normalize technique ID
+            attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
+            
+            # Try to load from JSONL file first
+            if Path(defend_file).exists():
+                for entry in self.jsonl_manager.read_jsonl(defend_file):
+                    if attack_id in entry:
+                        result = entry[attack_id].get('defensive_techniques', [])
+                        self.cache.set(cache_key, result, ttl=3600)
+                        return result
+            
+            # Try JSON file as fallback
+            defend_json = defend_file.replace('.jsonl', '.json')
+            if Path(defend_json).exists():
+                with open(defend_json, 'r') as f:
+                    defend_db = json.load(f)
+                    if attack_id in defend_db:
+                        result = defend_db[attack_id].get('defensive_techniques', [])
+                        self.cache.set(cache_key, result, ttl=3600)
+                        return result
+            
+            # Cache empty result to avoid repeated lookups
+            self.cache.set(cache_key, [], ttl=3600)
+            return []
+            
+        except Exception as e:
+            self.logger.debug(f"Error getting D3FEND techniques for {technique_id}: {e}")
+            return []
     
     @log_operation("process_cve_pipeline", "cve_processing")
     @track_cve_processing_metrics("process_cve_pipeline")
@@ -397,12 +436,18 @@ class CVEProcessor:
                 result[cve_id]["TECHNIQUES"] = list(sorted(techniques_list))
                 
                 # Step 4: Get D3FEND techniques
-                defend_list = set()
+                defend_list: List[Dict[str, str]] = []
+                seen_defend_ids: set = set()
                 for technique in techniques_list:
                     defend_techniques = self.get_defend_techniques(technique)
-                    defend_list.update(defend_techniques)
+                    for dt in defend_techniques:
+                        dt_id = dt.get('id', '')
+                        if dt_id and dt_id not in seen_defend_ids:
+                            seen_defend_ids.add(dt_id)
+                            defend_list.append(dt)
                 
-                result[cve_id]["DEFEND"] = list(sorted(defend_list))
+                # Sort by ID for consistent output
+                result[cve_id]["DEFEND"] = sorted(defend_list, key=lambda x: x.get('id', ''))
                 
                 # Step 5: Get OWASP Top 10 categories
                 # Use result[cve_id] which contains enriched CWE list with parent CWEs

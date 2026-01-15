@@ -6,11 +6,18 @@
             "timeout": 30,
             "retry_limit": 3,
             "retry_delay": 5,
-            "results_per_page": 2000
+            "results_per_page": 2000,
+            "rate_limit": {
+                "base_delay": 0.5,
+                "max_delay": 30.0,
+                "backoff_multiplier": 2.5,
+                "max_retries": 5
+            }
         },
         "d3fend": {
             "base_url": "https://d3fend.mitre.org/api/offensive-technique/attack/",
-            "timeout": 30
+            "timeout": 30,
+            "enabled": true
         }
     },
     "database": {
@@ -61,7 +68,12 @@
     "files": {
         "cve_output": "results/new_cves.jsonl",
         "last_update": "lastUpdate.txt",
-        "database_dir": "database"
+        "database_dir": "database",
+        "progress_file": "cve_progress.json"
+    },
+    "progress_tracking": {
+        "save_interval": 5000,
+        "log_interval": 10000
     },
     "logging": {
         "level": "INFO",
