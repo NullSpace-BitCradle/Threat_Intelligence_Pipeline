@@ -22,9 +22,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create required directories
+        run: python setup.py
+
       - name: Run pipeline
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          PYTHONPATH: src
         run: python run_pipeline.py --force
 
       - name: Commit and push if changed

@@ -22,7 +22,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create required directories
+        run: python setup.py
+
       - name: Update reference databases
+        env:
+          PYTHONPATH: src
         run: python run_pipeline.py --db-only
 
       - name: Commit and push if changed
