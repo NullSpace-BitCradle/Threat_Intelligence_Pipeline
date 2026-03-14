@@ -39,19 +39,28 @@ Thumbs.db
 
 # Project specific
 *.log
-*.jsonl
 *.zip
 *.xlsx
 *.xml
 *.csv
-lastUpdate.txt
 results/
-database/
-resources/
 logs/
 
-# Temporary files
-test_*.py
+# Generated pipeline files (tracked when produced by GitHub Actions)
+# Uncomment these lines if you don't want to commit pipeline output locally:
+# database/
+# resources/
+# lastUpdate.txt
+# *.jsonl
+
+# Local clone artifacts
+_vulnrichment_clone/
+
+# Virtual environment
+.venv/
+
+# Temporary files (root-level only, not tests/)
+/test_*.py
 temp_*
 cve_progress.json
 TEST_*.md
