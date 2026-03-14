@@ -25,6 +25,7 @@ from tip.utils.error_handler import (
 from tip.utils.error_recovery import with_recovery, create_api_context
 from tip.utils.validation import validate_file_exists, logger
 from tip.core.kev_processor import KEVProcessor
+from tip.core.vulnrichment_processor import VulnrichmentProcessor
 
 config = get_config()
 config.setup_logging()
@@ -72,6 +73,10 @@ class DatabaseManager:
                 'url': config.get('database.kev.url'),
                 'file': config.get_database_path('kev'),
                 'processor': self._update_kev_database
+            },
+            'vulnrichment': {
+                'file': config.get_database_path('vulnrichment'),
+                'processor': self._update_vulnrichment_database
             }
         }
     
@@ -386,6 +391,12 @@ class DatabaseManager:
         raw_data = kev_processor.download()
         return kev_processor._process_kev_data(raw_data)
 
+    def _update_vulnrichment_database(self) -> Dict[str, Any]:
+        """Download and process CISA Vulnrichment data"""
+        vr_processor = VulnrichmentProcessor()
+        vr_processor.update()
+        return vr_processor.vulnrichment_db
+
     def _save_database(self, data: Dict[str, Any], file_path: str):
         """Save database data to JSON file"""
         try:
@@ -445,6 +456,12 @@ class DatabaseManager:
                 self._save_database(data, db_config['file'])
                 return True
 
+            elif db_name == 'vulnrichment':
+                # Process Vulnrichment
+                data = db_config['processor']()
+                self._save_database(data, db_config['file'])
+                return True
+
             return False
             
         except Exception as e:
@@ -457,7 +474,7 @@ class DatabaseManager:
         results = {}
         
         # Update databases in dependency order
-        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev']
+        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment']
         
         for db_name in update_order:
             self.logger.info(f"Updating {db_name} database...")
