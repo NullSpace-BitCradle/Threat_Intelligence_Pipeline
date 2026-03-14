@@ -292,6 +292,105 @@ def sample_kev_db() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def sample_stix_bundle() -> Dict[str, Any]:
+    """Sample STIX bundle with groups, attack patterns, and uses relationships"""
+    return {
+        "type": "bundle",
+        "id": "bundle--test",
+        "objects": [
+            {
+                "type": "intrusion-set",
+                "id": "intrusion-set--aaa",
+                "name": "APT29",
+                "aliases": ["APT29", "Cozy Bear", "The Dukes", "YTTRIUM"],
+                "description": "APT29 is a threat group attributed to Russia.",
+                "external_references": [{"source_name": "mitre-attack", "external_id": "G0016"}]
+            },
+            {
+                "type": "intrusion-set",
+                "id": "intrusion-set--bbb",
+                "name": "APT28",
+                "aliases": ["APT28", "Fancy Bear", "Sofacy"],
+                "description": "APT28 is a threat group attributed to Russia.",
+                "external_references": [{"source_name": "mitre-attack", "external_id": "G0007"}]
+            },
+            {
+                "type": "attack-pattern",
+                "id": "attack-pattern--111",
+                "name": "File and Directory Discovery",
+                "external_references": [{"source_name": "mitre-attack", "external_id": "T1083"}]
+            },
+            {
+                "type": "attack-pattern",
+                "id": "attack-pattern--222",
+                "name": "Phishing",
+                "external_references": [{"source_name": "mitre-attack", "external_id": "T1566"}]
+            },
+            {
+                "type": "attack-pattern",
+                "id": "attack-pattern--333",
+                "name": "Data from Local System",
+                "external_references": [{"source_name": "mitre-attack", "external_id": "T1005"}]
+            },
+            {
+                "type": "relationship",
+                "id": "relationship--r1",
+                "relationship_type": "uses",
+                "source_ref": "intrusion-set--aaa",
+                "target_ref": "attack-pattern--111"
+            },
+            {
+                "type": "relationship",
+                "id": "relationship--r2",
+                "relationship_type": "uses",
+                "source_ref": "intrusion-set--aaa",
+                "target_ref": "attack-pattern--333"
+            },
+            {
+                "type": "relationship",
+                "id": "relationship--r3",
+                "relationship_type": "uses",
+                "source_ref": "intrusion-set--bbb",
+                "target_ref": "attack-pattern--111"
+            },
+            {
+                "type": "relationship",
+                "id": "relationship--r4",
+                "relationship_type": "uses",
+                "source_ref": "intrusion-set--bbb",
+                "target_ref": "attack-pattern--222"
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def sample_groups_db() -> Dict[str, Any]:
+    """Sample groups database: groups indexed by ID + reverse technique index"""
+    return {
+        "groups": {
+            "G0016": {
+                "name": "APT29",
+                "aliases": ["APT29", "Cozy Bear", "The Dukes", "YTTRIUM"],
+                "description": "APT29 is a threat group attributed to Russia.",
+                "techniques": ["T1005", "T1083"]
+            },
+            "G0007": {
+                "name": "APT28",
+                "aliases": ["APT28", "Fancy Bear", "Sofacy"],
+                "description": "APT28 is a threat group attributed to Russia.",
+                "techniques": ["T1083", "T1566"]
+            }
+        },
+        "technique_to_groups": {
+            "T1083": ["G0016", "G0007"],
+            "T1005": ["G0016"],
+            "T1566": ["G0007"]
+        }
+    }
+
+
+@pytest.fixture
 def sample_vulnrichment_cve() -> Dict[str, Any]:
     """Sample Vulnrichment per-CVE JSON (simplified from cisagov/vulnrichment format)"""
     return {

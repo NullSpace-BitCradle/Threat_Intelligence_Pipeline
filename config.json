@@ -55,6 +55,10 @@
             "repo": "cisagov/vulnrichment",
             "file": "resources/vulnrichment_db.json",
             "state_file": "resources/vulnrichment_state.json"
+        },
+        "groups": {
+            "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json",
+            "file": "resources/groups_db.json"
         }
     },
     "processing": {
