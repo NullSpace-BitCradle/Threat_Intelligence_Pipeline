@@ -37,7 +37,7 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Project working directories (pipeline output, not tracked)
 *.log
 *.zip
 *.xlsx
@@ -45,16 +45,11 @@ Thumbs.db
 *.csv
 results/
 logs/
+resources/
+database/
 
-# Generated pipeline files (tracked when produced by GitHub Actions)
-# Uncomment these lines if you don't want to commit pipeline output locally:
-# database/
-# resources/
-# lastUpdate.txt
-# *.jsonl
-
-# Local clone artifacts
-_vulnrichment_clone/
+# Pipeline state
+cve_progress.json
 
 # Virtual environment
 .venv/
@@ -62,8 +57,10 @@ _vulnrichment_clone/
 # Temporary files (root-level only, not tests/)
 /test_*.py
 temp_*
-cve_progress.json
 TEST_*.md
 CODE_REVIEW*.md
 *_SUMMARY*.md
 .superpowers/
+
+# Local clone artifacts
+_vulnrichment_clone/

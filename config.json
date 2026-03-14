@@ -23,11 +23,11 @@
     "database": {
         "capec": {
             "url": "https://capec.mitre.org/data/csv/1000.csv.zip",
-            "file": "resources/capec_db.json"
+            "file": "docs/data/capec_db.json"
         },
         "cwe": {
             "url": "http://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
-            "file": "resources/cwe_db.json"
+            "file": "docs/data/cwe_db.json"
         },
         "techniques": {
             "enterprise": {
@@ -42,23 +42,23 @@
                 "url": "https://attack.mitre.org/docs/ics-attack-v17.1/ics-attack-v17.1-techniques.xlsx",
                 "column": 9
             },
-            "file": "resources/techniques_db.json"
+            "file": "docs/data/techniques_db.json"
         },
         "defend": {
-            "file": "resources/defend_db.jsonl"
+            "file": "docs/data/defend_db.jsonl"
         },
         "kev": {
             "url": "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json",
-            "file": "resources/kev_db.json"
+            "file": "docs/data/kev_db.json"
         },
         "vulnrichment": {
             "repo": "cisagov/vulnrichment",
-            "file": "resources/vulnrichment_db.json",
-            "state_file": "resources/vulnrichment_state.json"
+            "file": "docs/data/vulnrichment_db.json",
+            "state_file": "docs/data/vulnrichment_state.json"
         },
         "groups": {
             "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json",
-            "file": "resources/groups_db.json"
+            "file": "docs/data/groups_db.json"
         }
     },
     "processing": {
@@ -81,7 +81,7 @@
     "files": {
         "cve_output": "results/new_cves.jsonl",
         "last_update": "lastUpdate.txt",
-        "database_dir": "database",
+        "database_dir": "docs/database",
         "progress_file": "cve_progress.json"
     },
     "progress_tracking": {
