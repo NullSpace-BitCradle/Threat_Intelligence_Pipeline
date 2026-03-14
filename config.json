@@ -50,6 +50,11 @@
         "kev": {
             "url": "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json",
             "file": "resources/kev_db.json"
+        },
+        "vulnrichment": {
+            "repo": "cisagov/vulnrichment",
+            "file": "resources/vulnrichment_db.json",
+            "state_file": "resources/vulnrichment_state.json"
         }
     },
     "processing": {

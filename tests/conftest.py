@@ -275,6 +275,60 @@ def sample_kev_db() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def sample_vulnrichment_cve() -> Dict[str, Any]:
+    """Sample Vulnrichment per-CVE JSON (simplified from cisagov/vulnrichment format)"""
+    return {
+        "containers": {
+            "adp": [
+                {
+                    "providerMetadata": {
+                        "orgId": "134c704f-9b21-4f2e-91b3-4a467353bcc0"
+                    },
+                    "title": "CISA ADP Vulnrichment",
+                    "metrics": [
+                        {
+                            "other": {
+                                "type": "ssvc",
+                                "content": {
+                                    "id": "CVE-2024-1234",
+                                    "options": [
+                                        {"Exploitation": "active"},
+                                        {"Automatable": "yes"},
+                                        {"Technical Impact": "total"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "cvssV3_1": {
+                                "baseScore": 9.8,
+                                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+
+@pytest.fixture
+def sample_vulnrichment_db() -> Dict[str, Any]:
+    """Sample Vulnrichment database indexed by CVE ID (processed format)"""
+    return {
+        "CVE-2024-1234": {
+            "ssvcExploitStatus": "active",
+            "ssvcAutomatable": "yes",
+            "ssvcTechnicalImpact": "total",
+            "cisaCVSS": {
+                "baseScore": 9.8,
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+            }
+        }
+    }
+
+
+@pytest.fixture
 def mock_nvd_response() -> Dict[str, Any]:
     """Mock NVD API response"""
     return {
