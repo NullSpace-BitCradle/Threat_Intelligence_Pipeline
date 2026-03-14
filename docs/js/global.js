@@ -163,11 +163,8 @@ async function process(page_load = false) {
         ? 'enterprise'
         : modeSelect;
 
-    let techniquesAssoc, cweDataRaw, capecDataRaw, defendText = '';
+    let techniquesAssoc = {}, cweDataRaw, capecDataRaw, defendText = '';
     try {
-        techniquesAssoc = await fetchWithFallback([
-            'data/techniques_association.json'
-        ]);
         cweDataRaw = await fetchWithFallback([
             'data/cwe_db.json'
         ]);
@@ -188,6 +185,12 @@ async function process(page_load = false) {
         });
         chart.hideLoading();
         return;
+    }
+    // Techniques association is optional (only needed for mobile/ICS domain mapping)
+    try {
+        techniquesAssoc = await fetchWithFallback(['data/techniques_association.json']);
+    } catch (e) {
+        console.log('Techniques association file not available, cross-domain mapping disabled');
     }
 
     const defendList = {};
