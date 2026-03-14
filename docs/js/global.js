@@ -32,20 +32,6 @@ document.querySelector("#layer_type").addEventListener('change', function () {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Masquer l'onglet D3FEND et OWASP par défaut
-    document.getElementById('defend-tab').style.display = 'none';
-    document.getElementById('owasp-tab').style.display = 'none';
-
-    // Gestionnaire d'événements pour les onglets
-    document.getElementById('attack-tab').addEventListener('shown.bs.tab', function (e) {
-        // Redimensionner l'iframe si elle existe
-        const iframe = document.getElementById('mitre');
-        if (iframe) {
-            iframe.style.height = '800px';
-            iframe.style.width = '100%';
-        }
-    });
-
     check_param();
 
     var contentEditableElements = document.querySelectorAll('[contenteditable]');
@@ -461,21 +447,21 @@ async function process(page_load = false) {
 
     await print_mitre();
 
-    // Activer l'onglet ATT&CK après génération et mettre à jour les statistiques
-    document.getElementById('attack-tab').click();
+    // Update statistics
     updateAttackStats();
 
     if (wantDefend) {
         document.getElementById('defend_matrix').style.display = '';
-        document.getElementById('defend-tab').style.display = '';
+        var defendEmpty = document.getElementById('defend-empty');
+        if (defendEmpty) defendEmpty.style.display = 'none';
         renderDefendMatrix(defendScore);
-    } else {
-        document.getElementById('defend_matrix').style.display = 'none';
-        document.getElementById('defend-tab').style.display = 'none';
     }
 
     // Update OWASP stats and display
     updateOwaspStats();
+
+    // Update analysis summary cards
+    updateAnalysisSummary(cvesArray, chart_nodes);
 }
 
 // ===== UTILITY FUNCTIONS =====
@@ -966,30 +952,29 @@ function updateOwaspStats() {
     const owaspNodes = chart_nodes.filter(n => n.name && n.name.startsWith('OWASP-'));
     
     if (owaspNodes.length > 0) {
-        // Show OWASP summary banner
+        // Show OWASP summary banner in analysis view
         document.getElementById('owasp-summary').style.display = '';
         document.getElementById('owasp-categories-count').textContent = owaspNodes.length;
-        
-        // Show OWASP tab
-        document.getElementById('owasp-tab').style.display = '';
-        
+
+        // Hide the empty state in OWASP view
+        var owaspEmpty = document.getElementById('owasp-empty');
+        if (owaspEmpty) owaspEmpty.style.display = 'none';
+
         // Collect OWASP data for the matrix
         const owaspData = {};
         owaspNodes.forEach(node => {
-            const owaspId = node.name; // e.g., "OWASP-A01:2021"
+            const owaspId = node.name;
             const links = chart_links.filter(link => link.target === owaspId);
             owaspData[owaspId] = {
                 count: links.length,
                 sources: links.map(link => link.source)
             };
         });
-        
+
         // Render the OWASP matrix
         renderOwaspMatrix(owaspData);
     } else {
-        // Hide OWASP elements if no data
         document.getElementById('owasp-summary').style.display = 'none';
-        document.getElementById('owasp-tab').style.display = 'none';
     }
 }
 
@@ -1075,4 +1060,18 @@ function renderOwaspMatrix(owaspData) {
     html += '</div>';
     
     matrixContainer.innerHTML = html;
+}
+
+// ===== ANALYSIS SUMMARY CARDS =====
+
+function updateAnalysisSummary(cvesArray, nodes) {
+    var summary = document.getElementById('analysis-summary');
+    if (!summary) return;
+
+    var techniqueNodes = nodes.filter(function(n) { return n.name && n.name.startsWith('T'); });
+
+    document.getElementById('stat-cve-count').textContent = cvesArray.length;
+    document.getElementById('stat-technique-count').textContent = techniqueNodes.length;
+
+    summary.style.display = '';
 }
