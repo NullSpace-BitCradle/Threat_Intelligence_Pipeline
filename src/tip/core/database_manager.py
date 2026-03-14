@@ -227,43 +227,58 @@ class DatabaseManager:
     
     @log_operation("process_techniques", "database_update")
     def _process_techniques_data(self) -> Dict[str, Any]:
-        """Process MITRE ATT&CK techniques data"""
+        """Process MITRE ATT&CK techniques data from STIX bundle"""
         try:
             techniques_data = {}
-            
-            for framework, config_data in self.databases['techniques'].items():
-                if framework == 'file' or framework == 'processor':
+
+            # Download the enterprise ATT&CK STIX bundle (same source as APT processor)
+            stix_url = config.get(
+                'database.groups.url',
+                'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json'
+            )
+
+            self.logger.info(f"Downloading ATT&CK STIX bundle for techniques...")
+            timeout = config.get('api.nvd.timeout', 120)
+            response = requests.get(stix_url, timeout=timeout)
+            response.raise_for_status()
+            stix_data = response.json()
+
+            for obj in stix_data.get('objects', []):
+                if obj.get('type') != 'attack-pattern':
                     continue
-                
-                try:
-                    url = config_data['url']
-                    column = config_data['column']
-                    
-                    # Download Excel file
-                    excel_file = f"{framework}_techniques.xlsx"
-                    if self._download_file(url, excel_file):
-                        # Process Excel data
-                        df = pd.read_excel(excel_file)
-                        
-                        for _, row in df.iterrows():
-                            technique_id = str(row.iloc[column]) if len(row) > column else ""
-                            if technique_id and technique_id != 'nan':
-                                techniques_data[technique_id] = {
-                                    'framework': framework,
-                                    'name': str(row.iloc[1]) if len(row) > 1 else "",
-                                    'description': str(row.iloc[2]) if len(row) > 2 else ""
-                                }
-                        
-                        # Clean up
-                        os.remove(excel_file)
-                        
-                except Exception as e:
-                    self.logger.warning(f"Error processing {framework} techniques: {e}")
+                if obj.get('revoked') or obj.get('x_mitre_deprecated'):
                     continue
-            
-            self.logger.info(f"Processed {len(techniques_data)} technique entries")
+
+                # Extract technique ID from external references
+                technique_id = ''
+                for ref in obj.get('external_references', []):
+                    if ref.get('source_name') == 'mitre-attack':
+                        technique_id = ref.get('external_id', '')
+                        break
+
+                if not technique_id:
+                    continue
+
+                # Strip the 'T' prefix for the lookup key (existing code expects numeric IDs)
+                key = technique_id[1:] if technique_id.startswith('T') else technique_id
+
+                # Determine framework from x_mitre_domains
+                domains = obj.get('x_mitre_domains', [])
+                framework = 'enterprise'
+                if 'mobile-attack' in domains:
+                    framework = 'mobile'
+                elif 'ics-attack' in domains:
+                    framework = 'ics'
+
+                techniques_data[key] = {
+                    'framework': framework,
+                    'name': obj.get('name', ''),
+                    'description': obj.get('description', '')[:200] if obj.get('description') else ''
+                }
+
+            self.logger.info(f"Processed {len(techniques_data)} technique entries from STIX")
             return techniques_data
-            
+
         except Exception as e:
             self.logger.error(f"Error processing techniques data: {e}")
             raise
@@ -305,8 +320,8 @@ class DatabaseManager:
                     # Normalize technique ID format (e.g., "1059" -> "T1059")
                     attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
                     
-                    # Query D3FEND API
-                    url = f"{d3fend_base_url}{attack_id}"
+                    # Query D3FEND API (requires .json extension)
+                    url = f"{d3fend_base_url}{attack_id}.json"
                     response = requests.get(url, timeout=timeout)
                     
                     if response.status_code == 200:
@@ -354,7 +369,9 @@ class DatabaseManager:
         try:
             # D3FEND API returns data in a specific format
             # Navigate the response structure to find defensive techniques
-            bindings = d3fend_response.get('results', {}).get('bindings', [])
+            # D3FEND API response nests data under off_to_def
+            off_to_def = d3fend_response.get('off_to_def', d3fend_response)
+            bindings = off_to_def.get('results', {}).get('bindings', [])
             
             for binding in bindings:
                 technique_info = {}
