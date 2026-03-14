@@ -1,5 +1,7 @@
 # Threat Intelligence Pipeline (TIP)
 
+> **A note from the author:** I'm not a developer by trade -- I'm a hybrid IT and cybersecurity professional who enjoys tinkering, learning, and building useful things along the way. This project is under active development and may break from time to time as I experiment and improve it. Once I'm confident everything is working reliably, I'll remove this notice.
+
 Correlates CVEs across 8 security frameworks in one automated pipeline. Enter a CVE and instantly see its weakness (CWE), attack patterns (CAPEC), attack techniques (ATT&CK), defensive measures (D3FEND), OWASP category, CISA KEV status, SSVC risk decision, and associated APT groups.
 
 **Live demo:** [nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline](https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/)
