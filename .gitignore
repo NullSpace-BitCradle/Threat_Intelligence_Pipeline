@@ -50,8 +50,8 @@ database/
 resources/
 logs/
 
-# Temporary files
-test_*.py
+# Temporary files (root-level only, not tests/)
+/test_*.py
 temp_*
 cve_progress.json
 TEST_*.md
