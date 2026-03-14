@@ -32,6 +32,7 @@ from tip.utils.validation import (
     safe_parse_capec_techniques, logger
 )
 from tip.core.owasp_processor import OWASPProcessor
+from tip.core.kev_processor import KEVProcessor
 from tip.utils.rate_limiter import rate_limit, adaptive_rate_limit
 from tip.monitoring.metrics import track_api_metrics, track_cve_processing_metrics, record_error
 from tip.monitoring.request_tracker import track_request, get_current_request_id
@@ -61,6 +62,10 @@ class CVEProcessor:
         
         # Initialize OWASP processor
         self.owasp_processor = OWASPProcessor(self.config.config)
+
+        # Initialize KEV processor
+        self.kev_processor = KEVProcessor()
+        self.kev_processor.load()
     
     @track_api_metrics("nvd", "GET")
     @track_request("retrieve_cves", "cve_processor")
@@ -453,7 +458,12 @@ class CVEProcessor:
                 # Use result[cve_id] which contains enriched CWE list with parent CWEs
                 owasp_categories = self.owasp_processor.get_owasp_categories_for_cve(result[cve_id])
                 result[cve_id]["OWASP"] = owasp_categories
-                
+
+                # Step 6: KEV lookup
+                kev_data = self.kev_processor.lookup(cve_id)
+                if kev_data:
+                    result[cve_id]["KEV"] = kev_data
+
             except Exception as e:
                 self.logger.error(f"Error processing CVE {cve_id}: {e}")
                 # Return partial result
