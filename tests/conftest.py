@@ -134,7 +134,8 @@ def temp_config_file(tmp_path) -> Path:
             "vulnrichment": {
                 "file": str(tmp_path / "vulnrichment_db.json"),
                 "state_file": str(tmp_path / "vulnrichment_state.json")
-            }
+            },
+            "groups": {"file": str(tmp_path / "groups_db.json")}
         },
         "processing": {
             "max_threads": 2,
@@ -197,12 +198,18 @@ def temp_database_files(tmp_path, sample_cwe_db, sample_capec_db) -> Dict[str, P
     with open(vr_path, 'w') as f:
         json.dump({}, f)
 
+    # Write Groups database
+    groups_path = resources_dir / "groups_db.json"
+    with open(groups_path, 'w') as f:
+        json.dump({"groups": {}, "technique_to_groups": {}}, f)
+
     return {
         "cwe": cwe_path,
         "capec": capec_path,
         "techniques": techniques_path,
         "kev": kev_path,
         "vulnrichment": vr_path,
+        "groups": groups_path,
         "resources_dir": resources_dir
     }
 
