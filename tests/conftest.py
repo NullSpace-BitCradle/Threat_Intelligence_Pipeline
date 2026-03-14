@@ -129,7 +129,12 @@ def temp_config_file(tmp_path) -> Path:
             "capec": {"file": str(tmp_path / "capec_db.json")},
             "cwe": {"file": str(tmp_path / "cwe_db.json")},
             "techniques": {"file": str(tmp_path / "techniques_db.json")},
-            "defend": {"file": str(tmp_path / "defend_db.jsonl")}
+            "defend": {"file": str(tmp_path / "defend_db.jsonl")},
+            "kev": {"file": str(tmp_path / "kev_db.json")},
+            "vulnrichment": {
+                "file": str(tmp_path / "vulnrichment_db.json"),
+                "state_file": str(tmp_path / "vulnrichment_state.json")
+            }
         },
         "processing": {
             "max_threads": 2,
@@ -181,11 +186,23 @@ def temp_database_files(tmp_path, sample_cwe_db, sample_capec_db) -> Dict[str, P
     techniques_path = resources_dir / "techniques_db.json"
     with open(techniques_path, 'w') as f:
         json.dump({}, f)
-    
+
+    # Write KEV database
+    kev_path = resources_dir / "kev_db.json"
+    with open(kev_path, 'w') as f:
+        json.dump({}, f)
+
+    # Write Vulnrichment database
+    vr_path = resources_dir / "vulnrichment_db.json"
+    with open(vr_path, 'w') as f:
+        json.dump({}, f)
+
     return {
         "cwe": cwe_path,
         "capec": capec_path,
         "techniques": techniques_path,
+        "kev": kev_path,
+        "vulnrichment": vr_path,
         "resources_dir": resources_dir
     }
 
