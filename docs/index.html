@@ -1,17 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en" data-theme="dark">
 
 <head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NCCFW6FDGQ"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-
-        gtag('config', 'G-NCCFW6FDGQ');
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Intelligence Pipeline (TIP)</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -19,186 +12,194 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
     <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/theme.css">
 
     <script src="https://cdn.jsdelivr.net/npm/simple-notify/dist/simple-notify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-    <script src=" https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js "></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <title>Threat Intelligence Pipeline (TIP)</title>
 </head>
 
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" id="main">
-        <div class="container-fluid">
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"
-                aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
+    <!-- Top Navigation -->
+    <nav class="tip-nav">
+        <span class="tip-nav-brand">TIP</span>
+        <div class="tip-nav-tabs">
+            <button class="tip-nav-tab active" data-view="analysis">Analysis</button>
+            <button class="tip-nav-tab" data-view="kev">CISA KEV</button>
+            <button class="tip-nav-tab" data-view="apt">APT Groups</button>
+            <button class="tip-nav-tab" data-view="attack">ATT&CK</button>
+            <button class="tip-nav-tab" data-view="defend">D3FEND</button>
+            <button class="tip-nav-tab" data-view="owasp">OWASP</button>
+        </div>
+        <div class="tip-nav-right">
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                <span id="themeIcon">&#9790;</span>
             </button>
-            <span class="navbar-brand">Threat Intelligence Pipeline (TIP)</span>
-            <div class="collapse navbar-collapse" id="navbarText">
-            </div>
         </div>
     </nav>
 
-
-    <div class="container-fluid mt-3">
-        <div class="row">
-            <div class="col-sm-12">
-                <p class="text-center text-secondary">Type a list of CVEs (step 1), click on the Generate button (step
-                    2) to compute CWE, CAPEC, and Techniques, and draw the MITRE ATT&CK / MITRE D3FEND matrixes.</p>
-                <p class="text-center"><button class="btn btn-outline-secondary" type="button" onclick="example()">Try
-                        an example</button></p>
-            </div>
-        </div>
-        <div class="row mx-3">
-            <div class="col-lg-2 col-md-12">
-                <h4 class="text-center">1. List of CVEs</h4>
-                <div class="card column">
-                    <div class="card-body" placeholder="CVE-2024-37079..." contenteditable="true" id="cves">
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-12 d-flex align-items-center process">
-                <div class="row mx-auto process-row" style="padding-right: 4%;">
-                    <button type="button" class="btn btn-primary mx-auto" onclick="process()">2. Generate</button>
-                    <select id="layer_type" class="form-select mt-2 text-center bg-secondary-subtle">
-                        <option value="enterprise-defend">ATT&CK Enterprise + D3FEND</option>
-                        <option value="enterprise">ATT&CK Enterprise</option>
-                        <option value="mobile">ATT&CK Mobile</option>
-                        <option value="ics">ATT&CK ICS</option>
-                    </select>
-                    <button type="button" class="btn btn-outline-secondary mx-auto mt-2" onclick="share()">Share current
-                        config</button>
-
-                </div>
-            </div>
-            <div class="col-lg-7 col-md-12 position-relative bg-white">
-                <!-- OWASP Summary Banner -->
-                <div id="owasp-summary" class="mx-3 mt-3" style="
-                    width: calc(100% - 2rem);
-                    margin-bottom: 16px; 
-                    padding: 12px; 
-                    background: linear-gradient(135deg, #fff0f5 0%, #ffe4f0 100%); 
-                    border-radius: 8px; 
-                    border-left: 4px solid #ff9ff3;
-                    font-family: 'Roboto', sans-serif;
-                    display: none;
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                        <div>
-                            <h4 style="margin: 0; color: #c2185b; font-weight: 600;">📊 OWASP Top 10 2021</h4>
-                            <p style="margin: 4px 0 0 0; color: #424242; font-size: 14px;">Security categories mapped from your CVE analysis</p>
+    <!-- ===== ANALYSIS VIEW ===== -->
+    <div class="tip-view active" id="view-analysis">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-lg-3 col-md-12">
+                    <div class="tip-card">
+                        <div class="tip-card-header">CVE Input</div>
+                        <div class="tip-cve-input" placeholder="CVE-2024-37079&#10;CVE-2018-17924&#10;..." contenteditable="true" id="cves"></div>
+                        <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="tip-btn tip-btn-primary" onclick="process()">Generate</button>
+                            <button class="tip-btn tip-btn-secondary" onclick="example()">Try Example</button>
+                            <select id="layer_type" class="tip-search" style="max-width: 200px;">
+                                <option value="enterprise-defend">Enterprise + D3FEND</option>
+                                <option value="enterprise">Enterprise</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="ics">ICS</option>
+                            </select>
                         </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 14px; color: #424242;" id="owasp-stats">
-                                <strong id="owasp-categories-count">0</strong> categories affected
-                            </div>
+                        <div style="margin-top: 8px;">
+                            <button class="tip-btn tip-btn-secondary" onclick="share()" style="font-size: 12px;">Share URL</button>
                         </div>
                     </div>
                 </div>
-                
-                <div class="mx-3" style="width: 100%; min-height: 400px; background-color: white;" id="container"></div>
-            </div>
-        </div>
-    </div>
+                <div class="col-lg-9 col-md-12">
+                    <!-- Summary cards (populated after analysis) -->
+                    <div class="tip-summary-row" id="analysis-summary" style="display: none;">
+                        <div class="tip-stat-card">
+                            <div class="tip-stat-value" id="stat-cve-count">0</div>
+                            <div class="tip-stat-label">CVEs Analyzed</div>
+                        </div>
+                        <div class="tip-stat-card">
+                            <div class="tip-stat-value" id="stat-technique-count">0</div>
+                            <div class="tip-stat-label">Techniques</div>
+                        </div>
+                        <div class="tip-stat-card">
+                            <div class="tip-stat-value" id="stat-kev-count">0</div>
+                            <div class="tip-stat-label">In CISA KEV</div>
+                        </div>
+                        <div class="tip-stat-card">
+                            <div class="tip-stat-value" id="stat-apt-count">0</div>
+                            <div class="tip-stat-label">APT Groups</div>
+                        </div>
+                    </div>
 
-    <!-- Tabs Navigation -->
-    <div class="container-fluid mt-4">
-        <ul class="nav nav-tabs d-flex" id="mitreTab" role="tablist">
-            <li class="nav-item flex-fill" role="presentation">
-                <button class="nav-link active" id="attack-tab" data-bs-toggle="tab" data-bs-target="#attack-pane"
-                    type="button" role="tab" aria-controls="attack-pane" aria-selected="true">
-                    <span style="margin-right: 8px;">⚔️</span>MITRE ATT&CK
-                </button>
-            </li>
-            <li class="nav-item flex-fill" role="presentation">
-                <button class="nav-link" id="defend-tab" data-bs-toggle="tab" data-bs-target="#defend-pane"
-                    type="button" role="tab" aria-controls="defend-pane" aria-selected="false">
-                    <span style="margin-right: 8px;">🛡️</span>MITRE D3FEND
-                </button>
-            </li>
-            <li class="nav-item flex-fill" role="presentation">
-                <button class="nav-link" id="owasp-tab" data-bs-toggle="tab" data-bs-target="#owasp-pane"
-                    type="button" role="tab" aria-controls="owasp-pane" aria-selected="false">
-                    <span style="margin-right: 8px;">📊</span>OWASP Top 10
-                </button>
-            </li>
-        </ul>
-
-        <!-- Tabs Content -->
-        <div class="tab-content" id="mitreTabContent">
-            <!-- MITRE ATT&CK Tab -->
-            <div class="tab-pane fade show active" id="attack-pane" role="tabpanel" aria-labelledby="attack-tab">
-                <div class="container-fluid px-3">
-                    <!-- Summary legend for ATT&CK -->
-                    <div id="attack-summary" class="mt-3" style="
-                        width: 100%;
-                        margin-bottom: 16px; 
-                        padding: 12px; 
-                        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); 
-                        border-radius: 8px; 
-                        border-left: 4px solid #ff9800;
-                        font-family: 'Roboto', sans-serif;
-                        display: none;
-                    ">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <!-- OWASP Summary Banner -->
+                    <div id="owasp-summary" class="tip-card" style="display: none; border-left: 4px solid var(--badge-owasp);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <h4 style="margin: 0; color: #e65100; font-weight: 600;">⚔️ MITRE ATT&CK Matrix</h4>
-                                <p style="margin: 4px 0 0 0; color: #424242; font-size: 14px;">Attack techniques mapped
-                                    from your CVE analysis</p>
+                                <div class="tip-card-header">OWASP Top 10 2021</div>
+                                <div style="color: var(--text-secondary); font-size: 13px;">Security categories from analysis</div>
                             </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 14px; color: #424242;" id="attack-stats">
-                                    <strong id="attack-techniques-count">0</strong> techniques affected • <strong
-                                        id="attack-hits-count">0</strong> total hits
-                                </div>
+                            <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
+                                <strong id="owasp-categories-count">0</strong> categories
                             </div>
                         </div>
                     </div>
 
-                    <div style="height: 800px; position: relative; width: 100%;" id="frame" hidden>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MITRE D3FEND Tab -->
-            <div class="tab-pane fade" id="defend-pane" role="tabpanel" aria-labelledby="defend-tab">
-                <div class="container-fluid px-3">
-                    <div id="defend_matrix" class="mt-3" style="display:none; overflow-x:auto; white-space:nowrap;">
-                    </div>
-                </div>
-            </div>
-
-            <!-- OWASP Top 10 Tab -->
-            <div class="tab-pane fade" id="owasp-pane" role="tabpanel" aria-labelledby="owasp-tab">
-                <div class="container-fluid px-3">
-                    <!-- OWASP legend for the matrix -->
-                    <div id="owasp-legend" class="mt-3" style="
-                        width: 100%;
-                        margin-bottom: 16px; 
-                        padding: 12px; 
-                        background: linear-gradient(135deg, #fff0f5 0%, #ffe4f0 100%); 
-                        border-radius: 8px; 
-                        border-left: 4px solid #ff9ff3;
-                        font-family: 'Roboto', sans-serif;
-                        display: none;
-                    ">
-                        <div>
-                            <h4 style="margin: 0; color: #c2185b; font-weight: 600;">📊 OWASP Top 10 2021 Category Breakdown</h4>
-                            <p style="margin: 4px 0 0 0; color: #424242; font-size: 14px;">Mapping of your CVEs to OWASP security categories</p>
-                        </div>
-                    </div>
-                    
-                    <div id="owasp_matrix" class="mt-3" style="display:none; overflow-x:auto;">
+                    <!-- Sankey Diagram -->
+                    <div class="tip-card" style="padding: 0;">
+                        <div id="container" style="width: 100%; min-height: 450px;"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- ===== CISA KEV VIEW ===== -->
+    <div class="tip-view" id="view-kev">
+        <div class="container-fluid">
+            <div class="tip-summary-row" id="kev-stats">
+                <div class="tip-stat-card">
+                    <div class="tip-stat-value" id="kev-total">--</div>
+                    <div class="tip-stat-label">Total KEV Entries</div>
+                </div>
+                <div class="tip-stat-card">
+                    <div class="tip-stat-value" id="kev-ransomware">--</div>
+                    <div class="tip-stat-label">Ransomware Use</div>
+                </div>
+            </div>
+            <div class="tip-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="tip-card-header" style="margin-bottom: 0;">Known Exploited Vulnerabilities</div>
+                    <input type="text" class="tip-search" id="kev-search" placeholder="Search CVE, vendor, product...">
+                </div>
+                <div style="max-height: 600px; overflow-y: auto;">
+                    <table class="tip-table" id="kev-table">
+                        <thead>
+                            <tr>
+                                <th>CVE ID</th>
+                                <th>Vendor</th>
+                                <th>Product</th>
+                                <th>Date Added</th>
+                                <th>Due Date</th>
+                                <th>Ransomware</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kev-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== APT GROUPS VIEW ===== -->
+    <div class="tip-view" id="view-apt">
+        <div class="container-fluid">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h5 style="margin: 0; color: var(--text-primary);">ATT&CK Threat Groups</h5>
+                <input type="text" class="tip-search" id="apt-search" placeholder="Search group name or alias...">
+            </div>
+            <div id="apt-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ATT&CK VIEW ===== -->
+    <div class="tip-view" id="view-attack">
+        <div class="container-fluid px-3">
+            <div id="attack-summary" class="tip-card" style="display: none; border-left: 4px solid var(--severity-high);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="tip-card-header">MITRE ATT&CK Matrix</div>
+                        <div style="color: var(--text-secondary); font-size: 13px;">Attack techniques from analysis</div>
+                    </div>
+                    <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
+                        <strong id="attack-techniques-count">0</strong> techniques &bull;
+                        <strong id="attack-hits-count">0</strong> total hits
+                    </div>
+                </div>
+            </div>
+            <div style="height: 800px; position: relative; width: 100%;" id="frame" hidden></div>
+        </div>
+    </div>
+
+    <!-- ===== D3FEND VIEW ===== -->
+    <div class="tip-view" id="view-defend">
+        <div class="container-fluid px-3">
+            <div id="defend_matrix" style="display: none; overflow-x: auto; white-space: nowrap;"></div>
+            <div id="defend-empty" class="tip-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                Run an analysis with "Enterprise + D3FEND" to see defensive techniques.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== OWASP VIEW ===== -->
+    <div class="tip-view" id="view-owasp">
+        <div class="container-fluid px-3">
+            <div id="owasp-legend" class="tip-card" style="display: none; border-left: 4px solid var(--badge-owasp);">
+                <div class="tip-card-header">OWASP Top 10 2021 Category Breakdown</div>
+                <div style="color: var(--text-secondary); font-size: 13px;">Mapping of CVEs to OWASP security categories</div>
+            </div>
+            <div id="owasp_matrix" style="display: none; overflow-x: auto;"></div>
+            <div id="owasp-empty" class="tip-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                Run an analysis to see OWASP Top 10 mappings.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for sub-graphs -->
     <div class="modal fade" role="dialog" id="modal" tabindex="-1" aria-labelledby="modal">
         <div class="modal-dialog" role="document" style="max-width: 100%; margin: 2%;">
             <div class="modal-content">
@@ -209,8 +210,7 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-12">
-                            <div id="subgraph" style="width: 100%; height: 100%; background-color: white;">
-                            </div>
+                            <div id="subgraph" style="width: 100%; height: 100%; background-color: var(--sankey-bg);"></div>
                         </div>
                     </div>
                 </div>
@@ -218,11 +218,13 @@
         </div>
     </div>
 
+    <!-- Theme + Navigation + View Loading Script -->
+    <script src="js/tip-views.js"></script>
+
+    <!-- Existing JavaScript -->
+    <script src="js/mitre-attack.js"></script>
+    <script src="js/mitre-defend.js"></script>
+    <script src="js/global.js"></script>
+
 </body>
-
-<!-- JavaScript Files -->
-<script src="js/mitre-attack.js"></script>
-<script src="js/mitre-defend.js"></script>
-<script src="js/global.js"></script>
-
 </html>
