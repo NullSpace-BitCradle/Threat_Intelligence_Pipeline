@@ -191,6 +191,90 @@ def temp_database_files(tmp_path, sample_cwe_db, sample_capec_db) -> Dict[str, P
 
 
 @pytest.fixture
+def sample_kev_data() -> Dict[str, Any]:
+    """Sample CISA KEV catalog data (raw format from cisagov/kev-data)"""
+    return {
+        "title": "CISA Known Exploited Vulnerabilities Catalog",
+        "catalogVersion": "2026.03.14",
+        "dateReleased": "2026-03-14T00:00:00.0000Z",
+        "count": 3,
+        "vulnerabilities": [
+            {
+                "cveID": "CVE-2024-1234",
+                "vendorProject": "TestVendor",
+                "product": "TestProduct",
+                "vulnerabilityName": "TestVendor TestProduct SQL Injection",
+                "dateAdded": "2024-06-15",
+                "shortDescription": "A SQL injection vulnerability exists.",
+                "requiredAction": "Apply vendor patch.",
+                "dueDate": "2024-07-06",
+                "knownRansomwareCampaignUse": "Known",
+                "notes": "",
+                "cwes": ["CWE-89"]
+            },
+            {
+                "cveID": "CVE-2024-9999",
+                "vendorProject": "OtherVendor",
+                "product": "OtherProduct",
+                "vulnerabilityName": "OtherVendor RCE",
+                "dateAdded": "2024-08-01",
+                "shortDescription": "Remote code execution.",
+                "requiredAction": "Apply update.",
+                "dueDate": "2024-08-22",
+                "knownRansomwareCampaignUse": "Unknown",
+                "notes": ""
+            },
+            {
+                "cveID": "CVE-2024-5678",
+                "vendorProject": "AcmeCorp",
+                "product": "WebServer",
+                "vulnerabilityName": "AcmeCorp Path Traversal",
+                "dateAdded": "2024-09-10",
+                "shortDescription": "Path traversal vulnerability.",
+                "requiredAction": "Upgrade to latest version.",
+                "dueDate": "2024-10-01",
+                "knownRansomwareCampaignUse": "Unknown",
+                "notes": ""
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def sample_kev_db() -> Dict[str, Any]:
+    """Sample KEV database indexed by CVE ID (processed format, matches sample_kev_data)"""
+    return {
+        "CVE-2024-1234": {
+            "inKEV": True,
+            "dateAdded": "2024-06-15",
+            "dueDate": "2024-07-06",
+            "knownRansomwareCampaignUse": "Known",
+            "requiredAction": "Apply vendor patch.",
+            "vendorProject": "TestVendor",
+            "product": "TestProduct"
+        },
+        "CVE-2024-9999": {
+            "inKEV": True,
+            "dateAdded": "2024-08-01",
+            "dueDate": "2024-08-22",
+            "knownRansomwareCampaignUse": "Unknown",
+            "requiredAction": "Apply update.",
+            "vendorProject": "OtherVendor",
+            "product": "OtherProduct"
+        },
+        "CVE-2024-5678": {
+            "inKEV": True,
+            "dateAdded": "2024-09-10",
+            "dueDate": "2024-10-01",
+            "knownRansomwareCampaignUse": "Unknown",
+            "requiredAction": "Upgrade to latest version.",
+            "vendorProject": "AcmeCorp",
+            "product": "WebServer"
+        }
+    }
+
+
+@pytest.fixture
 def mock_nvd_response() -> Dict[str, Any]:
     """Mock NVD API response"""
     return {

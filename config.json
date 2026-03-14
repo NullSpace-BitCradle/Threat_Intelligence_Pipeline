@@ -46,6 +46,10 @@
         },
         "defend": {
             "file": "resources/defend_db.jsonl"
+        },
+        "kev": {
+            "url": "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json",
+            "file": "resources/kev_db.json"
         }
     },
     "processing": {
