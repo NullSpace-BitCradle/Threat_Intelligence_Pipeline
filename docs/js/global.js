@@ -166,17 +166,17 @@ async function process(page_load = false) {
     let techniquesAssoc, cweDataRaw, capecDataRaw, defendText = '';
     try {
         techniquesAssoc = await fetchWithFallback([
-            '/resources/techniques_association.json'
+            'data/techniques_association.json'
         ]);
         cweDataRaw = await fetchWithFallback([
-            '/resources/cwe_db.json'
+            'data/cwe_db.json'
         ]);
         capecDataRaw = await fetchWithFallback([
-            '/resources/capec_db.json'
+            'data/capec_db.json'
         ]);
         if (wantDefend) {
             defendText = await fetchWithFallback([
-                '/resources/defend_db.jsonl'
+                'data/defend_db.jsonl'
             ], true);
         }
     } catch (error) {
@@ -211,7 +211,7 @@ async function process(page_load = false) {
         var database;
         try {
             var responseText = await fetchWithFallback([
-                `/database/CVE-${year}.jsonl`
+                `database/CVE-${year}.jsonl`
             ], true);
             database = {};
             responseText.split('\n').forEach(line => {

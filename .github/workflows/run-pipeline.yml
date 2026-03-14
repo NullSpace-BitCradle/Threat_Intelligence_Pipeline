@@ -31,9 +31,15 @@ jobs:
           PYTHONPATH: src
         run: python run_pipeline.py --force
 
+      - name: Copy data to docs for GitHub Pages
+        run: |
+          mkdir -p docs/data docs/database
+          cp resources/*.json resources/*.jsonl docs/data/ 2>/dev/null || true
+          cp database/*.jsonl docs/database/ 2>/dev/null || true
+
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add database/ resources/ lastUpdate.txt
+          git add database/ resources/ docs/data/ docs/database/ lastUpdate.txt
           git diff --cached --quiet || (git commit -m "chore: update CVE database [skip ci]" && git push)

@@ -67,7 +67,7 @@ function createEl(tag, attrs, textContent) {
 // --- KEV View ---
 async function loadKEVView() {
     try {
-        var response = await fetch('/resources/kev_db.json');
+        var response = await fetch('data/kev_db.json');
         if (!response.ok) return;
         var kevData = await response.json();
         var entries = Object.entries(kevData);
@@ -138,7 +138,7 @@ async function loadKEVView() {
 // --- APT Groups View ---
 async function loadAPTView() {
     try {
-        var response = await fetch('/resources/groups_db.json');
+        var response = await fetch('data/groups_db.json');
         if (!response.ok) return;
         var data = await response.json();
         var groups = data.groups || {};
