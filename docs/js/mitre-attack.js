@@ -228,7 +228,7 @@ async function print_mitre() {
 
     iframe.onload = function() {
         console.log('MITRE iframe loaded successfully');
-        // Vérifier si on peut accéder au contenu de l'iframe
+        // Check if we can access the iframe content
         var iframe = document.getElementById('mitre');
         try {
             var iframeDoc = iframe.contentWindow.document;
@@ -279,7 +279,7 @@ async function print_mitre() {
             }
         })();
 
-        // Créer le bouton dynamiquement
+        // Create buttons dynamically
         var div = iframeDoc.createElement('div');
         var div_sub_graph = iframeDoc.createElement('div');
 
@@ -368,7 +368,7 @@ async function print_mitre() {
             elm.appendChild(div); 
         });
         waitForElm('.control-sections').then((elm) => {
-            // ajoute un style à elm
+            // Add margin to control sections
             elm.style = elm.style + "margin-top: 5px;";
             var li_sub_graph = iframeDoc.createElement('li');
             li_sub_graph.className = "ng-star-inserted";

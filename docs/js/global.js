@@ -221,7 +221,7 @@ async function process(page_load = false) {
                 if (line.trim()) {
                     try {
                         const lineData = JSON.parse(line);
-                        // Le format est maintenant {"CVE-ID": {"CWE": [...], ...}}
+                        // Format: {"CVE-ID": {"CWE": [...], ...}}
                         Object.assign(database, lineData);
                     } catch (parseError) {
                         console.error('Error parsing JSON line:', line, parseError);
@@ -392,7 +392,7 @@ async function process(page_load = false) {
                 }
             }
         },
-        annimation: false,
+        animation: false,
         toolbox: {
             show: true,
             feature: {
@@ -409,7 +409,7 @@ async function process(page_load = false) {
                 },
                 myFullScreen: {
                     show: true,
-                    title: 'Plein Écran',
+                    title: 'Fullscreen',
                     icon: fullScreenIcon,
                     onclick: function () {
                         if (document.fullscreenElement) {
@@ -427,11 +427,11 @@ async function process(page_load = false) {
                 focus: 'trajectory',
             },
             nodeAlign: 'center',
-            nodeWidth: 20,  // Largeur des nœuds pour réduire l'encombrement
+            nodeWidth: 20,
             nodeGap: 5,    // Ajustement de l'espace entre les nœuds
-            layoutIterations: 64, // Nombre d'itérations pour le calcul de la disposition
+            layoutIterations: 64,
             label: {
-                fontSize: 12, // Taille de police réduite
+                fontSize: 12,
             },
             data: chart_nodes,
             links: chart_links,
@@ -585,7 +585,7 @@ async function show_defend_selected() {
                 }
             }
         },
-        annimation: false,
+        animation: false,
         toolbox: {
             show: true,
             feature: {
@@ -601,7 +601,7 @@ async function show_defend_selected() {
                 },
                 myFullScreen: {
                     show: true,
-                    title: 'Plein Écran',
+                    title: 'Fullscreen',
                     icon: fullScreenIcon,
                     onclick: function () {
                         if (document.fullscreenElement) {
@@ -700,7 +700,7 @@ async function show_selected(selection, technique_id) {
                 }
             }
         },
-        annimation: false,
+        animation: false,
         toolbox: {
             show: true,
             feature: {
@@ -716,7 +716,7 @@ async function show_selected(selection, technique_id) {
                 },
                 myFullScreen: {
                     show: true,
-                    title: 'Plein Écran',
+                    title: 'Fullscreen',
                     icon: fullScreenIcon,
                     onclick: function () {
                         if (document.fullscreenElement) {
@@ -734,11 +734,11 @@ async function show_selected(selection, technique_id) {
                 focus: 'trajectory',
             },
             nodeAlign: 'center',
-            nodeWidth: 20,  // Largeur des nœuds pour réduire l'encombrement
+            nodeWidth: 20,
             nodeGap: 5,    // Ajustement de l'espace entre les nœuds
-            layoutIterations: 64, // Nombre d'itérations pour le calcul de la disposition
+            layoutIterations: 64,
             label: {
-                fontSize: 12, // Taille de police réduite
+                fontSize: 12,
             },
             data: [],
             links: [],

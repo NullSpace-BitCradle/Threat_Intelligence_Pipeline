@@ -86,10 +86,11 @@ async function loadKEVView() {
 
             var tdCve = document.createElement('td');
             var link = document.createElement('a');
-            link.href = '#';
+            link.href = 'https://nvd.nist.gov/vuln/detail/' + cveId;
+            link.target = '_blank';
+            link.rel = 'noopener';
             link.textContent = cveId;
             link.style.color = 'var(--link)';
-            link.addEventListener('click', function(e) { e.preventDefault(); analyzeCVE(cveId); });
             tdCve.appendChild(link);
             tr.appendChild(tdCve);
 
@@ -124,12 +125,13 @@ async function loadKEVView() {
             tbody.appendChild(tr);
         });
 
-        document.getElementById('kev-search').addEventListener('input', function() {
+        var kevSearch = document.getElementById('kev-search');
+        kevSearch.oninput = function() {
             var q = this.value.toLowerCase();
             tbody.querySelectorAll('tr').forEach(function(row) {
                 row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
             });
-        });
+        };
     } catch(e) {
         console.log('KEV data not available yet');
     }
@@ -160,8 +162,11 @@ async function loadAPTView() {
             header.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start';
 
             var nameBlock = document.createElement('div');
-            var nameEl = document.createElement('div');
-            nameEl.style.cssText = 'font-weight:700;font-size:15px;color:var(--text-primary)';
+            var nameEl = document.createElement('a');
+            nameEl.href = 'https://attack.mitre.org/groups/' + id + '/';
+            nameEl.target = '_blank';
+            nameEl.rel = 'noopener';
+            nameEl.style.cssText = 'font-weight:700;font-size:15px;color:var(--text-primary);text-decoration:none';
             nameEl.textContent = g.name;
             nameBlock.appendChild(nameEl);
 
@@ -188,23 +193,43 @@ async function loadAPTView() {
                 card.appendChild(aliasRow);
             }
 
-            // Description
+            // Description — render Markdown links [text](url) as clickable <a> tags
             if (g.description) {
                 var descEl = document.createElement('div');
                 descEl.style.cssText = 'margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;max-height:60px;overflow:hidden';
-                descEl.textContent = g.description.length > 200 ? g.description.substring(0, 200) + '...' : g.description;
+                var descText = g.description.length > 200 ? g.description.substring(0, 200) + '...' : g.description;
+                var mdLinkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+                var lastIndex = 0;
+                var match;
+                while ((match = mdLinkRe.exec(descText)) !== null) {
+                    if (match.index > lastIndex) {
+                        descEl.appendChild(document.createTextNode(descText.slice(lastIndex, match.index)));
+                    }
+                    var a = document.createElement('a');
+                    a.href = match[2];
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    a.style.color = 'var(--link)';
+                    a.textContent = match[1];
+                    descEl.appendChild(a);
+                    lastIndex = mdLinkRe.lastIndex;
+                }
+                if (lastIndex < descText.length) {
+                    descEl.appendChild(document.createTextNode(descText.slice(lastIndex)));
+                }
                 card.appendChild(descEl);
             }
 
             grid.appendChild(card);
         });
 
-        document.getElementById('apt-search').addEventListener('input', function() {
+        var aptSearch = document.getElementById('apt-search');
+        aptSearch.oninput = function() {
             var q = this.value.toLowerCase();
             grid.querySelectorAll('.tip-card').forEach(function(card) {
                 card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
             });
-        });
+        };
     } catch(e) {
         console.log('Groups data not available yet');
     }
