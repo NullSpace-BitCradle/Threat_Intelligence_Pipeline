@@ -71,7 +71,18 @@ class PipelineOrchestrator:
             else:
                 log_info("No new CVEs to process")
                 processing_results = {'success': True, 'message': 'No new CVEs'}
-            
+
+            # Step 4: Generate entity index for unified entity system
+            log_info("Step 4: Generating entity index...")
+            try:
+                from tip.core.entity_index_generator import generate_entity_index, write_outputs
+                base_dir = Path(__file__).resolve().parents[3]
+                entity_index, search_index = generate_entity_index(base_dir)
+                write_outputs(entity_index, search_index, base_dir)
+                log_info(f"Entity index generated: {entity_index['meta']['entity_count']} entities")
+            except Exception as e:
+                log_warning(f"Entity index generation failed (non-fatal): {e}")
+
             # Generate final summary
             summary = self._create_summary()
             log_info("Pipeline completed successfully")

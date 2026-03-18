@@ -91,6 +91,11 @@ async function loadKEVView() {
             link.rel = 'noopener';
             link.textContent = cveId;
             link.style.color = 'var(--link)';
+            link.style.cursor = 'pointer';
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (typeof showEntityDetail === 'function') showEntityDetail(cveId);
+            });
             tdCve.appendChild(link);
             tr.appendChild(tdCve);
 
@@ -255,8 +260,13 @@ async function loadAPTView() {
                     techTag.href = 'https://attack.mitre.org/techniques/' + tid.replace('.', '/') + '/';
                     techTag.target = '_blank';
                     techTag.rel = 'noopener';
-                    techTag.style.cssText = 'font-size:11px;padding:2px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;color:var(--link);text-decoration:none;font-family:monospace';
+                    techTag.style.cssText = 'font-size:11px;padding:2px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;color:var(--link);text-decoration:none;font-family:monospace;cursor:pointer';
                     techTag.textContent = tid;
+                    techTag.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof showEntityDetail === 'function') showEntityDetail(tid);
+                    });
                     techGrid.appendChild(techTag);
                 });
                 detail.appendChild(techGrid);

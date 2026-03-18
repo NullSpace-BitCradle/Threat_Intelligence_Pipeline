@@ -264,6 +264,12 @@ async function renderDefendMatrix(scoreTable = {}) {
                     toggleDefendTechSelection(item.id, tile);
                 });
 
+                // Double-click to show entity detail
+                tile.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    if (typeof showEntityDetail === 'function') showEntityDetail(item.id);
+                });
+
                 // indent tiles to match group depth (keeps the visual hierarchy)
                 if (depth > 0) tile.style.marginLeft = `${Math.min(depth,2)*16}px`;
 

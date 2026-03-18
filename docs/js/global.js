@@ -465,6 +465,19 @@ async function process(page_load = false) {
         });
     }
 
+    // Entity system: click Sankey nodes to show entity detail
+    chart.off('click');
+    chart.on('click', function(params) {
+        if (params.dataType === 'node' && typeof showEntityDetail === 'function') {
+            var name = params.data.name;
+            // Strip D3F- prefix for D3FEND IDs in entity system
+            if (name.startsWith('D3F-')) name = name.slice(4);
+            // Strip OWASP- prefix for OWASP IDs in entity system
+            if (name.startsWith('OWASP-')) name = name.slice(6);
+            showEntityDetail(name);
+        }
+    });
+
     chart.hideLoading();
 
     await print_mitre();

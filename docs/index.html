@@ -33,7 +33,15 @@
             <button class="tip-nav-tab" data-view="defend">D3FEND</button>
             <button class="tip-nav-tab" data-view="owasp">OWASP</button>
         </div>
+        <div class="tip-nav-search">
+            <input type="text" class="tip-search" id="global-search" placeholder="Search CVE, technique, APT group..." autocomplete="off" style="max-width:280px;">
+            <div id="search-results" class="tip-search-dropdown"></div>
+        </div>
         <div class="tip-nav-right">
+            <button class="tip-btn tip-btn-secondary" id="investigation-toggle" style="font-size:12px;padding:4px 10px;position:relative;">
+                <span id="investigation-count">0</span> pinned
+            </button>
+            <div id="investigation-dropdown" class="tip-search-dropdown" style="right:60px;left:auto;min-width:300px;"></div>
             <button class="theme-toggle" id="themeToggle" title="Toggle theme">
                 <span id="themeIcon">&#9790;</span>
             </button>
@@ -216,12 +224,15 @@
         </div>
     </div>
 
+    <div id="entity-panel"></div>
+
     <!-- Theme + Navigation + View Loading Script -->
     <script src="js/tip-views.js"></script>
 
     <!-- Existing JavaScript -->
     <script src="js/mitre-attack.js"></script>
     <script src="js/mitre-defend.js"></script>
+    <script src="js/entity-system.js"></script>
     <script src="js/global.js"></script>
 
 </body>
