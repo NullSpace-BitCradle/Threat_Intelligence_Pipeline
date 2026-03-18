@@ -87,28 +87,29 @@ async function renderDefendMatrix(scoreTable = {}) {
     const summaryDiv = document.createElement('div');
     summaryDiv.style.cssText = `
         width: 100%;
-        margin-bottom: 16px; 
-        padding: 12px; 
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); 
-        border-radius: 8px; 
-        border-left: 4px solid #2196f3;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: var(--bg-card);
+        border-radius: 8px;
+        border-left: 4px solid var(--accent);
+        border: 1px solid var(--border);
         font-family: 'Roboto', sans-serif;
         display: block;
     `;
     summaryDiv.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
             <div>
-                <h4 style="margin: 0; color: #1565c0; font-weight: 600;">🛡️ MITRE D3FEND Matrix</h4>
-                <p style="margin: 4px 0 0 0; color: #424242; font-size: 14px;">Defensive countermeasures mapped to your CVE analysis</p>
+                <h4 style="margin: 0; color: var(--accent); font-weight: 600;">MITRE D3FEND Matrix</h4>
+                <p style="margin: 4px 0 0 0; color: var(--text-secondary); font-size: 14px;">Defensive countermeasures mapped to your CVE analysis</p>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 14px; color: #424242;">
-                    <strong>${totalTechniques}</strong> techniques affected • <strong>${totalHits}</strong> total hits
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                    <strong>${totalTechniques}</strong> techniques affected &bull; <strong>${totalHits}</strong> total hits
                 </div>
                 <div style="margin-top: 8px;">
-                    <span id="defend-selected-count" style="font-size: 12px; color: #1565c0; font-weight: 500;">0 selected</span>
-                    <button id="defend-generate-subgraph" class="btn btn-primary btn-sm" style="margin-left: 8px; font-size: 11px; padding: 4px 8px;" disabled>Generate Sub-graph</button>
-                    <button id="defend-clear-selection" class="btn btn-outline-secondary btn-sm" style="margin-left: 4px; font-size: 11px; padding: 4px 8px;">Clear Selection</button>
+                    <span id="defend-selected-count" style="font-size: 12px; color: var(--accent); font-weight: 500;">0 selected</span>
+                    <button id="defend-generate-subgraph" class="tip-btn tip-btn-primary" style="margin-left: 8px; font-size: 11px; padding: 4px 8px;" disabled>Generate Sub-graph</button>
+                    <button id="defend-clear-selection" class="tip-btn tip-btn-secondary" style="margin-left: 4px; font-size: 11px; padding: 4px 8px;">Clear Selection</button>
                 </div>
             </div>
         </div>
@@ -122,10 +123,11 @@ async function renderDefendMatrix(scoreTable = {}) {
         align-items: flex-start;
         gap: var(--col-gap);
         overflow-x: auto;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
         border-radius: 8px;
         padding: 16px 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px var(--shadow);
     `;
 
     // Helper function to count subcategories with hits vs total
@@ -178,9 +180,9 @@ async function renderDefendMatrix(scoreTable = {}) {
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            background: ${hasHits ? 'linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%)' : 'transparent'};
-            border: ${hasHits ? '1px solid #ced4da' : '1px solid #e9ecef'};
-            border-left: ${hasHits ? '4px solid #0d6efd' : '4px solid #dee2e6'};
+            background: ${hasHits ? 'var(--bg-tertiary)' : 'transparent'};
+            border: 1px solid var(--border);
+            border-left: ${hasHits ? '4px solid var(--accent)' : '4px solid var(--border)'};
         `;
         
         const leftSection = document.createElement('div');
@@ -203,7 +205,7 @@ async function renderDefendMatrix(scoreTable = {}) {
             const ratioText = document.createElement('span');
             ratioText.textContent = `${subcategoryStats.withHits}/${subcategoryStats.total} affected`;
             ratioText.style.cssText = `
-                color: #28a745;
+                color: var(--severity-low);
                 font-size: 10px;
                 font-weight: 500;
                 margin-top: 2px;

@@ -137,6 +137,29 @@ async function loadKEVView() {
     }
 }
 
+// --- Markdown link renderer (safe DOM methods) ---
+function renderMarkdownLinks(text, container) {
+    var mdLinkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    var lastIndex = 0;
+    var match;
+    while ((match = mdLinkRe.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        }
+        var a = document.createElement('a');
+        a.href = match[2];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.color = 'var(--link)';
+        a.textContent = match[1];
+        container.appendChild(a);
+        lastIndex = mdLinkRe.lastIndex;
+    }
+    if (lastIndex < text.length) {
+        container.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+}
+
 // --- APT Groups View ---
 async function loadAPTView() {
     try {
@@ -156,17 +179,16 @@ async function loadAPTView() {
             var g = entry[1];
 
             var card = createEl('div', { className: 'tip-card' });
+            card.style.cursor = 'pointer';
+            card.style.transition = 'border-color 0.15s';
 
             // Header
             var header = document.createElement('div');
             header.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start';
 
             var nameBlock = document.createElement('div');
-            var nameEl = document.createElement('a');
-            nameEl.href = 'https://attack.mitre.org/groups/' + id + '/';
-            nameEl.target = '_blank';
-            nameEl.rel = 'noopener';
-            nameEl.style.cssText = 'font-weight:700;font-size:15px;color:var(--text-primary);text-decoration:none';
+            var nameEl = document.createElement('span');
+            nameEl.style.cssText = 'font-weight:700;font-size:15px;color:var(--text-primary)';
             nameEl.textContent = g.name;
             nameBlock.appendChild(nameEl);
 
@@ -180,7 +202,7 @@ async function loadAPTView() {
             header.appendChild(badge);
             card.appendChild(header);
 
-            // Aliases
+            // Aliases (compact)
             if (g.aliases && g.aliases.length > 1) {
                 var aliasRow = document.createElement('div');
                 aliasRow.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:4px';
@@ -193,32 +215,102 @@ async function loadAPTView() {
                 card.appendChild(aliasRow);
             }
 
-            // Description — render Markdown links [text](url) as clickable <a> tags
+            // Short description (collapsed view)
+            var shortDesc = document.createElement('div');
+            shortDesc.style.cssText = 'margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;max-height:60px;overflow:hidden';
             if (g.description) {
-                var descEl = document.createElement('div');
-                descEl.style.cssText = 'margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;max-height:60px;overflow:hidden';
-                var descText = g.description.length > 200 ? g.description.substring(0, 200) + '...' : g.description;
-                var mdLinkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-                var lastIndex = 0;
-                var match;
-                while ((match = mdLinkRe.exec(descText)) !== null) {
-                    if (match.index > lastIndex) {
-                        descEl.appendChild(document.createTextNode(descText.slice(lastIndex, match.index)));
-                    }
-                    var a = document.createElement('a');
-                    a.href = match[2];
-                    a.target = '_blank';
-                    a.rel = 'noopener';
-                    a.style.color = 'var(--link)';
-                    a.textContent = match[1];
-                    descEl.appendChild(a);
-                    lastIndex = mdLinkRe.lastIndex;
-                }
-                if (lastIndex < descText.length) {
-                    descEl.appendChild(document.createTextNode(descText.slice(lastIndex)));
-                }
-                card.appendChild(descEl);
+                var truncated = g.description.length > 200 ? g.description.substring(0, 200) + '...' : g.description;
+                renderMarkdownLinks(truncated, shortDesc);
             }
+            card.appendChild(shortDesc);
+
+            // === Expanded detail panel (hidden by default) ===
+            var detail = document.createElement('div');
+            detail.style.cssText = 'display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px';
+
+            // Full description
+            if (g.description) {
+                var fullDescLabel = document.createElement('div');
+                fullDescLabel.style.cssText = 'font-weight:600;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px';
+                fullDescLabel.textContent = 'Description';
+                detail.appendChild(fullDescLabel);
+
+                var fullDesc = document.createElement('div');
+                fullDesc.style.cssText = 'font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px';
+                renderMarkdownLinks(g.description, fullDesc);
+                detail.appendChild(fullDesc);
+            }
+
+            // Techniques grid
+            if (g.techniques && g.techniques.length > 0) {
+                var techLabel = document.createElement('div');
+                techLabel.style.cssText = 'font-weight:600;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px';
+                techLabel.textContent = 'ATT&CK Techniques';
+                detail.appendChild(techLabel);
+
+                var techGrid = document.createElement('div');
+                techGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px';
+                g.techniques.forEach(function(tid) {
+                    var techTag = document.createElement('a');
+                    techTag.href = 'https://attack.mitre.org/techniques/' + tid.replace('.', '/') + '/';
+                    techTag.target = '_blank';
+                    techTag.rel = 'noopener';
+                    techTag.style.cssText = 'font-size:11px;padding:2px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;color:var(--link);text-decoration:none;font-family:monospace';
+                    techTag.textContent = tid;
+                    techGrid.appendChild(techTag);
+                });
+                detail.appendChild(techGrid);
+            }
+
+            // Attack history note
+            var historyNote = document.createElement('div');
+            historyNote.style.cssText = 'font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:12px';
+            historyNote.textContent = 'Recent confirmed attack campaigns not yet available in dataset.';
+            detail.appendChild(historyNote);
+
+            // Action buttons
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+
+            var mitreLink = document.createElement('a');
+            mitreLink.href = 'https://attack.mitre.org/groups/' + id + '/';
+            mitreLink.target = '_blank';
+            mitreLink.rel = 'noopener';
+            mitreLink.className = 'tip-btn tip-btn-secondary';
+            mitreLink.style.cssText += ';font-size:12px;text-decoration:none';
+            mitreLink.textContent = 'View on MITRE ATT&CK';
+            actions.appendChild(mitreLink);
+
+            if (g.techniques && g.techniques.length > 0) {
+                var analyzeBtn = document.createElement('button');
+                analyzeBtn.className = 'tip-btn tip-btn-primary';
+                analyzeBtn.style.fontSize = '12px';
+                analyzeBtn.textContent = 'Map Techniques';
+                analyzeBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Jump to analysis with this group's techniques
+                    // Build fake CVE list — not applicable, so use technique mapping instead
+                    Swal.fire({
+                        icon: 'info',
+                        title: g.name + ' — ' + g.techniques.length + ' Techniques',
+                        html: 'Techniques: ' + g.techniques.slice(0, 20).join(', ') + (g.techniques.length > 20 ? '...' : ''),
+                        footer: '<a href="https://attack.mitre.org/groups/' + id + '/" target="_blank">View full details on MITRE ATT&CK</a>'
+                    });
+                });
+                actions.appendChild(analyzeBtn);
+            }
+
+            detail.appendChild(actions);
+            card.appendChild(detail);
+
+            // Toggle expand/collapse on card click
+            card.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                var isExpanded = detail.style.display !== 'none';
+                detail.style.display = isExpanded ? 'none' : 'block';
+                shortDesc.style.display = isExpanded ? '' : 'none';
+                card.style.borderColor = isExpanded ? '' : 'var(--accent)';
+            });
 
             grid.appendChild(card);
         });

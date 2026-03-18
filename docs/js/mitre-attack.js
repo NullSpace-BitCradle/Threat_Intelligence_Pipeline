@@ -211,7 +211,7 @@ async function print_mitre() {
     iframe.id = "mitre";
     iframe.allowFullscreen = true;
     iframe.style.width = "100%";
-    iframe.style.height = "800px";
+    iframe.style.height = "100%";
     iframe.style.border = "none";
 
     document.getElementById('frame').appendChild(iframe);
