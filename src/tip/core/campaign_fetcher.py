@@ -18,11 +18,13 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError
 from tip.utils.error_recovery import with_recovery, create_api_context
+from tip.utils.performance_optimizer import performance_timer
 
 config = get_config()
 logger = get_logger('campaign_fetcher')
 
 
+@performance_timer("campaign_fetch")
 @with_recovery("campaign_fetch", recovery_strategy="api")
 def _download_stix_bundle() -> Dict[str, Any]:
     """Download ATT&CK Enterprise STIX bundle."""
@@ -30,11 +32,15 @@ def _download_stix_bundle() -> Dict[str, Any]:
         'database.groups.url',
         'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json'
     )
+    context = create_api_context("campaign_fetch", url)
     logger.info(f"Downloading ATT&CK STIX bundle from {url}")
     timeout = config.get('api.nvd.timeout', 120)
-    response = requests.get(url, timeout=timeout)
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise NetworkError(f"Failed to download STIX bundle: {e}", url=url, context=context)
 
 
 def _extract_campaigns(stix_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -144,7 +150,7 @@ def fetch_campaigns(base_dir: str | Path) -> Dict[str, Any]:
     base = Path(base_dir)
     out_path = base / "docs" / "data" / "campaigns_db.json"
 
-    print("=== Campaign Fetcher ===")
+    logger.info("Starting campaign fetch")
     stix_data = _download_stix_bundle()
     campaigns_db = _extract_campaigns(stix_data)
 
@@ -152,11 +158,9 @@ def fetch_campaigns(base_dir: str | Path) -> Dict[str, Any]:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(campaigns_db, f, separators=(",", ":"))
 
-    print(f"  Wrote {len(campaigns_db)} campaigns to {out_path}")
     groups_linked = sum(1 for c in campaigns_db.values() if c["groups"])
     techniques_total = sum(len(c["techniques"]) for c in campaigns_db.values())
-    print(f"  {groups_linked} campaigns with group attribution")
-    print(f"  {techniques_total} total technique mappings")
+    logger.info(f"Wrote {len(campaigns_db)} campaigns ({groups_linked} with group attribution, {techniques_total} technique mappings)")
 
     return campaigns_db
 
