@@ -16,7 +16,7 @@ const TYPE_CONFIG = {
     defend:    { color: '#feca57', label: 'D3FEND',    relLabel: 'Defenses' },
     apt_group: { color: '#a5d6ff', label: 'APT',       relLabel: 'Threat Actors' },
     owasp:     { color: '#ff9ff3', label: 'OWASP',     relLabel: 'OWASP Categories' },
-    kev:       { color: '#f85149', label: 'KEV',       relLabel: 'KEV Status' }
+    campaign:  { color: '#e056a0', label: 'Campaign', relLabel: 'Campaigns' }
 };
 
 // ── Data Loading ────────────────────────────────────────────────
@@ -227,6 +227,15 @@ function showEntityDetail(entityId) {
         nameEl.textContent = entity.name;
         headerDiv.appendChild(nameEl);
     }
+
+    if (entity.first_seen || entity.last_seen) {
+        const dateEl = document.createElement('div');
+        dateEl.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:4px';
+        const from = entity.first_seen || '?';
+        const to = entity.last_seen || 'ongoing';
+        dateEl.textContent = from + ' \u2014 ' + to;
+        headerDiv.appendChild(dateEl);
+    }
     content.appendChild(headerDiv);
 
     // Phase
@@ -243,7 +252,9 @@ function showEntityDetail(entityId) {
 
     // Relationships
     if (entity.rels) {
-        for (const [relType, relIds] of Object.entries(entity.rels)) {
+        for (const [relType, relData] of Object.entries(entity.rels)) {
+            // Skip kev boolean (v1.0 backward compat — kev is now top-level)
+            if (relType === 'kev') continue;
             const relCfg = TYPE_CONFIG[relType] || { color: '#888', label: relType, relLabel: relType };
             const section = document.createElement('div');
             section.style.marginBottom = '16px';
@@ -258,7 +269,8 @@ function showEntityDetail(entityId) {
             secHeader.textContent = relCfg.relLabel;
             section.appendChild(secHeader);
 
-            const ids = Array.isArray(relIds) ? relIds : [relIds];
+            // Backward compat: v1.0 = array, v1.5 = {ids, source, tier}
+            const ids = Array.isArray(relData) ? relData : (relData.ids || []);
             const limit = 10;
             const visible = ids.slice(0, limit);
             const overflow = ids.slice(limit);
@@ -290,6 +302,144 @@ function showEntityDetail(entityId) {
             }
             content.appendChild(section);
         }
+    }
+
+    // Campaign timeline (APT groups only)
+    if (entity.type === 'apt_group' && entity.rels && entity.rels.campaign) {
+        const campaignData = entity.rels.campaign;
+        const campaignIds = Array.isArray(campaignData) ? campaignData : (campaignData.ids || []);
+
+        if (campaignIds.length > 0) {
+            const timelineSection = document.createElement('div');
+            timelineSection.style.marginBottom = '16px';
+
+            const timelineHeader = document.createElement('div');
+            Object.assign(timelineHeader.style, {
+                fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.5px',
+                marginBottom: '8px', paddingBottom: '4px',
+                borderBottom: '1px solid var(--border)'
+            });
+            timelineHeader.textContent = 'Campaigns';
+            timelineSection.appendChild(timelineHeader);
+
+            const timeline = document.createElement('div');
+            Object.assign(timeline.style, {
+                position: 'relative', paddingLeft: '16px',
+                borderLeft: '2px solid var(--border)'
+            });
+
+            const campaigns = campaignIds
+                .map(cid => entityIndex.entities[cid])
+                .filter(Boolean)
+                .sort((a, b) => (b.first_seen || '').localeCompare(a.first_seen || ''));
+
+            const colors = ['#ff6b6b', '#feca57', '#45b7d1', '#96ceb4', '#e056a0'];
+
+            campaigns.forEach((camp, i) => {
+                const entry = document.createElement('div');
+                entry.style.marginBottom = '12px';
+                entry.style.position = 'relative';
+
+                const dot = document.createElement('div');
+                Object.assign(dot.style, {
+                    position: 'absolute', left: '-21px', top: '2px',
+                    width: '10px', height: '10px', borderRadius: '50%',
+                    background: colors[i % colors.length],
+                    border: '2px solid var(--bg-card)'
+                });
+                entry.appendChild(dot);
+
+                const nameEl = document.createElement('div');
+                Object.assign(nameEl.style, {
+                    fontSize: '12px', fontWeight: '600', color: 'var(--accent)',
+                    cursor: 'pointer'
+                });
+                nameEl.textContent = camp.name || camp.id;
+                nameEl.addEventListener('click', () => showEntityDetail(camp.id));
+                entry.appendChild(nameEl);
+
+                if (camp.first_seen || camp.last_seen) {
+                    const dateEl = document.createElement('div');
+                    dateEl.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:2px';
+                    const from = camp.first_seen || '?';
+                    const to = camp.last_seen || 'ongoing';
+                    dateEl.textContent = from + ' \u2014 ' + to;
+                    entry.appendChild(dateEl);
+                }
+
+                const techRels = camp.rels && camp.rels.technique;
+                const techIds = Array.isArray(techRels) ? techRels : (techRels && techRels.ids || []);
+                if (techIds.length > 0) {
+                    const techRow = document.createElement('div');
+                    techRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin-top:4px';
+                    techIds.slice(0, 3).forEach(tid => {
+                        const tag = document.createElement('span');
+                        tag.style.cssText = 'font-size:9px;padding:1px 4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:2px;color:var(--text-secondary);font-family:monospace;cursor:pointer';
+                        tag.textContent = tid;
+                        tag.addEventListener('click', (e) => { e.stopPropagation(); showEntityDetail(tid); });
+                        techRow.appendChild(tag);
+                    });
+                    if (techIds.length > 3) {
+                        const more = document.createElement('span');
+                        more.style.cssText = 'font-size:9px;padding:1px 4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:2px;color:var(--text-muted);font-family:monospace';
+                        more.textContent = '+' + (techIds.length - 3);
+                        techRow.appendChild(more);
+                    }
+                    entry.appendChild(techRow);
+                }
+
+                timeline.appendChild(entry);
+            });
+
+            timelineSection.appendChild(timeline);
+            content.appendChild(timelineSection);
+        }
+    }
+
+    // Provenance section
+    if (entity.prov) {
+        const provSection = document.createElement('div');
+        provSection.style.cssText = 'margin-top:16px;padding-top:12px;border-top:2px solid var(--border)';
+
+        const provHeader = document.createElement('div');
+        provHeader.style.cssText = 'font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px';
+        provHeader.textContent = 'Provenance';
+        provSection.appendChild(provHeader);
+
+        const TIER_COLORS = {
+            official: { bg: '#1a3d1a', text: '#4ade80', label: 'OFFICIAL' },
+            authoritative: { bg: '#1a2d4d', text: '#60a5fa', label: 'AUTHORITATIVE' },
+            derived: { bg: '#3d2e0a', text: '#fbbf24', label: 'DERIVED' }
+        };
+
+        const entityLine = createProvLine(
+            'Entity source', entity.prov.source,
+            TIER_COLORS[entity.prov.tier] || TIER_COLORS.derived
+        );
+        provSection.appendChild(entityLine);
+
+        if (entity.rels) {
+            for (const [relType, relData] of Object.entries(entity.rels)) {
+                if (!relData || Array.isArray(relData) || !relData.source) continue;
+                const relCfg = TYPE_CONFIG[relType] || { relLabel: relType };
+                const line = createProvLine(
+                    relCfg.relLabel, relData.source,
+                    TIER_COLORS[relData.tier] || TIER_COLORS.derived
+                );
+                provSection.appendChild(line);
+            }
+        }
+
+        if (entity.kev) {
+            const kevLine = createProvLine(
+                'KEV Status', 'CISA KEV Catalog',
+                TIER_COLORS.authoritative
+            );
+            provSection.appendChild(kevLine);
+        }
+
+        content.appendChild(provSection);
     }
 
     // Actions
@@ -346,6 +496,32 @@ function createEntityLink(entityId, dotColor) {
     return row;
 }
 
+function createProvLine(label, source, tierStyle) {
+    const line = document.createElement('div');
+    line.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px';
+
+    const dot = document.createElement('span');
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + tierStyle.text;
+    line.appendChild(dot);
+
+    const labelEl = document.createElement('span');
+    labelEl.style.color = 'var(--text-muted)';
+    labelEl.textContent = label + ':';
+    line.appendChild(labelEl);
+
+    const sourceEl = document.createElement('span');
+    sourceEl.style.cssText = 'color:' + tierStyle.text + ';font-weight:600';
+    sourceEl.textContent = source;
+    line.appendChild(sourceEl);
+
+    const badge = document.createElement('span');
+    badge.style.cssText = 'background:' + tierStyle.bg + ';color:' + tierStyle.text + ';padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600';
+    badge.textContent = tierStyle.label;
+    line.appendChild(badge);
+
+    return line;
+}
+
 function buildExternalLink(entityId, type) {
     let url = null;
     let text = null;
@@ -362,6 +538,9 @@ function buildExternalLink(entityId, type) {
         const num = entityId.replace(/\D/g, '');
         url = 'https://cwe.mitre.org/data/definitions/' + num + '.html';
         text = 'View on MITRE CWE';
+    } else if (type === 'campaign') {
+        url = 'https://attack.mitre.org/campaigns/' + entityId + '/';
+        text = 'View on MITRE ATT&CK';
     }
     if (!url) return null;
 
