@@ -157,22 +157,20 @@
     </div>
 
     <!-- ===== ATT&CK VIEW ===== -->
-    <div class="tip-view" id="view-attack">
-        <div class="container-fluid px-3">
-            <div id="attack-summary" class="tip-card" style="display: none; border-left: 4px solid var(--severity-high);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div class="tip-card-header">MITRE ATT&CK Matrix</div>
-                        <div style="color: var(--text-secondary); font-size: 13px;">Attack techniques from analysis</div>
-                    </div>
-                    <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
-                        <strong id="attack-techniques-count">0</strong> techniques &bull;
-                        <strong id="attack-hits-count">0</strong> total hits
-                    </div>
+    <div class="tip-view" id="view-attack" style="padding: 0; height: calc(100vh - 48px); overflow: hidden;">
+        <div id="attack-summary" class="tip-card" style="display: none; border-left: 4px solid var(--severity-high); margin: 8px 12px; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div class="tip-card-header">MITRE ATT&CK Matrix</div>
+                    <div style="color: var(--text-secondary); font-size: 13px;">Attack techniques from analysis</div>
+                </div>
+                <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
+                    <strong id="attack-techniques-count">0</strong> techniques &bull;
+                    <strong id="attack-hits-count">0</strong> total hits
                 </div>
             </div>
-            <div style="height: calc(100vh - 120px); position: relative; width: 100%;" id="frame" hidden></div>
         </div>
+        <div style="height: 100%; position: relative; width: 100%;" id="frame" hidden></div>
     </div>
 
     <!-- ===== D3FEND VIEW ===== -->

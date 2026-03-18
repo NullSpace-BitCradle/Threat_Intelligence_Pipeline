@@ -320,6 +320,10 @@ async function print_mitre() {
         bootstrap_style.rel = "stylesheet";
         bootstrap_style.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css";
         iframeDoc.head.appendChild(bootstrap_style);
+
+        // Detect parent theme and build theme-aware CSS
+        var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
         style_balise.innerHTML = `
             .toggle-fullscreen-btn {
                 background: none;
@@ -330,7 +334,7 @@ async function print_mitre() {
                 transform-box: view-box;
                 transform-origin: 12px 12px;
                 fill: none;
-                stroke: hsl(225, 10%, 8%);
+                stroke: ${isDark ? '#c9d1d9' : 'hsl(225, 10%, 8%)'};
                 stroke-width: 4;
                 transition: .15s;
             }
@@ -359,6 +363,116 @@ async function print_mitre() {
             .frame-full path {
                 stroke: white;
             }
+
+            /* Theme overrides for ATT&CK Navigator */
+            ${isDark ? `
+            body, .background {
+                background: #0d1117 !important;
+                color: #c9d1d9 !important;
+            }
+            .sidebar {
+                background: #161b22 !important;
+                border-color: #30363d !important;
+            }
+            .header, .help-header {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+                border-color: #30363d !important;
+            }
+            .tabs-container, .tab-enumerator {
+                background: #0d1117 !important;
+            }
+            .tab-enumerator .mat-mdc-tab {
+                color: #8b949e !important;
+            }
+            .tab-enumerator .mat-mdc-tab.mdc-tab--active {
+                color: #c9d1d9 !important;
+            }
+            .mat-mdc-dialog-container, .cdk-overlay-pane {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+            }
+            input, select, textarea, .mat-mdc-form-field {
+                background: #0d1117 !important;
+                color: #c9d1d9 !important;
+                border-color: #30363d !important;
+            }
+            .mat-mdc-select-value, .mat-mdc-select-arrow {
+                color: #c9d1d9 !important;
+            }
+            .control-sections {
+                background: #161b22 !important;
+                border-color: #30363d !important;
+            }
+            .control-row-button {
+                color: #c9d1d9 !important;
+            }
+            .control-row-button:hover {
+                background: #21262d !important;
+            }
+            .matrix .tactic {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+                border-color: #30363d !important;
+            }
+            .matrix .tactic-header {
+                background: #21262d !important;
+                color: #c9d1d9 !important;
+            }
+            .technique-cell {
+                border-color: #30363d !important;
+                background: #161b22 !important;
+            }
+            .technique-cell.scored {
+                /* scored cells keep their heat-map background */
+                background: var(--cell-color, #161b22) !important;
+            }
+            .technique-cell .technique-name {
+                color: #c9d1d9 !important;
+            }
+            .technique-cell:hover {
+                border-color: #58a6ff !important;
+                background: #21262d !important;
+            }
+            .technique-cell .technique-score {
+                color: #8b949e !important;
+            }
+            .subtechnique-cell, .subtechnique-header {
+                background: #1c2128 !important;
+                border-color: #30363d !important;
+                color: #c9d1d9 !important;
+            }
+            .cell, .unscored {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+            }
+            .mat-mdc-tooltip-trigger.control-row-button.noselect {
+                color: #c9d1d9 !important;
+            }
+            .sticky-header, .banner {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+            }
+            a { color: #58a6ff !important; }
+            .mat-expansion-panel {
+                background: #161b22 !important;
+                color: #c9d1d9 !important;
+            }
+            .mat-expansion-panel-header-title {
+                color: #c9d1d9 !important;
+            }
+            .tooltip-inner, .mat-mdc-tooltip {
+                background: #21262d !important;
+                color: #c9d1d9 !important;
+            }
+            .btn-outline-secondary {
+                color: #c9d1d9 !important;
+                border-color: #30363d !important;
+            }
+            .btn-outline-secondary:hover {
+                background: #21262d !important;
+            }
+            ` : ''}
         `;
         iframeDoc.head.appendChild(style_balise);
         div.style = "position: absolute; top: 12px; right:50px;";

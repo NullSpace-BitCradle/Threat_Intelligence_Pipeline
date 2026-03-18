@@ -395,6 +395,16 @@ a:hover { color: var(--accent-hover); }
     }
 }
 
+/* ATT&CK view: fill viewport, no outer scroll */
+#view-attack.active {
+    display: flex;
+    flex-direction: column;
+}
+#view-attack #frame {
+    flex: 1;
+    min-height: 0;
+}
+
 /* ===== EXISTING COMPONENT OVERRIDES ===== */
 /* Override Bootstrap styles to respect theme */
 .navbar { display: none !important; } /* Hide old Bootstrap nav */
