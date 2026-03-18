@@ -72,6 +72,16 @@ class PipelineOrchestrator:
                 log_info("No new CVEs to process")
                 processing_results = {'success': True, 'message': 'No new CVEs'}
 
+            # Step 3b: Fetch campaign data
+            log_info("Step 3b: Fetching ATT&CK campaigns...")
+            try:
+                from tip.core.campaign_fetcher import fetch_campaigns
+                base_dir = Path(__file__).resolve().parents[3]
+                fetch_campaigns(base_dir)
+                log_info("Campaign data fetched successfully")
+            except Exception as e:
+                log_warning(f"Campaign fetch failed (non-fatal): {e}")
+
             # Step 4: Generate entity index for unified entity system
             log_info("Step 4: Generating entity index...")
             try:
