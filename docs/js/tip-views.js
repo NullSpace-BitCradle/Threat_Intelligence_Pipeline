@@ -172,6 +172,29 @@ async function loadAPTView() {
         if (!response.ok) return;
         var data = await response.json();
         var groups = data.groups || {};
+
+        var campaignsData = {};
+        try {
+            var campaignsResponse = await fetch('data/campaigns_db.json');
+            if (campaignsResponse.ok) campaignsData = await campaignsResponse.json();
+        } catch(e) {
+            console.log('Campaigns data not available');
+        }
+
+        // Build group -> campaigns lookup
+        var groupCampaigns = {};
+        Object.entries(campaignsData).forEach(function(entry) {
+            var cid = entry[0];
+            var campaign = entry[1];
+            (campaign.groups || []).forEach(function(gid) {
+                if (!groupCampaigns[gid]) groupCampaigns[gid] = [];
+                groupCampaigns[gid].push(Object.assign({id: cid}, campaign));
+            });
+        });
+        Object.values(groupCampaigns).forEach(function(arr) {
+            arr.sort(function(a, b) { return (b.first_seen || '').localeCompare(a.first_seen || ''); });
+        });
+
         var grid = document.getElementById('apt-grid');
         while (grid.firstChild) grid.removeChild(grid.firstChild);
 
@@ -272,11 +295,82 @@ async function loadAPTView() {
                 detail.appendChild(techGrid);
             }
 
-            // Attack history note
-            var historyNote = document.createElement('div');
-            historyNote.style.cssText = 'font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:12px';
-            historyNote.textContent = 'Recent confirmed attack campaigns not yet available in dataset.';
-            detail.appendChild(historyNote);
+            // Campaigns section
+            var groupCampaignList = groupCampaigns[id] || [];
+            if (groupCampaignList.length > 0) {
+                var campaignLabel = document.createElement('div');
+                campaignLabel.style.cssText = 'font-weight:600;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px';
+                campaignLabel.textContent = 'Campaigns (' + groupCampaignList.length + ')';
+                detail.appendChild(campaignLabel);
+
+                var campaignGrid = document.createElement('div');
+                campaignGrid.style.cssText = 'display:grid;gap:8px;margin-bottom:12px';
+
+                var campaignColors = ['#ff6b6b', '#feca57', '#45b7d1', '#96ceb4', '#e056a0'];
+                groupCampaignList.forEach(function(camp, idx) {
+                    var campCard = document.createElement('div');
+                    campCard.style.cssText = 'background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:12px;border-left:3px solid ' + campaignColors[idx % campaignColors.length];
+
+                    var campHeader = document.createElement('div');
+                    campHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+
+                    var campName = document.createElement('span');
+                    campName.style.cssText = 'font-weight:600;font-size:13px;color:var(--accent);cursor:pointer';
+                    campName.textContent = camp.name;
+                    campName.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (typeof showEntityDetail === 'function') showEntityDetail(camp.id);
+                    });
+                    campHeader.appendChild(campName);
+
+                    var campDate = document.createElement('span');
+                    campDate.style.cssText = 'font-size:10px;color:var(--text-muted)';
+                    var from = camp.first_seen || '?';
+                    var to = camp.last_seen || 'ongoing';
+                    campDate.textContent = from + ' \u2014 ' + to;
+                    campHeader.appendChild(campDate);
+                    campCard.appendChild(campHeader);
+
+                    if (camp.description) {
+                        var campDesc = document.createElement('div');
+                        campDesc.style.cssText = 'font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.4';
+                        var truncDesc = camp.description.length > 150 ? camp.description.substring(0, 150) + '...' : camp.description;
+                        campDesc.textContent = truncDesc;
+                        campCard.appendChild(campDesc);
+                    }
+
+                    if (camp.techniques && camp.techniques.length > 0) {
+                        var campTechGrid = document.createElement('div');
+                        campTechGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin-top:6px';
+                        camp.techniques.slice(0, 5).forEach(function(tid) {
+                            var techTag = document.createElement('span');
+                            techTag.style.cssText = 'font-size:9px;padding:1px 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:2px;color:var(--link);font-family:monospace;cursor:pointer';
+                            techTag.textContent = tid;
+                            techTag.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (typeof showEntityDetail === 'function') showEntityDetail(tid);
+                            });
+                            campTechGrid.appendChild(techTag);
+                        });
+                        if (camp.techniques.length > 5) {
+                            var moreTag = document.createElement('span');
+                            moreTag.style.cssText = 'font-size:9px;padding:1px 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:2px;color:var(--text-muted);font-family:monospace';
+                            moreTag.textContent = '+' + (camp.techniques.length - 5);
+                            campTechGrid.appendChild(moreTag);
+                        }
+                        campCard.appendChild(campTechGrid);
+                    }
+
+                    campaignGrid.appendChild(campCard);
+                });
+                detail.appendChild(campaignGrid);
+            } else {
+                var historyNote = document.createElement('div');
+                historyNote.style.cssText = 'font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:12px';
+                historyNote.textContent = 'No campaign data available for this group.';
+                detail.appendChild(historyNote);
+            }
 
             // Action buttons
             var actions = document.createElement('div');
