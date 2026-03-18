@@ -98,10 +98,8 @@ async function create_mitre_layer() {
             throw new Error('Failed to fetch techniques_db.json');
         }
         var responseText = await fetchWithFallback([
-            'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/resources/techniques_db.json',
-            'https://raw.githubusercontent.com/Galeax/ThreatIntelligencePipeline/refs/heads/main/resources/techniques_db.json',
-            'https://raw.githubusercontent.com/Galeax/CVE2CAPEC/refs/heads/main/resources/techniques_db.json',
-            'resources/techniques_db.json'
+            'data/techniques_db.json',
+            'https://raw.githubusercontent.com/NullSpace-BitCradle/Threat_Intelligence_Pipeline/refs/heads/main/docs/data/techniques_db.json'
         ]);
     } catch (error) {
         console.error(error);

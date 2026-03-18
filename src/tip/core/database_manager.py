@@ -427,16 +427,22 @@ class DatabaseManager:
         return apt_processor._process_stix_data(stix_data)
 
     def _save_database(self, data: Dict[str, Any], file_path: str):
-        """Save database data to JSON file"""
+        """Save database data to JSON or JSONL file based on extension"""
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
+
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=4)
-            
+                if file_path.endswith('.jsonl'):
+                    # JSONL: one JSON object per line (key: value)
+                    for key, value in data.items():
+                        json.dump({key: value}, f)
+                        f.write('\n')
+                else:
+                    json.dump(data, f, indent=4)
+
             self.logger.info(f"Saved {len(data)} entries to {file_path}")
-            
+
         except Exception as e:
             self.logger.error(f"Error saving database to {file_path}: {e}")
             raise

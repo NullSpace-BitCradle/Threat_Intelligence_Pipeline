@@ -179,10 +179,24 @@ async function process(page_load = false) {
         console.log('Techniques association file not available, cross-domain mapping disabled');
     }
 
-    const defendList = {};
-    defendText.split('\n').forEach(line => {
-        if (line.trim()) Object.assign(defendList, JSON.parse(line));
-    });
+    let defendList = {};
+    if (defendText) {
+        try {
+            // Try parsing as a single JSON object first (current format)
+            defendList = JSON.parse(defendText);
+        } catch (_) {
+            // Fallback: try JSONL (one JSON object per line)
+            defendText.split('\n').forEach(line => {
+                if (line.trim()) {
+                    try {
+                        Object.assign(defendList, JSON.parse(line));
+                    } catch (e) {
+                        console.warn('Skipping invalid JSONL line in defend_db:', e.message);
+                    }
+                }
+            });
+        }
+    }
 
     data_cleaned = new Set();
     var cves_not_found = [];
@@ -280,7 +294,8 @@ async function process(page_load = false) {
                     
                     relatedTechniques.forEach(technique => {
                         const atkKey = 'T' + technique;
-                        (defendList[atkKey] || []).forEach(d => {
+                        const defTechniques = defendList[atkKey]?.defensive_techniques || [];
+                        defTechniques.forEach(d => {
                             data.push({ source: atkKey, target: 'D3F-' + d.id, value: 1 });
                         });
                     });
