@@ -1,5 +1,5 @@
 """
-Entity Index Generator for TIP v1.0
+Entity Index Generator for TIP v1.5
 
 Reads all pipeline data files and produces:
   - docs/data/entity_index.json  — every entity with type, relationships, search terms
@@ -12,6 +12,47 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+# Provenance metadata — entity-level derived from type
+ENTITY_PROVENANCE = {
+    'cve':       {'source': 'NVD', 'tier': 'authoritative'},
+    'cwe':       {'source': 'MITRE CWE Database', 'tier': 'official'},
+    'capec':     {'source': 'MITRE CAPEC Database', 'tier': 'official'},
+    'technique': {'source': 'MITRE ATT&CK', 'tier': 'official'},
+    'defend':    {'source': 'MITRE D3FEND', 'tier': 'official'},
+    'apt_group': {'source': 'MITRE ATT&CK Groups', 'tier': 'official'},
+    'campaign':  {'source': 'MITRE ATT&CK Campaigns', 'tier': 'official'},
+    'owasp':     {'source': 'Pipeline (NVD/CWE mapping)', 'tier': 'derived'},
+}
+
+# Relationship-level provenance — source/tier per relationship direction
+REL_PROVENANCE = {
+    ('cve', 'cwe'):       {'source': 'NVD Enrichment', 'tier': 'authoritative'},
+    ('cwe', 'cve'):       {'source': 'NVD Enrichment', 'tier': 'authoritative'},
+    ('cve', 'capec'):     {'source': 'Pipeline (CWE→CAPEC chain)', 'tier': 'derived'},
+    ('capec', 'cve'):     {'source': 'Pipeline (CWE→CAPEC chain)', 'tier': 'derived'},
+    ('cve', 'technique'): {'source': 'Pipeline (CAPEC→Technique chain)', 'tier': 'derived'},
+    ('technique', 'cve'): {'source': 'Pipeline (CAPEC→Technique chain)', 'tier': 'derived'},
+    ('cve', 'defend'):    {'source': 'Pipeline (Technique→D3FEND chain)', 'tier': 'derived'},
+    ('defend', 'cve'):    {'source': 'Pipeline (Technique→D3FEND chain)', 'tier': 'derived'},
+    ('cve', 'owasp'):     {'source': 'Pipeline (CWE→OWASP mapping)', 'tier': 'derived'},
+    ('owasp', 'cve'):     {'source': 'Pipeline (CWE→OWASP mapping)', 'tier': 'derived'},
+    ('cve', 'apt_group'): {'source': 'Pipeline (technique overlap)', 'tier': 'derived'},
+    ('apt_group', 'cve'): {'source': 'Pipeline (technique overlap)', 'tier': 'derived'},
+    ('cwe', 'capec'):     {'source': 'MITRE CWE Database', 'tier': 'official'},
+    ('capec', 'cwe'):     {'source': 'MITRE CWE Database', 'tier': 'official'},
+    ('capec', 'technique'): {'source': 'MITRE CAPEC Database', 'tier': 'official'},
+    ('technique', 'capec'): {'source': 'MITRE CAPEC Database', 'tier': 'official'},
+    ('technique', 'defend'): {'source': 'MITRE D3FEND', 'tier': 'official'},
+    ('defend', 'technique'): {'source': 'MITRE D3FEND', 'tier': 'official'},
+    ('apt_group', 'technique'): {'source': 'MITRE ATT&CK', 'tier': 'official'},
+    ('technique', 'apt_group'): {'source': 'MITRE ATT&CK', 'tier': 'official'},
+    ('campaign', 'apt_group'): {'source': 'MITRE ATT&CK Campaigns', 'tier': 'official'},
+    ('apt_group', 'campaign'): {'source': 'MITRE ATT&CK Campaigns', 'tier': 'official'},
+    ('campaign', 'technique'): {'source': 'MITRE ATT&CK Campaigns', 'tier': 'official'},
+    ('technique', 'campaign'): {'source': 'MITRE ATT&CK Campaigns', 'tier': 'official'},
+}
 
 
 def _load_json(path: Path) -> dict:
@@ -146,6 +187,29 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
 
     print(f"  Loaded {len(groups)} APT groups")
 
+    # ── 5b. Load Campaigns database ──────────────────────────────────
+    print("Loading campaigns database...")
+    campaigns_db = _load_json(data_dir / "campaigns_db.json")
+    campaign_aliases: dict[str, list[str]] = {}
+
+    for campaign_id, campaign_data in campaigns_db.items():
+        name = campaign_data.get("name", campaign_id)
+        aliases = campaign_data.get("aliases", [])
+        first_seen = campaign_data.get("first_seen", "")
+        last_seen = campaign_data.get("last_seen", "")
+        ensure(campaign_id, "campaign", name, "operation")
+        entities[campaign_id]["first_seen"] = first_seen
+        entities[campaign_id]["last_seen"] = last_seen
+        campaign_aliases[campaign_id] = aliases
+
+        for group_id in campaign_data.get("groups", []):
+            link(campaign_id, "apt_group", group_id, "campaign")
+
+        for tech_id in campaign_data.get("techniques", []):
+            link(campaign_id, "technique", tech_id, "campaign")
+
+    print(f"  Loaded {len(campaigns_db)} campaigns")
+
     # ── 6. Load KEV database ──────────────────────────────────────
     print("Loading KEV database...")
     kev_db = _load_json(data_dir / "kev_db.json")
@@ -235,16 +299,27 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
         ensure(owasp_id, "owasp", owasp_id, "compliance")
     print(f"  Created {len(owasp_ids)} OWASP entities")
 
-    # ── 10. Convert rels_map sets to sorted lists, merge into entities ──
-    print("Finalizing relationships...")
+    # ── 10. Convert rels_map sets to new shape {ids, source, tier} ──
+    print("Finalizing relationships with provenance...")
     for eid, entity in entities.items():
+        etype = entity["type"]
         rels = {}
         for rel_type, targets in sorted(rels_map.get(eid, {}).items()):
-            rels[rel_type] = sorted(targets)
-        # Add KEV flag
-        if eid in kev_cves:
-            rels["kev"] = True
+            prov_key = (etype, rel_type)
+            prov = REL_PROVENANCE.get(prov_key, {'source': 'Unknown', 'tier': 'derived'})
+            rels[rel_type] = {
+                "ids": sorted(targets),
+                "source": prov["source"],
+                "tier": prov["tier"],
+            }
         entity["rels"] = rels
+
+        # Add entity-level provenance
+        entity["prov"] = ENTITY_PROVENANCE.get(etype, {'source': 'Unknown', 'tier': 'derived'})
+
+        # KEV as top-level boolean (moved out of rels)
+        if eid in kev_cves:
+            entity["kev"] = True
 
     # ── 11. Build search terms (for search index only, not stored in entities) ─
     print("Building search terms...")
@@ -269,6 +344,17 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
         for alias in group_aliases.get(entity_id, []):
             terms.add(alias.lower())
 
+        # Aliases for campaigns
+        for alias in campaign_aliases.get(entity_id, []):
+            terms.add(alias.lower())
+
+        # For campaigns, also index associated group names
+        if entity.get("type") == "campaign":
+            for gid in rels_map.get(entity_id, {}).get("apt_group", set()):
+                group_entity = entities.get(gid)
+                if group_entity:
+                    terms.add(group_entity["name"].lower())
+
         entity_terms[entity_id] = terms
 
     # ── 12. Build search index ─────────────────────────────────────
@@ -285,7 +371,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
         "meta": {
             "generated": datetime.now(timezone.utc).isoformat(),
             "entity_count": len(entities),
-            "version": "1.0",
+            "version": "1.5",
         },
         "entities": entities,
     }
