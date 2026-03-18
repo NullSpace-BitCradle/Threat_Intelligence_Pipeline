@@ -4,6 +4,7 @@ Web interface for Threat Intelligence Pipeline
 Provides HTTP endpoints for health checks, metrics, and status monitoring
 """
 import json
+import os
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -387,156 +388,86 @@ class TIPRequestHandler(BaseHTTPRequestHandler):
             logger.warning(f"Failed to parse JSON body: {e}")
             return None
     
-    def _validate_path(self, path: str, allowed_root: Path) -> Optional[Path]:
-        """Validate and resolve a file path, ensuring it's within allowed directory"""
+    @staticmethod
+    def _safe_resolve(user_path: str, allowed_root: str) -> Optional[str]:
+        """Resolve a user-provided path and verify it stays within allowed_root.
+
+        Uses os.path.realpath (resolves symlinks) and os.path.commonpath
+        so that CodeQL recognises the sanitisation of user input.
+        Returns the resolved absolute path string, or None if traversal detected.
+        """
         try:
-            # Remove leading slash and construct path
-            file_path = path.lstrip('/')
-            full_path = allowed_root / file_path
-            
-            # Resolve to absolute path and check it's within allowed root
-            resolved_path = full_path.resolve()
-            allowed_resolved = allowed_root.resolve()
-            
-            # Prevent directory traversal attacks using relative_to()
-            # This properly handles sibling directories with similar names
-            # (e.g., /project/docs vs /project/docs_private)
-            # Raises ValueError if resolved_path is not relative to allowed_resolved
-            resolved_path.relative_to(allowed_resolved)
-            
-            return resolved_path
-        except ValueError:
-            # relative_to() raises ValueError if path is not within allowed root
-            logger.warning(f"Path traversal attempt detected: {path}")
-            return None
-        except Exception as e:
+            root = os.path.realpath(allowed_root)
+            candidate = os.path.realpath(os.path.join(root, user_path.lstrip('/')))
+            # commonpath raises ValueError if paths are on different drives (Windows)
+            if os.path.commonpath([root, candidate]) != root:
+                logger.warning(f"Path traversal attempt detected: {user_path}")
+                return None
+            return candidate
+        except (ValueError, OSError) as e:
             logger.warning(f"Path validation error: {e}")
             return None
-    
+
+    @staticmethod
+    def _content_type_for(file_path: str) -> str:
+        """Return a Content-Type for common static file extensions."""
+        ext_map = {
+            '.json': 'application/json',
+            '.jsonl': 'application/jsonl',
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.woff': 'font/woff2',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.svg': 'image/svg+xml',
+            '.png': 'image/png',
+        }
+        _, ext = os.path.splitext(file_path)
+        return ext_map.get(ext, 'application/octet-stream')
+
+    def _serve_safe_file(self, user_path: str, allowed_root: str):
+        """Resolve, validate, and serve a file from *allowed_root*."""
+        safe_path = self._safe_resolve(user_path, allowed_root)
+        if safe_path is None:
+            self._send_error_response(403, "Access denied")
+            return
+
+        if not os.path.isfile(safe_path):
+            self._send_error_response(404, f"File not found: {user_path}")
+            return
+
+        content_type = self._content_type_for(safe_path)
+
+        try:
+            if content_type.startswith('text/') or content_type in (
+                'application/json', 'application/jsonl', 'application/javascript'
+            ):
+                with open(safe_path, 'r', encoding='utf-8') as f:
+                    content: Union[str, bytes] = f.read()
+            else:
+                with open(safe_path, 'rb') as f:
+                    content = f.read()
+
+            self._send_response(200, content, content_type)
+        except Exception as e:
+            logger.error(f"Error serving file {user_path}: {e}")
+            self._send_error_response(500, f"Error serving file: {str(e)}")
+
     def _handle_static_file(self, path: str):
         """Handle static file requests"""
-        try:
-            project_root = Path(__file__).parent.parent.parent.parent
-            
-            # Validate path to prevent directory traversal
-            full_path = self._validate_path(path, project_root)
-            if full_path is None:
-                self._send_error_response(403, "Access denied")
-                return
-            
-            if not full_path.exists():
-                self._send_error_response(404, f"File not found: {path}")
-                return
-            
-            # Determine content type based on file extension
-            file_name = str(full_path)
-            content_type = 'application/octet-stream'
-            if file_name.endswith('.json'):
-                content_type = 'application/json'
-            elif file_name.endswith('.jsonl'):
-                content_type = 'application/jsonl'
-            elif file_name.endswith('.html'):
-                content_type = 'text/html'
-            elif file_name.endswith('.css'):
-                content_type = 'text/css'
-            elif file_name.endswith('.js'):
-                content_type = 'application/javascript'
-            
-            # Read and serve the file
-            with open(full_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            self._send_response(200, content, content_type)
-            
-        except Exception as e:
-            logger.error(f"Error serving static file {path}: {e}")
-            self._send_error_response(500, f"Error serving file: {str(e)}")
-    
+        project_root = str(Path(__file__).parent.parent.parent.parent)
+        self._serve_safe_file(path, project_root)
+
     def _handle_docs_file(self, path: str):
         """Handle docs file requests (CSS, JS, etc.)"""
-        try:
-            docs_root = Path(__file__).parent.parent.parent.parent / "docs"
-            
-            # Validate path to prevent directory traversal
-            full_path = self._validate_path(path, docs_root)
-            if full_path is None:
-                self._send_error_response(403, "Access denied")
-                return
-            
-            if not full_path.exists():
-                self._send_error_response(404, f"File not found: {path}")
-                return
-            
-            # Determine content type based on file extension
-            file_name = str(full_path)
-            content_type = 'application/octet-stream'
-            if file_name.endswith('.css'):
-                content_type = 'text/css'
-            elif file_name.endswith('.js'):
-                content_type = 'application/javascript'
-            elif file_name.endswith('.html'):
-                content_type = 'text/html'
-            elif file_name.endswith('.json'):
-                content_type = 'application/json'
-            
-            with open(full_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            self._send_response(200, content, content_type)
-            
-        except Exception as e:
-            logger.error(f"Error serving docs file {path}: {e}")
-            self._send_error_response(500, f"Error serving file: {str(e)}")
-    
+        docs_root = str(Path(__file__).parent.parent.parent.parent / "docs")
+        self._serve_safe_file(path, docs_root)
+
     def _handle_mitre_file(self, path: str):
         """Handle MITRE ATT&CK file requests"""
-        try:
-            mitre_root = Path(__file__).parent.parent.parent.parent / "docs" / "mitre"
-            
-            # Validate path to prevent directory traversal
-            full_path = self._validate_path(path.replace('/mitre/', ''), mitre_root)
-            if full_path is None:
-                self._send_error_response(403, "Access denied")
-                return
-            
-            if not full_path.exists():
-                self._send_error_response(404, f"File not found: {path}")
-                return
-            
-            # Determine content type based on file extension
-            file_name = str(full_path)
-            content_type = 'application/octet-stream'
-            if file_name.endswith('.html'):
-                content_type = 'text/html'
-            elif file_name.endswith('.css'):
-                content_type = 'text/css'
-            elif file_name.endswith('.js'):
-                content_type = 'application/javascript'
-            elif file_name.endswith('.json'):
-                content_type = 'application/json'
-            elif file_name.endswith('.woff') or file_name.endswith('.woff2'):
-                content_type = 'font/woff2'
-            elif file_name.endswith('.ttf'):
-                content_type = 'font/ttf'
-            elif file_name.endswith('.svg'):
-                content_type = 'image/svg+xml'
-            elif file_name.endswith('.png'):
-                content_type = 'image/png'
-            
-            # Read file as binary for binary files, text for text files
-            content: Union[str, bytes]
-            if content_type.startswith('text/') or content_type == 'application/json' or content_type == 'application/javascript':
-                with open(full_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-            else:
-                with open(full_path, 'rb') as f:
-                    content = f.read()
-            
-            self._send_response(200, content, content_type)
-            
-        except Exception as e:
-            logger.error(f"Error serving MITRE file {path}: {e}")
-            self._send_error_response(500, f"Error serving file: {str(e)}")
+        mitre_root = str(Path(__file__).parent.parent.parent.parent / "docs" / "mitre")
+        self._serve_safe_file(path.replace('/mitre/', ''), mitre_root)
 
 def start_web_interface(host: str = 'localhost', port: int = 8080):
     """Start the web interface server"""
