@@ -1,4 +1,22 @@
 {
+    "CVE-2025-66376": {
+        "inKEV": true,
+        "dateAdded": "2026-03-18",
+        "dueDate": "2026-04-01",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Synacor",
+        "product": "Zimbra Collaboration Suite (ZCS)"
+    },
+    "CVE-2026-20963": {
+        "inKEV": true,
+        "dateAdded": "2026-03-18",
+        "dueDate": "2026-03-21",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Microsoft",
+        "product": "SharePoint"
+    },
     "CVE-2025-47813": {
         "inKEV": true,
         "dateAdded": "2026-03-16",
