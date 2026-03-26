@@ -1,4 +1,13 @@
 {
+    "CVE-2026-33017": {
+        "inKEV": true,
+        "dateAdded": "2026-03-25",
+        "dueDate": "2026-04-08",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Langflow",
+        "product": "Langflow"
+    },
     "CVE-2025-32432": {
         "inKEV": true,
         "dateAdded": "2026-03-20",
