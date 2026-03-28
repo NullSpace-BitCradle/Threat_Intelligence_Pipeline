@@ -185,20 +185,20 @@ class DatabaseManager:
             for weakness in root.findall('.//{http://cwe.mitre.org/cwe-7}Weakness'):
                 cwe_id = weakness.get('ID')
                 if cwe_id:
-                    # Extract name
-                    name_elem = weakness.find('.//{http://cwe.mitre.org/cwe-7}Name')
-                    name = name_elem.text if name_elem is not None else ''
-                    
+                    # Extract name (it's an XML attribute, not a child element)
+                    name = weakness.get('Name', '')
+
                     # Extract description
-                    desc_elem = weakness.find('.//{http://cwe.mitre.org/cwe-7}Description')
+                    desc_elem = weakness.find('{http://cwe.mitre.org/cwe-7}Description')
                     description = desc_elem.text if desc_elem is not None else ''
-                    
-                    # Extract parent relationships
+
+                    # Extract parent relationships from Related_Weaknesses
                     child_of = []
-                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}ChildOf/{http://cwe.mitre.org/cwe-7}Weakness'):
-                        parent_id = rel.get('CWE_ID')
-                        if parent_id:
-                            child_of.append(parent_id)
+                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}Related_Weakness'):
+                        if rel.get('Nature') == 'ChildOf':
+                            parent_id = rel.get('CWE_ID')
+                            if parent_id:
+                                child_of.append(parent_id)
                     
                     # Extract related attack patterns
                     related_capecs = []

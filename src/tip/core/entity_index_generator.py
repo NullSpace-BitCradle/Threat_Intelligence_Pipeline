@@ -111,15 +111,43 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     # ── 1. Load CWE database ──────────────────────────────────────
     print("Loading CWE database...")
     cwe_db = _load_json(data_dir / "cwe_db.json")
+
+    # Build CWE parent chain for CAPEC inheritance
+    cwe_parent_capecs: dict[str, set[str]] = {}
+
+    def _resolve_cwe_capecs(cwe_num: str, visited: set | None = None) -> set[str]:
+        """Walk CWE parent chain to collect all CAPEC mappings."""
+        if cwe_num in cwe_parent_capecs:
+            return cwe_parent_capecs[cwe_num]
+        if visited is None:
+            visited = set()
+        if cwe_num in visited:
+            return set()
+        visited.add(cwe_num)
+
+        cwe_entry = cwe_db.get(cwe_num, {})
+        capecs = set(cwe_entry.get("RelatedAttackPatterns", []))
+        for parent_num in cwe_entry.get("ChildOf", []):
+            capecs |= _resolve_cwe_capecs(parent_num, visited)
+        cwe_parent_capecs[cwe_num] = capecs
+        return capecs
+
+    # Pre-resolve all CWEs
+    for cwe_num in cwe_db:
+        _resolve_cwe_capecs(cwe_num)
+
+    inherited_count = sum(1 for n, c in cwe_parent_capecs.items()
+                         if c and not cwe_db.get(n, {}).get("RelatedAttackPatterns"))
+
     for cwe_num, cwe_data in cwe_db.items():
         cwe_id = f"CWE-{cwe_num}"
         name = cwe_data.get("name") or cwe_data.get("Name") or ""
         ensure(cwe_id, "cwe", name if name else cwe_id, "weakness")
 
-        for capec_num in cwe_data.get("RelatedAttackPatterns", []):
+        for capec_num in _resolve_cwe_capecs(cwe_num):
             link_one(cwe_id, "capec", f"CAPEC-{capec_num}")
 
-    print(f"  Loaded {len(cwe_db)} CWEs")
+    print(f"  Loaded {len(cwe_db)} CWEs ({inherited_count} inherited CAPECs from parents)")
 
     # ── 2. Load CAPEC database ─────────────────────────────────────
     print("Loading CAPEC database...")
