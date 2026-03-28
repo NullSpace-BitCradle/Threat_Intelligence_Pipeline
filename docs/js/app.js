@@ -264,7 +264,7 @@ async function initLanding() {
 
     // Hint chips
     var chips = document.getElementById('hint-chips');
-    var examples = ['CVE-2024-37079', 'T1059.001', 'APT29', 'CWE-79', 'CAPEC-126', 'File Analysis'];
+    var examples = ['CVE-2024-37079', 'T1059.001', 'APT29', 'CWE-79', 'CAPEC-126', 'FileAnalysis'];
     for (var i = 0; i < examples.length; i++) {
         var chip = document.createElement('span');
         chip.className = 'hint-chip';
