@@ -1,239 +1,85 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threat Intelligence Pipeline (TIP)</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-notify/dist/simple-notify.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
-    <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/theme.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/simple-notify/dist/simple-notify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="css/app.css">
 </head>
-
 <body>
 
-    <!-- Top Navigation -->
-    <nav class="tip-nav">
-        <span class="tip-nav-brand">TIP</span>
-        <div class="tip-nav-tabs">
-            <button class="tip-nav-tab active" data-view="analysis">Analysis</button>
-            <button class="tip-nav-tab" data-view="kev">CISA KEV</button>
-            <button class="tip-nav-tab" data-view="apt">APT Groups</button>
-            <button class="tip-nav-tab" data-view="attack">ATT&CK</button>
-            <button class="tip-nav-tab" data-view="defend">D3FEND</button>
-            <button class="tip-nav-tab" data-view="owasp">OWASP</button>
-        </div>
-        <div class="tip-nav-search">
-            <input type="text" class="tip-search" id="global-search" placeholder="Search CVE, technique, APT group..." autocomplete="off" style="max-width:280px;">
-            <div id="search-results" class="tip-search-dropdown"></div>
-        </div>
-        <div class="tip-nav-right">
-            <button class="tip-btn tip-btn-secondary" id="investigation-toggle" style="font-size:12px;padding:4px 10px;position:relative;">
-                <span id="investigation-count">0</span> pinned
-            </button>
-            <div id="investigation-dropdown" class="tip-search-dropdown" style="right:60px;left:auto;min-width:300px;"></div>
-            <button class="theme-toggle" id="themeToggle" title="Toggle theme">
-                <span id="themeIcon">&#9790;</span>
-            </button>
-        </div>
-    </nav>
+<!-- ===== LANDING PAGE ===== -->
+<div id="page-landing" class="landing">
+    <div class="landing-brand">THREAT INTELLIGENCE PIPELINE</div>
+    <div class="landing-title">Search anything in threat intel</div>
+    <div class="landing-subtitle">CVEs, techniques, APT groups, weaknesses, defenses — one search across all frameworks</div>
 
-    <!-- ===== ANALYSIS VIEW ===== -->
-    <div class="tip-view active" id="view-analysis">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-lg-3 col-md-12">
-                    <div class="tip-card">
-                        <div class="tip-card-header">CVE Input</div>
-                        <div class="tip-cve-input" placeholder="CVE-2024-37079&#10;CVE-2018-17924&#10;..." contenteditable="true" id="cves"></div>
-                        <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="tip-btn tip-btn-primary" onclick="process()">Generate</button>
-                            <button class="tip-btn tip-btn-secondary" onclick="example()">Try Example</button>
-                            <select id="layer_type" class="tip-search" style="max-width: 200px;">
-                                <option value="enterprise-defend">Enterprise + D3FEND</option>
-                                <option value="enterprise">Enterprise</option>
-                                <option value="mobile">Mobile</option>
-                                <option value="ics">ICS</option>
-                            </select>
-                        </div>
-                        <div style="margin-top: 8px;">
-                            <button class="tip-btn tip-btn-secondary" onclick="share()" style="font-size: 12px;">Share URL</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-9 col-md-12">
-                    <!-- Summary cards (populated after analysis) -->
-                    <div class="tip-summary-row" id="analysis-summary" style="display: none;">
-                        <div class="tip-stat-card">
-                            <div class="tip-stat-value" id="stat-cve-count">0</div>
-                            <div class="tip-stat-label">CVEs Analyzed</div>
-                        </div>
-                        <div class="tip-stat-card">
-                            <div class="tip-stat-value" id="stat-technique-count">0</div>
-                            <div class="tip-stat-label">Techniques</div>
-                        </div>
-                        <div class="tip-stat-card">
-                            <div class="tip-stat-value" id="stat-kev-count">0</div>
-                            <div class="tip-stat-label">In CISA KEV</div>
-                        </div>
-                        <div class="tip-stat-card">
-                            <div class="tip-stat-value" id="stat-apt-count">0</div>
-                            <div class="tip-stat-label">APT Groups</div>
-                        </div>
-                    </div>
+    <div class="search-container">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" class="search-input" id="landing-search" placeholder="CVE-2024-37079, T1059, APT29, CWE-79..." autocomplete="off">
+        <div class="search-dropdown" id="landing-dropdown"></div>
+    </div>
 
-                    <!-- OWASP Summary Banner -->
-                    <div id="owasp-summary" class="tip-card" style="display: none; border-left: 4px solid var(--badge-owasp);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div class="tip-card-header">OWASP Top 10 2021</div>
-                                <div style="color: var(--text-secondary); font-size: 13px;">Security categories from analysis</div>
-                            </div>
-                            <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
-                                <strong id="owasp-categories-count">0</strong> categories
-                            </div>
-                        </div>
-                    </div>
+    <div class="hint-chips" id="hint-chips"></div>
 
-                    <!-- Sankey Diagram -->
-                    <div class="tip-card" style="padding: 0;">
-                        <div id="container" style="width: 100%; min-height: 450px;"></div>
-                    </div>
-                </div>
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <div class="quick-access">
+        <div class="quick-label">Recent KEV Additions</div>
+        <div class="quick-grid" id="quick-grid"></div>
+    </div>
+</div>
+
+<!-- ===== RESULTS PAGE ===== -->
+<div id="page-results" class="hidden">
+    <div class="top-bar">
+        <div class="top-bar-brand" id="brand-home">TIP</div>
+        <div class="search-container">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" class="search-input" id="results-search" autocomplete="off">
+            <div class="search-dropdown" id="results-dropdown"></div>
+        </div>
+        <div class="top-bar-actions">
+            <button class="icon-btn" id="btn-pin" title="Pin to investigation">&#128204;</button>
+            <div style="position:relative;">
+                <button class="icon-btn" id="btn-investigation" title="Investigation tray">
+                    <span id="pin-count">0</span>
+                </button>
+                <div class="investigation-tray" id="investigation-tray"></div>
             </div>
+            <button class="icon-btn" id="btn-export" title="Export">&#8599;</button>
+            <button class="icon-btn" id="btn-theme" title="Toggle theme">&#9790;</button>
         </div>
     </div>
 
-    <!-- ===== CISA KEV VIEW ===== -->
-    <div class="tip-view" id="view-kev">
-        <div class="container-fluid">
-            <div class="tip-summary-row" id="kev-stats">
-                <div class="tip-stat-card">
-                    <div class="tip-stat-value" id="kev-total">--</div>
-                    <div class="tip-stat-label">Total KEV Entries</div>
-                </div>
-                <div class="tip-stat-card">
-                    <div class="tip-stat-value" id="kev-ransomware">--</div>
-                    <div class="tip-stat-label">Ransomware Use</div>
-                </div>
-            </div>
-            <div class="tip-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div class="tip-card-header" style="margin-bottom: 0;">Known Exploited Vulnerabilities</div>
-                    <input type="text" class="tip-search" id="kev-search" placeholder="Search CVE, vendor, product...">
-                </div>
-                <div style="max-height: 600px; overflow-y: auto;">
-                    <table class="tip-table" id="kev-table">
-                        <thead>
-                            <tr>
-                                <th>CVE ID</th>
-                                <th>Vendor</th>
-                                <th>Product</th>
-                                <th>Date Added</th>
-                                <th>Due Date</th>
-                                <th>Ransomware</th>
-                            </tr>
-                        </thead>
-                        <tbody id="kev-tbody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="result-body">
+        <div class="result-main" id="result-main"></div>
+        <div class="result-graph" id="result-graph"></div>
+    </div>
+</div>
+
+<!-- ===== SEARCH RESULTS LIST PAGE ===== -->
+<div id="page-search-results" class="hidden">
+    <div class="top-bar">
+        <div class="top-bar-brand" id="brand-home-sr">TIP</div>
+        <div class="search-container">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" class="search-input" id="sr-search" autocomplete="off">
+            <div class="search-dropdown" id="sr-dropdown"></div>
+        </div>
+        <div class="top-bar-actions">
+            <button class="icon-btn" id="btn-theme-sr" title="Toggle theme">&#9790;</button>
         </div>
     </div>
+    <div class="search-results-page" id="search-results-body"></div>
+</div>
 
-    <!-- ===== APT GROUPS VIEW ===== -->
-    <div class="tip-view" id="view-apt">
-        <div class="container-fluid">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h5 style="margin: 0; color: var(--text-primary);">ATT&CK Threat Groups</h5>
-                <input type="text" class="tip-search" id="apt-search" placeholder="Search group name or alias...">
-            </div>
-            <div id="apt-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== ATT&CK VIEW ===== -->
-    <div class="tip-view" id="view-attack" style="padding: 0; height: calc(100vh - 48px); overflow: hidden;">
-        <div id="attack-summary" class="tip-card" style="display: none; border-left: 4px solid var(--severity-high); margin: 8px 12px; border-radius: 6px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div class="tip-card-header">MITRE ATT&CK Matrix</div>
-                    <div style="color: var(--text-secondary); font-size: 13px;">Attack techniques from analysis</div>
-                </div>
-                <div style="text-align: right; color: var(--text-secondary); font-size: 14px;">
-                    <strong id="attack-techniques-count">0</strong> techniques &bull;
-                    <strong id="attack-hits-count">0</strong> total hits
-                </div>
-            </div>
-        </div>
-        <div style="height: 100%; position: relative; width: 100%;" id="frame" hidden></div>
-    </div>
-
-    <!-- ===== D3FEND VIEW ===== -->
-    <div class="tip-view" id="view-defend">
-        <div class="container-fluid px-3">
-            <div id="defend_matrix" style="display: none; overflow-x: auto; white-space: nowrap;"></div>
-            <div id="defend-empty" class="tip-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
-                Run an analysis with "Enterprise + D3FEND" to see defensive techniques.
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== OWASP VIEW ===== -->
-    <div class="tip-view" id="view-owasp">
-        <div class="container-fluid px-3">
-            <div id="owasp-legend" class="tip-card" style="display: none; border-left: 4px solid var(--badge-owasp);">
-                <div class="tip-card-header">OWASP Top 10 2021 Category Breakdown</div>
-                <div style="color: var(--text-secondary); font-size: 13px;">Mapping of CVEs to OWASP security categories</div>
-            </div>
-            <div id="owasp_matrix" style="display: none; overflow-x: auto;"></div>
-            <div id="owasp-empty" class="tip-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
-                Run an analysis to see OWASP Top 10 mappings.
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for sub-graphs -->
-    <div class="modal fade" role="dialog" id="modal" tabindex="-1" aria-labelledby="modal">
-        <div class="modal-dialog" role="document" style="max-width: 100%; margin: 2%;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Sub graph for selected Techniques</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-12">
-                            <div id="subgraph" style="width: 100%; height: 100%; background-color: var(--sankey-bg);"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="entity-panel"></div>
-
-    <!-- Theme + Navigation + View Loading Script -->
-    <script src="js/tip-views.js"></script>
-
-    <!-- Existing JavaScript -->
-    <script src="js/mitre-attack.js"></script>
-    <script src="js/mitre-defend.js"></script>
-    <script src="js/entity-system.js"></script>
-    <script src="js/global.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="js/entity-system.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/results.js"></script>
+<script src="js/app.js"></script>
 
 </body>
 </html>
