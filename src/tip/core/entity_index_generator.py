@@ -55,6 +55,20 @@ REL_PROVENANCE = {
 }
 
 
+_STOP_WORDS = frozenset({
+    "the", "and", "for", "that", "this", "with", "from", "are", "was", "were",
+    "been", "being", "have", "has", "had", "does", "did", "but", "not", "you",
+    "all", "can", "her", "his", "its", "may", "our", "out", "own", "than",
+    "too", "very", "just", "into", "over", "such", "also", "some", "when",
+    "which", "who", "whom", "how", "what", "where", "will", "each", "other",
+    "them", "then", "there", "these", "they", "your", "more", "most", "could",
+    "would", "should", "about", "after", "before", "between", "under", "again",
+    "further", "once", "during", "while", "through", "above", "below",
+    "used", "use", "using", "allows", "allow", "result", "results",
+    "based", "specific", "within", "without", "another", "because",
+})
+
+
 def _load_json(path: Path) -> dict:
     """Load a JSON file, return empty dict if missing."""
     if not path.exists():
@@ -404,6 +418,24 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
                 group_entity = entities.get(gid)
                 if group_entity:
                     terms.add(group_entity["name"].lower())
+
+        # Description-based search: index significant words from raw DB descriptions
+        etype = entity.get("type", "")
+        desc_text = ""
+        if etype == "cwe":
+            cwe_num = entity_id.replace("CWE-", "")
+            desc_text = cwe_db.get(cwe_num, {}).get("description", "")
+        elif etype == "technique":
+            tech_num = entity_id.replace("T", "")
+            desc_text = tech_db.get(tech_num, {}).get("description", "")
+        elif etype == "capec":
+            capec_num = entity_id.replace("CAPEC-", "")
+            desc_text = capec_db.get(capec_num, {}).get("name", "")
+
+        if desc_text:
+            for token in _tokenize_name(desc_text):
+                if token not in _STOP_WORDS:
+                    terms.add(token)
 
         entity_terms[entity_id] = terms
 
