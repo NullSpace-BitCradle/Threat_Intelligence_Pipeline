@@ -3,7 +3,7 @@
  * Uses safe DOM methods throughout (textContent, createElement). No innerHTML.
  */
 
-function renderResultPage(entityId) {
+async function renderResultPage(entityId) {
     const entity = getEntity(entityId);
     const main = document.getElementById('result-main');
     const graphPanel = document.getElementById('result-graph');
@@ -19,11 +19,12 @@ function renderResultPage(entityId) {
     }
 
     const related = getRelatedEntities(entityId);
+    const detail = await fetchEntityDetail(entityId);
 
     main.textContent = '';
     renderEntityHeader(main, entity, related);
     renderSummaryCards(main, entity, related);
-    renderDetailTabs(main, entity, related);
+    renderDetailTabs(main, entity, related, detail);
     renderGraphPanel(graphPanel, entityId, related);
 }
 
@@ -132,16 +133,8 @@ function renderSummaryCards(container, entity, related) {
     if (cards.length > 0) container.appendChild(grid);
 }
 
-function renderDetailTabs(container, entity, related) {
+function renderDetailTabs(container, entity, related, detail) {
     const tabTypes = Object.entries(related).filter(([, r]) => r.ids.length > 0);
-
-    if (tabTypes.length === 0) {
-        const empty = document.createElement('div');
-        Object.assign(empty.style, { color: 'var(--text-muted)', fontSize: '14px', padding: '20px 0' });
-        empty.textContent = 'No framework relationships found for this entity.';
-        container.appendChild(empty);
-        return;
-    }
 
     // Tab bar
     const tabBar = document.createElement('div');
@@ -150,12 +143,36 @@ function renderDetailTabs(container, entity, related) {
     // Tab panels container
     const panelContainer = document.createElement('div');
 
-    tabTypes.forEach(([relType, relData], index) => {
+    // Helper to wire tab clicks
+    function wireTab(tab, panelId) {
+        tab.addEventListener('click', function() {
+            tabBar.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            panelContainer.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById(panelId).classList.add('active');
+        });
+    }
+
+    // ── Overview tab (always first) ──
+    var overviewTab = document.createElement('button');
+    overviewTab.className = 'detail-tab active';
+    overviewTab.textContent = 'Overview';
+    wireTab(overviewTab, 'tab-overview');
+    tabBar.appendChild(overviewTab);
+
+    var overviewPanel = document.createElement('div');
+    overviewPanel.id = 'tab-overview';
+    overviewPanel.className = 'tab-panel active';
+    renderOverviewContent(overviewPanel, entity, detail);
+    panelContainer.appendChild(overviewPanel);
+
+    // ── Framework relationship tabs ──
+    tabTypes.forEach(([relType, relData]) => {
         const cfg = TYPE_CONFIG[relType] || { label: relType };
 
         // Tab button
         const tab = document.createElement('button');
-        tab.className = 'detail-tab' + (index === 0 ? ' active' : '');
+        tab.className = 'detail-tab';
 
         const tabText = document.createTextNode(cfg.label || relType);
         tab.appendChild(tabText);
@@ -165,18 +182,13 @@ function renderDetailTabs(container, entity, related) {
         countSpan.textContent = ' (' + relData.ids.length + ')';
         tab.appendChild(countSpan);
 
-        tab.addEventListener('click', () => {
-            tabBar.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            panelContainer.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('tab-' + relType).classList.add('active');
-        });
+        wireTab(tab, 'tab-' + relType);
         tabBar.appendChild(tab);
 
         // Tab panel
         const panel = document.createElement('div');
         panel.id = 'tab-' + relType;
-        panel.className = 'tab-panel' + (index === 0 ? ' active' : '');
+        panel.className = 'tab-panel';
 
         const list = document.createElement('div');
         list.className = 'entity-card-list';
@@ -221,6 +233,141 @@ function renderDetailTabs(container, entity, related) {
 
     container.appendChild(tabBar);
     container.appendChild(panelContainer);
+}
+
+function renderOverviewContent(panel, entity, detail) {
+    var content = document.createElement('div');
+    content.className = 'overview-content';
+
+    // Description (from detail DB or entity name)
+    var desc = (detail && detail.description) ? detail.description : null;
+    if (desc) {
+        var descSection = document.createElement('div');
+        descSection.className = 'overview-section';
+
+        var descLabel = document.createElement('div');
+        descLabel.className = 'overview-label';
+        descLabel.textContent = 'Description';
+        descSection.appendChild(descLabel);
+
+        var descText = document.createElement('div');
+        descText.className = 'overview-text';
+        descText.textContent = desc;
+        descSection.appendChild(descText);
+
+        content.appendChild(descSection);
+    }
+
+    // Type-specific fields
+    if (entity.type === 'apt_group' && detail && detail.aliases && detail.aliases.length > 0) {
+        var aliasSection = document.createElement('div');
+        aliasSection.className = 'overview-section';
+
+        var aliasLabel = document.createElement('div');
+        aliasLabel.className = 'overview-label';
+        aliasLabel.textContent = 'Also Known As';
+        aliasSection.appendChild(aliasLabel);
+
+        var aliasList = document.createElement('div');
+        aliasList.className = 'overview-aliases';
+        for (var i = 0; i < detail.aliases.length; i++) {
+            var chip = document.createElement('span');
+            chip.className = 'overview-alias-chip';
+            chip.textContent = detail.aliases[i];
+            aliasList.appendChild(chip);
+        }
+        aliasSection.appendChild(aliasList);
+        content.appendChild(aliasSection);
+    }
+
+    if (entity.type === 'technique' && detail && detail.framework) {
+        addOverviewField(content, 'Framework', detail.framework.charAt(0).toUpperCase() + detail.framework.slice(1));
+    }
+
+    if (entity.type === 'cve' && detail && detail.kev) {
+        var kev = detail.kev;
+        addOverviewField(content, 'Vendor / Product', (kev.vendorProject || '') + ' ' + (kev.product || ''));
+        addOverviewField(content, 'KEV Date Added', kev.dateAdded || '');
+        addOverviewField(content, 'Remediation Due', kev.dueDate || '');
+        addOverviewField(content, 'Ransomware Use', kev.knownRansomwareCampaignUse || 'Unknown');
+        if (kev.requiredAction) {
+            addOverviewField(content, 'Required Action', kev.requiredAction);
+        }
+    }
+
+    if (entity.type === 'cwe' && detail && detail.parents && detail.parents.length > 0) {
+        var parentSection = document.createElement('div');
+        parentSection.className = 'overview-section';
+
+        var parentLabel = document.createElement('div');
+        parentLabel.className = 'overview-label';
+        parentLabel.textContent = 'Parent Weaknesses';
+        parentSection.appendChild(parentLabel);
+
+        for (var p = 0; p < detail.parents.length; p++) {
+            var parentLink = document.createElement('span');
+            parentLink.className = 'overview-entity-link';
+            parentLink.textContent = detail.parents[p];
+            (function(pid) {
+                parentLink.addEventListener('click', function() {
+                    navigateToEntity(pid);
+                });
+            })(detail.parents[p]);
+            parentSection.appendChild(parentLink);
+        }
+        content.appendChild(parentSection);
+    }
+
+    if ((entity.type === 'campaign') && (entity.first_seen || entity.last_seen)) {
+        addOverviewField(content, 'First Seen', entity.first_seen || 'Unknown');
+        addOverviewField(content, 'Last Seen', entity.last_seen || 'Ongoing');
+    }
+
+    // Provenance
+    if (entity.prov) {
+        var provSection = document.createElement('div');
+        provSection.className = 'overview-section';
+
+        var provLabel = document.createElement('div');
+        provLabel.className = 'overview-label';
+        provLabel.textContent = 'Data Source';
+        provSection.appendChild(provLabel);
+
+        var provText = document.createElement('div');
+        provText.className = 'overview-text';
+        provText.textContent = (entity.prov.source || 'Unknown') + ' (' + (entity.prov.tier || 'unknown') + ' tier)';
+        provSection.appendChild(provText);
+
+        content.appendChild(provSection);
+    }
+
+    // If no detail at all, show a minimal message
+    if (content.children.length === 0) {
+        var noDetail = document.createElement('div');
+        Object.assign(noDetail.style, { color: 'var(--text-muted)', fontSize: '13px', padding: '12px 0' });
+        noDetail.textContent = 'No additional detail available for this entity.';
+        content.appendChild(noDetail);
+    }
+
+    panel.appendChild(content);
+}
+
+function addOverviewField(container, label, value) {
+    if (!value || !value.trim()) return;
+    var section = document.createElement('div');
+    section.className = 'overview-field';
+
+    var labelEl = document.createElement('span');
+    labelEl.className = 'overview-field-label';
+    labelEl.textContent = label;
+    section.appendChild(labelEl);
+
+    var valueEl = document.createElement('span');
+    valueEl.className = 'overview-field-value';
+    valueEl.textContent = value;
+    section.appendChild(valueEl);
+
+    container.appendChild(section);
 }
 
 function renderGraphPanel(panel, entityId, related) {

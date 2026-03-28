@@ -434,6 +434,83 @@
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
+/* ===== OVERVIEW TAB ===== */
+.overview-content {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.overview-section {
+    margin-bottom: 20px;
+}
+
+.overview-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.overview-text {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.overview-field {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.overview-field-label {
+    color: var(--text-muted);
+    min-width: 140px;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.overview-field-value {
+    color: var(--text-primary);
+}
+
+.overview-aliases {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.overview-alias-chip {
+    font-size: 12px;
+    padding: 3px 10px;
+    background: var(--accent-dim);
+    color: var(--text-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.overview-entity-link {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 2px 8px;
+    margin: 2px 4px 2px 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.overview-entity-link:hover {
+    border-color: var(--accent);
+}
+
 /* ===== ENTITY CARDS (tab content) ===== */
 .entity-card-list {
     display: flex;

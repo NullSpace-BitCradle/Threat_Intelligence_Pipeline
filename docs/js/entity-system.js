@@ -105,3 +105,74 @@ function getEntitiesByType(type) {
         .filter(([, e]) => e.type === type)
         .map(([id, e]) => ({ id, ...e }));
 }
+
+// ── Detail Fetching (lazy-loaded from raw DB files) ────────────
+
+const detailCache = {};
+
+async function fetchEntityDetail(entityId) {
+    if (detailCache[entityId]) return detailCache[entityId];
+
+    const entity = getEntity(entityId);
+    if (!entity) return null;
+
+    var detail = {};
+
+    try {
+        if (entity.type === 'cwe') {
+            var num = entityId.replace('CWE-', '');
+            var cweDb = await fetchJson('data/cwe_db.json');
+            var cweEntry = cweDb[num];
+            if (cweEntry) {
+                detail.description = cweEntry.description || '';
+                detail.parents = (cweEntry.ChildOf || []).map(function(id) { return 'CWE-' + id; });
+            }
+        } else if (entity.type === 'technique') {
+            var techId = entityId.replace('T', '');
+            var techDb = await fetchJson('data/techniques_db.json');
+            var techEntry = techDb[techId];
+            if (techEntry) {
+                detail.description = techEntry.description || '';
+                detail.framework = techEntry.framework || '';
+            }
+        } else if (entity.type === 'apt_group') {
+            var groupsDb = await fetchJson('data/groups_db.json');
+            var groupEntry = (groupsDb.groups || groupsDb)[entityId];
+            if (groupEntry) {
+                detail.description = groupEntry.description || '';
+                detail.aliases = groupEntry.aliases || [];
+            }
+        } else if (entity.type === 'cve') {
+            var kevDb = await fetchJson('data/kev_db.json');
+            var kevEntry = kevDb[entityId];
+            if (kevEntry) {
+                detail.kev = kevEntry;
+            }
+        } else if (entity.type === 'campaign') {
+            detail.first_seen = entity.first_seen || '';
+            detail.last_seen = entity.last_seen || '';
+        } else if (entity.type === 'capec') {
+            var capecNum = entityId.replace('CAPEC-', '');
+            var capecDb = await fetchJson('data/capec_db.json');
+            var capecEntry = capecDb[capecNum];
+            if (capecEntry) {
+                detail.fullName = capecEntry.name || '';
+            }
+        }
+    } catch (e) {
+        console.log('Could not fetch detail for ' + entityId + ':', e.message);
+    }
+
+    detailCache[entityId] = detail;
+    return detail;
+}
+
+const jsonCache = {};
+async function fetchJson(url) {
+    if (jsonCache[url]) return jsonCache[url];
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('Fetch failed: ' + url);
+    var data = await res.json();
+    jsonCache[url] = data;
+    return data;
+}
