@@ -235,6 +235,31 @@ function renderDetailTabs(container, entity, related, detail) {
     container.appendChild(panelContainer);
 }
 
+function renderMarkdownText(container, text) {
+    // Strip (Citation: ...) references
+    var cleaned = text.replace(/\(Citation:[^)]*\)/g, '');
+
+    // Parse [text](url) markdown links into segments
+    var parts = cleaned.split(/(\[[^\]]+\]\(https?:\/\/[^)]+\))/g);
+
+    for (var i = 0; i < parts.length; i++) {
+        var part = parts[i];
+        var linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
+        if (linkMatch) {
+            var a = document.createElement('a');
+            a.textContent = linkMatch[1];
+            a.href = linkMatch[2];
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.style.color = 'var(--accent)';
+            a.style.textDecoration = 'none';
+            container.appendChild(a);
+        } else if (part) {
+            container.appendChild(document.createTextNode(part));
+        }
+    }
+}
+
 function renderOverviewContent(panel, entity, detail) {
     var content = document.createElement('div');
     content.className = 'overview-content';
@@ -252,7 +277,7 @@ function renderOverviewContent(panel, entity, detail) {
 
         var descText = document.createElement('div');
         descText.className = 'overview-text';
-        descText.textContent = desc;
+        renderMarkdownText(descText, desc);
         descSection.appendChild(descText);
 
         content.appendChild(descSection);

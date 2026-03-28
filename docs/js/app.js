@@ -95,7 +95,7 @@ function setupSearch(inputId, dropdownId) {
 }
 
 function navigateToEntity(query) {
-    // Try exact match first
+    // Try exact ID match first
     var entity = getEntity(query);
     if (entity) {
         window.location.hash = '#/' + entity.type + '/' + entity.id;
@@ -107,6 +107,16 @@ function navigateToEntity(query) {
     var allResults = [];
     for (var type in grouped) {
         allResults = allResults.concat(grouped[type]);
+    }
+
+    // Check for exact name match (case-insensitive) — prefer that over multi-result page
+    var q = query.toLowerCase();
+    for (var i = 0; i < allResults.length; i++) {
+        if (allResults[i].id.toLowerCase() === q ||
+            (allResults[i].name && allResults[i].name.toLowerCase() === q)) {
+            window.location.hash = '#/' + allResults[i].type + '/' + allResults[i].id;
+            return;
+        }
     }
 
     if (allResults.length === 1) {
