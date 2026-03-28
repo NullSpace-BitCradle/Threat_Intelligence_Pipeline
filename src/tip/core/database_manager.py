@@ -308,7 +308,27 @@ class DatabaseManager:
             
             d3fend_base_url = config.get('api.d3fend.base_url')
             timeout = config.get('api.d3fend.timeout', 30)
-            
+
+            # Fetch D3FEND ontology to get canonical IDs (D3-FA, D3-NTA, etc.)
+            self._d3fend_canonical_ids = {}
+            try:
+                ontology_url = 'https://d3fend.mitre.org/ontologies/d3fend.json'
+                self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
+                ont_response = requests.get(ontology_url, timeout=30)
+                if ont_response.status_code == 200:
+                    ont_data = ont_response.json()
+                    for item in ont_data.get('@graph', []):
+                        d3id = item.get('d3f:d3fend-id')
+                        at_id = item.get('@id', '')
+                        if d3id and at_id.startswith('d3f:'):
+                            fragment = at_id.replace('d3f:', '')
+                            self._d3fend_canonical_ids[fragment] = d3id
+                    self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
+                else:
+                    self.logger.warning(f"Could not fetch D3FEND ontology (HTTP {ont_response.status_code}), using fragment names as IDs")
+            except Exception as e:
+                self.logger.warning(f"Could not fetch D3FEND ontology: {e}, using fragment names as IDs")
+
             self.logger.info(f"Fetching D3FEND countermeasures for {len(techniques_db)} techniques...")
             
             # Process each technique to find D3FEND countermeasures
@@ -379,9 +399,12 @@ class DatabaseManager:
                 # Extract defensive technique ID
                 if 'def_tech' in binding:
                     def_tech_uri = binding['def_tech'].get('value', '')
-                    # Extract ID from URI (e.g., "http://d3fend.mitre.org/ontologies/d3fend.owl#UserAccountManagement")
+                    # Extract fragment from URI (e.g., "http://d3fend.mitre.org/ontologies/d3fend.owl#UserAccountManagement")
                     if '#' in def_tech_uri:
-                        technique_info['id'] = def_tech_uri.split('#')[-1]
+                        fragment = def_tech_uri.split('#')[-1]
+                        # Use canonical D3FEND ID (e.g., D3-FA) if available, fall back to fragment name
+                        technique_info['id'] = self._d3fend_canonical_ids.get(fragment, fragment)
+                        technique_info['d3fend_fragment'] = fragment
                 
                 # Extract technique label/name
                 if 'def_tech_label' in binding:

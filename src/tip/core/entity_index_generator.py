@@ -149,6 +149,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     print("Loading D3FEND database...")
     defend_path = data_dir / "defend_db.jsonl"
     defend_entity_count = 0
+    # Track technique -> defend IDs for transitive CVE resolution (Bug 2)
+    technique_to_defend: dict[str, set[str]] = defaultdict(set)
+    # Track fragment name -> canonical ID for search indexing
+    defend_fragment_to_id: dict[str, str] = {}
     if defend_path.exists():
         with open(defend_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -160,10 +164,14 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
                     for dt in mapping.get("defensive_techniques", []):
                         defend_id = dt["id"]
                         defend_name = dt.get("name", defend_id)
+                        fragment = dt.get("d3fend_fragment", "")
+                        if fragment and fragment != defend_id:
+                            defend_fragment_to_id[fragment] = defend_id
                         if defend_id not in entities:
                             defend_entity_count += 1
                         ensure(defend_id, "defend", defend_name, "defense")
                         link(defend_id, "technique", attack_tech_id, "defend")
+                        technique_to_defend[attack_tech_id].add(defend_id)
     else:
         print("  [SKIP] defend_db.jsonl not found")
 
@@ -272,7 +280,12 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
             link(cve_id, "technique", tech_id, "cve")
             for gid in technique_to_groups.get(tech_id, []):
                 link(cve_id, "apt_group", gid, "cve")
+            # Chain through to D3FEND: CVE -> technique -> defend
+            for did in technique_to_defend.get(tech_id, set()):
+                if did in entities:
+                    link(cve_id, "defend", did, "cve")
 
+        # Also pick up any DEFEND entries already in CVE data (legacy format)
         for defend_entry in cve_data.get("DEFEND", []):
             if isinstance(defend_entry, dict):
                 did = defend_entry.get("id", "")
@@ -347,6 +360,13 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
         # Aliases for campaigns
         for alias in campaign_aliases.get(entity_id, []):
             terms.add(alias.lower())
+
+        # D3FEND: index fragment name as search term (e.g., "fileanalysis" for D3-FA)
+        for fragment, canonical_id in defend_fragment_to_id.items():
+            if canonical_id == entity_id:
+                terms.add(fragment.lower())
+                for token in _tokenize_name(fragment):
+                    terms.add(token)
 
         # For campaigns, also index associated group names
         if entity.get("type") == "campaign":
