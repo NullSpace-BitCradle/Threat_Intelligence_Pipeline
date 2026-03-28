@@ -1,4 +1,13 @@
 {
+    "CVE-2025-53521": {
+        "inKEV": true,
+        "dateAdded": "2026-03-27",
+        "dueDate": "2026-03-30",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "F5",
+        "product": "BIG-IP"
+    },
     "CVE-2026-33634": {
         "inKEV": true,
         "dateAdded": "2026-03-26",
