@@ -266,7 +266,9 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
             cve_filtered += 1
             continue
 
-        ensure(cve_id, "cve", cve_id, "vulnerability")
+        cve_desc = cve_data.get("DESCRIPTION", "")
+        cve_name = cve_desc[:200] if cve_desc else cve_id
+        ensure(cve_id, "cve", cve_name, "vulnerability")
         cve_count += 1
 
         for cwe_ref in cve_data.get("CWE", []):

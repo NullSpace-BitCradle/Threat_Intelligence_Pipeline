@@ -271,11 +271,19 @@ class CVEProcessor:
                         seen.add(cwe_id)
                         unique_cwe_ids.append(cwe_id)
                 
+                # Extract English description
+                description = ''
+                for desc in cve_data.get('cve', {}).get('descriptions', []):
+                    if desc.get('lang') == 'en':
+                        description = desc.get('value', '')
+                        break
+
                 processed_cves[cve_id] = {
                     'CWE': unique_cwe_ids,
                     'CAPEC': [],
                     'TECHNIQUES': [],
-                    'DEFEND': []
+                    'DEFEND': [],
+                    'DESCRIPTION': description
                 }
                 
             except Exception as e:
