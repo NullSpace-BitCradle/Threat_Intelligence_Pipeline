@@ -283,7 +283,7 @@ class CVEProcessor:
                     'CAPEC': [],
                     'TECHNIQUES': [],
                     'DEFEND': [],
-                    'DESCRIPTION': description
+                    'DESCRIPTION': description[:300]
                 }
                 
             except Exception as e:
