@@ -7,6 +7,7 @@ Reads all pipeline data files and produces:
 """
 
 import argparse
+import gzip
 import json
 import re
 from collections import defaultdict
@@ -274,7 +275,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     # Only index "interesting" CVEs: KEV-listed, APT-linked, or 3+ relationship types.
     # This keeps entity_index.json browser-friendly (~2-4MB vs 200MB+).
     print("Loading CVE databases...")
-    cve_files = sorted(db_dir.glob("CVE-*.jsonl"))
+    cve_files = sorted(db_dir.glob("CVE-*.jsonl.gz")) or sorted(db_dir.glob("CVE-*.jsonl"))
     cve_count = 0
     cve_skipped = 0
     cve_filtered = 0
@@ -284,7 +285,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     all_cve_data: list[tuple[str, dict]] = []
     for cve_file in cve_files:
         print(f"  Processing {cve_file.name}...")
-        with open(cve_file, "r", encoding="utf-8") as f:
+        opener = gzip.open if cve_file.suffix == '.gz' else open
+        with opener(cve_file, "rt", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
