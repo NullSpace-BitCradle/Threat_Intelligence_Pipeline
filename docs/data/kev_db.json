@@ -1,4 +1,13 @@
 {
+    "CVE-2026-3055": {
+        "inKEV": true,
+        "dateAdded": "2026-03-30",
+        "dueDate": "2026-04-02",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Citrix",
+        "product": "NetScaler"
+    },
     "CVE-2025-53521": {
         "inKEV": true,
         "dateAdded": "2026-03-27",
