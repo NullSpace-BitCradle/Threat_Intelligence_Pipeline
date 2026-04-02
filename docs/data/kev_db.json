@@ -1,4 +1,13 @@
 {
+    "CVE-2026-5281": {
+        "inKEV": true,
+        "dateAdded": "2026-04-01",
+        "dueDate": "2026-04-15",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Google",
+        "product": "Dawn"
+    },
     "CVE-2026-3055": {
         "inKEV": true,
         "dateAdded": "2026-03-30",
