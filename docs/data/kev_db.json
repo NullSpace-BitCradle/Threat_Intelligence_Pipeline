@@ -1,4 +1,22 @@
 {
+    "CVE-2009-0238": {
+        "inKEV": true,
+        "dateAdded": "2026-04-14",
+        "dueDate": "2026-04-28",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Microsoft",
+        "product": "Office"
+    },
+    "CVE-2026-32201": {
+        "inKEV": true,
+        "dateAdded": "2026-04-14",
+        "dueDate": "2026-04-28",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Microsoft",
+        "product": "SharePoint Server"
+    },
     "CVE-2012-1854": {
         "inKEV": true,
         "dateAdded": "2026-04-13",
