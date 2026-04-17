@@ -1,4 +1,13 @@
 {
+    "CVE-2026-34197": {
+        "inKEV": true,
+        "dateAdded": "2026-04-16",
+        "dueDate": "2026-04-30",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Apache",
+        "product": "ActiveMQ"
+    },
     "CVE-2009-0238": {
         "inKEV": true,
         "dateAdded": "2026-04-14",
