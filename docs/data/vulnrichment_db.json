@@ -7801,5 +7801,82 @@
         "ssvcExploitStatus": "poc",
         "ssvcAutomatable": "no",
         "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2025-0974": {
+        "ssvcExploitStatus": "poc",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2025-14082": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-0810": {
+        "ssvcExploitStatus": "poc",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "total"
+    },
+    "CVE-2026-33810": {
+        "cisaCVSS": {
+            "baseScore": 7.5,
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+        },
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "yes",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-40246": {
+        "ssvcExploitStatus": "poc",
+        "ssvcAutomatable": "yes",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-40249": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "yes",
+        "ssvcTechnicalImpact": "total"
+    },
+    "CVE-2026-40262": {
+        "ssvcExploitStatus": "poc",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "total"
+    },
+    "CVE-2026-40302": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-40318": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-40899": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-41080": {
+        "cisaCVSS": {
+            "baseScore": 7.5,
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+        },
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "no",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-5426": {
+        "cisaCVSS": {
+            "baseScore": 7.5,
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+        },
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "yes",
+        "ssvcTechnicalImpact": "partial"
+    },
+    "CVE-2026-6494": {
+        "ssvcExploitStatus": "none",
+        "ssvcAutomatable": "yes",
+        "ssvcTechnicalImpact": "partial"
     }
 }
