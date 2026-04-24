@@ -19,8 +19,8 @@ As of 2026-04-24:
 - 345K raw CVEs ingested from NVD, 271K with CWE mappings, 2,766 indexed in the entity graph
 - 5,303 total entities across 8 frameworks
 - Auto-rebuilds via GitHub Actions: daily reference database refresh + weekly full CVE pipeline
-- MCP Phase A live (3 of 6 tools), with shard fallback for any CVE on disk
-- 59 tests passing
+- MCP Phase A live (3 of 6 tools), with shard fallback in both `lookup_entity` and `pivot_from_entity` for any CVE on disk
+- 67 tests passing
 
 The full roadmap with status of every item lives in [Plans/ROADMAP.md](Plans/ROADMAP.md). A summary is included in the [Roadmap](#roadmap) section below.
 
@@ -131,7 +131,7 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 **Status:** Phase A (v1 MVP) shipped 2026-04-23. Three read-only tools, plus a JSONL shard fallback added 2026-04-24:
 
 - `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 345K ingested CVEs is queryable by ID.
-- `pivot_from_entity(entity_id, target_type?)`: returns entities related by type
+- `pivot_from_entity(entity_id, target_type?)`: returns entities related by type. Same shard fallback as `lookup_entity`, so pivoting from any ingested CVE works even if it is not in the enriched graph.
 - `search_threat_intel(query, limit?, types?)`: returns ranked hits from the inverted index
 
 ### Install
@@ -229,7 +229,7 @@ PYTHONPATH=src python -m pytest tests/ -v
 PYTHONPATH=src python -m pytest tests/ --cov=src/tip
 ```
 
-Current suite: 59 tests across pipeline processors and the MCP layer.
+Current suite: 67 tests across pipeline processors and the MCP layer.
 
 ## Requirements
 
@@ -250,7 +250,8 @@ The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMA
 | Search-first UI redesign | 2026-03-28 | Replaced 6-tab Bootstrap layout with single-search SPA; D3 graph replaces Sankey; investigation pinning; hash routing |
 | GitHub Actions automation | 2026-03-29 | Daily reference DB updates + weekly CVE pipeline; both auto-commit |
 | MCP Phase A | 2026-04-23 | `lookup_entity`, `pivot_from_entity`, `search_threat_intel` over stdio; 25 tests |
-| CVE enrichment surgery | 2026-04-24 | Removed description and name truncations; added CVSS, dates, references extraction; widened entity_index filter (1,367 to 2,766 indexed); MCP shard fallback |
+| CVE enrichment surgery | 2026-04-24 | Removed description and name truncations; added CVSS, dates, references extraction; widened entity_index filter (1,367 to 2,766 indexed); MCP `lookup_entity` shard fallback |
+| MCP `pivot_from_entity` shard fallback | 2026-04-24 | Same JSONL shard fallback pattern mirrored into pivot; extracted `_shard_rels` helper; 8 new tests |
 
 ### Next (ready to pick up)
 
@@ -258,8 +259,7 @@ The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMA
 |----------|------|------|-------|
 | N1 | Verify next scheduled pipeline run populates new NVD fields in shards | small | First run after 2026-04-24 fixes is Sunday 2026-04-26 08:00 UTC |
 | N2 | MCP Phase B: `build_attack_chain`, `get_defenses`, `kev_status` | medium (1 day) | Headline portfolio piece; centerpiece of Partner Network demo |
-| N3 | Mirror shard fallback into MCP `pivot_from_entity` | small (2 to 3 hours) | Consistency with `lookup_entity` |
-| N4 | Capture CVE-2023-44487 demo for Partner Network README | small (half day) | Depends on N2 |
+| N3 | Capture CVE-2023-44487 demo for Partner Network README | small (half day) | Depends on N2 |
 
 ### Deferred (scoped, parked behind a decision)
 

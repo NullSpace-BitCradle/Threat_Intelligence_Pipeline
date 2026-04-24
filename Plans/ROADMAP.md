@@ -1,6 +1,6 @@
 # TIP Development Roadmap
 
-Last updated: 2026-04-24
+Last updated: 2026-04-24 (afternoon: N3 shipped)
 Owner: the maintainer (Strategic Rogue / NullSpace-BitCradle)
 
 ## How to read this doc
@@ -26,7 +26,7 @@ Numbers as of today's regen:
 - 2,766 indexed in `entity_index.json` (was 1,367 before today's filter widening)
 - 5,303 total entities (CVEs + CWE + technique + CAPEC + APT + D3FEND + campaign + OWASP)
 - 7.9 MB entity_index.json, 0.7 MB search_index.json
-- 59 tests passing
+- 67 tests passing
 
 ---
 
@@ -88,7 +88,7 @@ DONE. Scope: `docs/superpowers/specs/mcp-server-scope.md`. Commit: 45c648d.
 - `src/tip_mcp/schema.py` (envelope + ErrorCode enum)
 - 25 tests in `tests/tip_mcp/`
 
-### Phase 6: CVE enrichment surgery (2026-04-24, today)
+### Phase 6: CVE enrichment surgery (2026-04-24, morning)
 DONE. PRD: `MEMORY/WORK/20260424-160123_flesh-out-cve-enrichment/PRD.md`.
 - Fixed description-loss bug in `process_cve_pipeline` (was building fresh dict, dropping DESCRIPTION every time)
 - Added CVSS v3.1 / publishedDate / lastModifiedDate / references extraction in `process_nvd_cves`
@@ -98,6 +98,14 @@ DONE. PRD: `MEMORY/WORK/20260424-160123_flesh-out-cve-enrichment/PRD.md`.
 - MCP `lookup_entity` shard fallback (effectively shipped MCP v1.1's shard fallback ahead of schedule)
 - UI: severity badge (color coded), full description, disclosure dates, reference count on CVE pages
 - 10 new tests in `tests/tip_mcp/test_shard_fallback.py`
+
+### Phase 7: MCP pivot_from_entity shard fallback (2026-04-24, afternoon)
+DONE. PRD: `MEMORY/WORK/20260424-204159_pivot-shard-fallback/PRD.md`. Commit: `132c6f5`.
+- Extracted `_shard_rels(payload)` helper from `_build_shard_record` so lookup and pivot share projection logic
+- `pivot_from_entity_impl` now falls back to shard scan for CVE IDs not in entity_index
+- Hits carry name and type from entity_index when target is indexed; bare ID + inferred type when not
+- target_type filter and invalid_type validation order preserved; entity_index takes precedence over shard
+- 8 new tests, 67 passing overall
 
 ---
 
@@ -126,13 +134,7 @@ WHAT TO DO:
 - README update with full tool list and demo prompts
 DEPENDS ON: Phase A (done).
 
-### N3. Pivot shard fallback
-SIZE: small (2 to 3 hours).
-WHY: Today's enrichment session added shard fallback to `lookup_entity` only. `pivot_from_entity` still returns NOT_FOUND for non-indexed CVEs, which is inconsistent.
-WHAT TO DO: Mirror the shard fallback pattern from `lookup_entity_impl` into `pivot_from_entity_impl`. When a CVE is found via shard, project its CWE, CAPEC, TECHNIQUE, OWASP fields as relationships of the appropriate types.
-DEPENDS ON: Phase 6 (done).
-
-### N4. Demo content for Partner Network application
+### N3. Demo content for Partner Network application
 SIZE: small (half day).
 WHY: Per `mcp-server-scope.md` section 9, the headline demo is "CVE-2023-44487 (HTTP/2 Rapid Reset) attack chain via MCP". The plan says reviewers should be able to run this prompt and see grounded reasoning.
 WHAT TO DO: Run the demo prompt end to end via Claude Code with `.mcp.json` pointed at `tip-mcp`. Capture the transcript. If the answer is grounded and clean, write a short README section in `src/tip_mcp/README.md` with the prompt and expected behavior. If anything in the chain hallucinates or fails, fix the underlying tool first.
@@ -181,7 +183,7 @@ TRIGGER TO UNDEFER: any user request, or before a Navigator-using audience demo.
 
 ### D6. MCP v1.1 additive items
 ORIGIN: `mcp-server-scope.md` section 8 Phase C.
-STATE: One of the two v1.1 items (shard fallback in `lookup_entity`) shipped today. Remaining:
+STATE: Both v1.1 shard fallback items (lookup_entity + pivot_from_entity) shipped today. Remaining:
 - `pivot_from_entities(ids: list)` (multi-entity pivot) blocked on D2's multi-entity work
 TRIGGER TO UNDEFER: D2.
 
@@ -234,11 +236,10 @@ the maintainer feels strongly that a thorough threat intel tool should cover all
 ## 8. Suggested order of operations from here
 
 1. Wait for the Sunday 2026-04-26 pipeline run, verify N1.
-2. While waiting, ship N3 (pivot shard fallback, half day) since it is small and consistent with what just shipped.
-3. Pick up N2 (MCP Phase B tools) as the primary work block. The three tools are independent and can ship in any order.
-4. Once Phase B is in, do N4 (demo capture) and update the README so Partner Network reviewers can run it.
-5. Take a short break from MCP. Review F1, F2, F5 in one batch (under an hour).
-6. Re-evaluate D1 once N2 + N4 land. If real-use friction has surfaced, start the All-CVE tiered architecture spec. If not, consider D2 (multi-entity) instead, since it has clearer use cases for the Strategic Rogue audience.
+2. Pick up N2 (MCP Phase B tools) as the primary work block. The three tools are independent and can ship in any order.
+3. Once Phase B is in, do N3 (demo capture) and update the README so Partner Network reviewers can run it.
+4. Take a short break from MCP. Review F1, F2, F5 in one batch (under an hour).
+5. Re-evaluate D1 once N2 + N3 land. If real-use friction has surfaced, start the All-CVE tiered architecture spec. If not, consider D2 (multi-entity) instead, since it has clearer use cases for the Strategic Rogue audience.
 
 ---
 
