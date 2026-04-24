@@ -28,6 +28,30 @@ VALID_TYPES = {
 _CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
 
+def _shard_rels(payload: dict) -> list[dict]:
+    """Project a shard CVE payload's enrichment lists into rel dicts.
+
+    Returns a list of {target_id, rel_type, source} entries covering CWE,
+    CAPEC, TECHNIQUES, and OWASP fields. Used by both lookup_entity (via
+    _build_shard_record) and pivot_from_entity so the two tools project
+    the same graph out of a shard.
+    """
+    rels: list[dict] = []
+    for cwe in payload.get("CWE", []) or []:
+        # Normalize CWE-123 vs 123 form.
+        cwe_id = cwe if str(cwe).startswith("CWE-") else f"CWE-{cwe}"
+        rels.append({"target_id": cwe_id, "rel_type": "cwe", "source": "shard"})
+    for capec in payload.get("CAPEC", []) or []:
+        capec_id = capec if str(capec).startswith("CAPEC-") else f"CAPEC-{capec}"
+        rels.append({"target_id": capec_id, "rel_type": "capec", "source": "shard"})
+    for tech in payload.get("TECHNIQUES", []) or []:
+        tech_id = tech if str(tech).startswith("T") else f"T{tech}"
+        rels.append({"target_id": tech_id, "rel_type": "technique", "source": "shard"})
+    for owasp in payload.get("OWASP", []) or []:
+        rels.append({"target_id": owasp, "rel_type": "owasp", "source": "shard"})
+    return rels
+
+
 def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
     """Project a shard CVE payload onto the same shape as an entity record.
 
@@ -38,20 +62,6 @@ def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
     first_sentence = description.split(". ", 1)[0].strip() if description else ""
     name = first_sentence or cve_id.upper()
 
-    rels_out = []
-    for cwe in payload.get("CWE", []) or []:
-        # Normalize CWE-123 vs 123 form.
-        cwe_id = cwe if str(cwe).startswith("CWE-") else f"CWE-{cwe}"
-        rels_out.append({"target_id": cwe_id, "rel_type": "cwe", "source": "shard"})
-    for capec in payload.get("CAPEC", []) or []:
-        capec_id = capec if str(capec).startswith("CAPEC-") else f"CAPEC-{capec}"
-        rels_out.append({"target_id": capec_id, "rel_type": "capec", "source": "shard"})
-    for tech in payload.get("TECHNIQUES", []) or []:
-        tech_id = tech if str(tech).startswith("T") else f"T{tech}"
-        rels_out.append({"target_id": tech_id, "rel_type": "technique", "source": "shard"})
-    for owasp in payload.get("OWASP", []) or []:
-        rels_out.append({"target_id": owasp, "rel_type": "owasp", "source": "shard"})
-
     record = {
         "id": cve_id.upper(),
         "type": "cve",
@@ -59,7 +69,7 @@ def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
         "phase": "vulnerability",
         "kev": bool(payload.get("KEV")),
         "description": description,
-        "rels": rels_out,
+        "rels": _shard_rels(payload),
     }
     cvss = payload.get("CVSS")
     if isinstance(cvss, dict):
@@ -154,7 +164,12 @@ def pivot_from_entity_impl(
     entity_id: str,
     target_type: Optional[str] = None,
 ) -> dict:
-    """Return entities related to entity_id, optionally filtered by target type."""
+    """Return entities related to entity_id, optionally filtered by target type.
+
+    Falls back to the per-year CVE JSONL shard when the ID looks like a CVE
+    but is not present in the enriched entity graph, so any CVE the pipeline
+    has ingested can be pivoted from, not just the "interesting" subset.
+    """
     if not entity_id:
         return error_response(ErrorCode.BAD_PARAM, "entity_id is required")
 
@@ -165,31 +180,68 @@ def pivot_from_entity_impl(
         )
 
     entity = loader.entities.get(entity_id)
-    if entity is None:
-        return error_response(
-            ErrorCode.NOT_FOUND,
-            f"entity {entity_id!r} not in entity graph",
-        )
+    if entity is not None:
+        hits = []
+        for rel_type, rel_body in entity.get("rels", {}).items():
+            for tid in rel_body.get("ids", []):
+                target = loader.entities.get(tid)
+                if target is None:
+                    continue
+                ttype = target.get("type")
+                if target_type is not None and ttype != target_type and rel_type != target_type:
+                    continue
+                hits.append(
+                    {
+                        "id": target.get("id", tid),
+                        "type": ttype,
+                        "name": target.get("name"),
+                        "rel_type": rel_type,
+                    }
+                )
+        return ok_response(hits, meta={"source": "entity_index.json", "count": len(hits)})
 
-    hits = []
-    for rel_type, rel_body in entity.get("rels", {}).items():
-        for tid in rel_body.get("ids", []):
-            target = loader.entities.get(tid)
-            if target is None:
-                continue
-            ttype = target.get("type")
-            if target_type is not None and ttype != target_type and rel_type != target_type:
-                continue
-            hits.append(
-                {
-                    "id": target.get("id", tid),
-                    "type": ttype,
-                    "name": target.get("name"),
-                    "rel_type": rel_type,
-                }
+    # Shard fallback: only for syntactically valid CVE IDs.
+    if _CVE_ID_RE.match(entity_id.strip()):
+        shard_hit = loader.find_cve_in_shards(entity_id)
+        if shard_hit is not None:
+            payload, shard_name = shard_hit
+            hits = []
+            for rel in _shard_rels(payload):
+                tid = rel["target_id"]
+                rtype = rel["rel_type"]
+                target = loader.entities.get(tid)
+                if target is not None:
+                    ttype = target.get("type")
+                    name = target.get("name")
+                else:
+                    # Target not in the entity graph (unusual: all reference
+                    # DB entities should be indexed). Fall back to the bare
+                    # ID and infer the type from the rel label.
+                    ttype = rtype
+                    name = tid
+                if target_type is not None and ttype != target_type and rtype != target_type:
+                    continue
+                hits.append(
+                    {
+                        "id": tid,
+                        "type": ttype,
+                        "name": name,
+                        "rel_type": rtype,
+                    }
+                )
+            return ok_response(
+                hits,
+                meta={
+                    "source": "shard",
+                    "shard": shard_name,
+                    "count": len(hits),
+                },
             )
 
-    return ok_response(hits, meta={"source": "entity_index.json", "count": len(hits)})
+    return error_response(
+        ErrorCode.NOT_FOUND,
+        f"entity {entity_id!r} not in entity graph",
+    )
 
 
 def search_threat_intel_impl(
