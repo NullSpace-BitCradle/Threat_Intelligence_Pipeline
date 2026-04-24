@@ -87,9 +87,12 @@ class PipelineOrchestrator:
             try:
                 from tip.core.entity_index_generator import generate_entity_index, write_outputs
                 base_dir = Path(__file__).resolve().parents[3]
-                entity_index, search_index = generate_entity_index(base_dir)
-                write_outputs(entity_index, search_index, base_dir)
-                log_info(f"Entity index generated: {entity_index['meta']['entity_count']} entities")
+                entity_index, search_index, cve_ids_index = generate_entity_index(base_dir)
+                write_outputs(entity_index, search_index, base_dir, cve_ids_index)
+                log_info(
+                    f"Entity index generated: {entity_index['meta']['entity_count']} entities, "
+                    f"{cve_ids_index['count']} CVE IDs in Layer 1"
+                )
             except Exception as e:
                 log_warning(f"Entity index generation failed (non-fatal): {e}")
 

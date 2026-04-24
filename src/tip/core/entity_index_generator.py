@@ -94,7 +94,7 @@ def _tokenize_name(name: str) -> list[str]:
     return [w for w in words if len(w) >= 3]
 
 
-def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
+def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     """
     Generate entity_index and search_index from all pipeline data.
 
