@@ -1,0 +1,852 @@
+{
+  "meta": {
+    "sample": true,
+    "entity_count": 34
+  },
+  "entities": {
+    "C0001": {
+      "type": "campaign",
+      "id": "C0001",
+      "name": "Frankenstein",
+      "phase": "operation",
+      "first_seen": "2019-01-01",
+      "last_seen": "2019-04-01",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK Campaigns",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Campaigns",
+        "tier": "official"
+      }
+    },
+    "A09:2021": {
+      "type": "owasp",
+      "id": "A09:2021",
+      "name": "A09:2021",
+      "phase": "compliance",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2018-13382",
+            "CVE-2019-7192",
+            "CVE-2021-30533"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "Pipeline (NVD/CWE mapping)",
+        "tier": "derived"
+      }
+    },
+    "AccessModeling": {
+      "type": "defend",
+      "id": "AccessModeling",
+      "name": "Access Modeling",
+      "phase": "defense",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "CVE-2022-23748": {
+      "type": "cve",
+      "id": "CVE-2022-23748",
+      "name": "CVE-2022-23748",
+      "phase": "vulnerability",
+      "rels": {
+        "cwe": {
+          "ids": [
+            "CWE-114"
+          ],
+          "source": "NVD Enrichment",
+          "tier": "authoritative"
+        },
+        "defend": {
+          "ids": [
+            "ExecutableAllowlisting",
+            "ExecutableDenylisting"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "CVE-2018-13382": {
+      "type": "cve",
+      "id": "CVE-2018-13382",
+      "name": "CVE-2018-13382",
+      "phase": "vulnerability",
+      "rels": {
+        "owasp": {
+          "ids": [
+            "A09:2021"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "CVE-2021-30533": {
+      "type": "cve",
+      "id": "CVE-2021-30533",
+      "name": "CVE-2021-30533",
+      "phase": "vulnerability",
+      "rels": {
+        "owasp": {
+          "ids": [
+            "A09:2021"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "C0004": {
+      "type": "campaign",
+      "id": "C0004",
+      "name": "CostaRicto",
+      "phase": "operation",
+      "first_seen": "2019-10-01",
+      "last_seen": "2020-11-01",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK Campaigns",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Campaigns",
+        "tier": "official"
+      }
+    },
+    "CVE-2019-7192": {
+      "type": "cve",
+      "id": "CVE-2019-7192",
+      "name": "CVE-2019-7192",
+      "phase": "vulnerability",
+      "rels": {
+        "owasp": {
+          "ids": [
+            "A09:2021"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "ExecutableAllowlisting": {
+      "type": "defend",
+      "id": "ExecutableAllowlisting",
+      "name": "Executable Allowlisting",
+      "phase": "defense",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367",
+            "CVE-2022-23748"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1053.005",
+            "T1548"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "C0012": {
+      "type": "campaign",
+      "id": "C0012",
+      "name": "Operation CuckooBees",
+      "phase": "operation",
+      "first_seen": "2019-12-01",
+      "last_seen": "2022-05-01",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK Campaigns",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Campaigns",
+        "tier": "official"
+      }
+    },
+    "A04:2021": {
+      "type": "owasp",
+      "id": "A04:2021",
+      "name": "A04:2021",
+      "phase": "compliance",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "Pipeline (NVD/CWE mapping)",
+        "tier": "derived"
+      }
+    },
+    "CVE-2013-0632": {
+      "type": "cve",
+      "id": "CVE-2013-0632",
+      "name": "CVE-2013-0632",
+      "phase": "vulnerability",
+      "rels": {
+        "apt_group": {
+          "ids": [
+            "G0016"
+          ],
+          "source": "Pipeline (technique overlap)",
+          "tier": "derived"
+        },
+        "capec": {
+          "ids": [
+            "CAPEC-1"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1574.010"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "T1548": {
+      "type": "technique",
+      "id": "T1548",
+      "name": "Abuse Elevation Control Mechanism",
+      "phase": "attack",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        },
+        "defend": {
+          "ids": [
+            "AccessModeling",
+            "ApplicationExceptionMonitoring",
+            "ConfigurationInventory",
+            "ExecutableAllowlisting",
+            "ExecutableDenylisting"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK",
+        "tier": "official"
+      }
+    },
+    "G0021": {
+      "type": "apt_group",
+      "id": "G0021",
+      "name": "Molerats",
+      "phase": "threat_actor",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Groups",
+        "tier": "official"
+      }
+    },
+    "CAPEC-233": {
+      "type": "capec",
+      "id": "CAPEC-233",
+      "name": "Privilege Escalation",
+      "phase": "attack_pattern",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "MITRE CAPEC Database",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "CAPEC-1": {
+      "type": "capec",
+      "id": "CAPEC-1",
+      "name": "Accessing Functionality Not Properly Constrained by ACLs",
+      "phase": "attack_pattern",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2013-0431",
+            "CVE-2013-0632",
+            "CVE-2013-2465"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1574.010"
+          ],
+          "source": "MITRE CAPEC Database",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "Application-basedProcessIsolation": {
+      "type": "defend",
+      "id": "Application-basedProcessIsolation",
+      "name": "Application-based Process Isolation",
+      "phase": "defense",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "CAPEC-101": {
+      "type": "capec",
+      "id": "CAPEC-101",
+      "name": "Server Side Include (SSI) Injection",
+      "phase": "attack_pattern",
+      "rels": {},
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "CAPEC-10": {
+      "type": "capec",
+      "id": "CAPEC-10",
+      "name": "Buffer Overflow via Environment Variables",
+      "phase": "attack_pattern",
+      "rels": {},
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "CWE-269": {
+      "type": "cwe",
+      "id": "CWE-269",
+      "name": "Improper Privilege Management",
+      "phase": "weakness",
+      "rels": {
+        "capec": {
+          "ids": [
+            "CAPEC-122",
+            "CAPEC-233",
+            "CAPEC-58"
+          ],
+          "source": "MITRE CWE Database",
+          "tier": "official"
+        },
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "NVD Enrichment",
+          "tier": "authoritative"
+        }
+      },
+      "prov": {
+        "source": "MITRE CWE Database",
+        "tier": "official"
+      }
+    },
+    "G0016": {
+      "type": "apt_group",
+      "id": "G0016",
+      "name": "APT29",
+      "phase": "threat_actor",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2013-0431",
+            "CVE-2013-0632",
+            "CVE-2013-2465"
+          ],
+          "source": "Pipeline (technique overlap)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Groups",
+        "tier": "official"
+      }
+    },
+    "CVE-2013-0431": {
+      "type": "cve",
+      "id": "CVE-2013-0431",
+      "name": "CVE-2013-0431",
+      "phase": "vulnerability",
+      "rels": {
+        "apt_group": {
+          "ids": [
+            "G0016"
+          ],
+          "source": "Pipeline (technique overlap)",
+          "tier": "derived"
+        },
+        "capec": {
+          "ids": [
+            "CAPEC-1"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1574.010"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "ApplicationExceptionMonitoring": {
+      "type": "defend",
+      "id": "ApplicationExceptionMonitoring",
+      "name": "Application Exception Monitoring",
+      "phase": "defense",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "ExecutableDenylisting": {
+      "type": "defend",
+      "id": "ExecutableDenylisting",
+      "name": "Executable Denylisting",
+      "phase": "defense",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367",
+            "CVE-2022-23748"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1053.005",
+            "T1548"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "G0019": {
+      "type": "apt_group",
+      "id": "G0019",
+      "name": "Naikon",
+      "phase": "threat_actor",
+      "rels": {
+        "technique": {
+          "ids": [
+            "T1053.005"
+          ],
+          "source": "MITRE ATT&CK",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK Groups",
+        "tier": "official"
+      }
+    },
+    "ConfigurationInventory": {
+      "type": "defend",
+      "id": "ConfigurationInventory",
+      "name": "Configuration Inventory",
+      "phase": "defense",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE D3FEND",
+        "tier": "official"
+      }
+    },
+    "T1053.005": {
+      "type": "technique",
+      "id": "T1053.005",
+      "name": "Scheduled Task",
+      "phase": "attack",
+      "rels": {
+        "apt_group": {
+          "ids": [
+            "G0016",
+            "G0019",
+            "G0021"
+          ],
+          "source": "MITRE ATT&CK",
+          "tier": "official"
+        },
+        "campaign": {
+          "ids": [
+            "C0001",
+            "C0004",
+            "C0012"
+          ],
+          "source": "MITRE ATT&CK Campaigns",
+          "tier": "official"
+        },
+        "defend": {
+          "ids": [
+            "Application-basedProcessIsolation",
+            "ExecutableAllowlisting",
+            "ExecutableDenylisting"
+          ],
+          "source": "MITRE D3FEND",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK",
+        "tier": "official"
+      }
+    },
+    "CAPEC-122": {
+      "type": "capec",
+      "id": "CAPEC-122",
+      "name": "Privilege Abuse",
+      "phase": "attack_pattern",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "MITRE CAPEC Database",
+          "tier": "official"
+        }
+      },
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "CAPEC-104": {
+      "type": "capec",
+      "id": "CAPEC-104",
+      "name": "Cross Zone Scripting",
+      "phase": "attack_pattern",
+      "rels": {},
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "T1574.010": {
+      "type": "technique",
+      "id": "T1574.010",
+      "name": "Services File Permissions Weakness",
+      "phase": "attack",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2013-0431",
+            "CVE-2013-0632",
+            "CVE-2013-2465"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "MITRE ATT&CK",
+        "tier": "official"
+      }
+    },
+    "CAPEC-58": {
+      "type": "capec",
+      "id": "CAPEC-58",
+      "name": "Restful Privilege Elevation",
+      "phase": "attack_pattern",
+      "rels": {
+        "cve": {
+          "ids": [
+            "CVE-2002-0367"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "MITRE CAPEC Database",
+        "tier": "official"
+      }
+    },
+    "CWE-114": {
+      "type": "cwe",
+      "id": "CWE-114",
+      "name": "Process Control",
+      "phase": "weakness",
+      "rels": {
+        "capec": {
+          "ids": [
+            "CAPEC-10",
+            "CAPEC-101",
+            "CAPEC-104"
+          ],
+          "source": "MITRE CWE Database",
+          "tier": "official"
+        },
+        "cve": {
+          "ids": [
+            "CVE-2022-23748"
+          ],
+          "source": "NVD Enrichment",
+          "tier": "authoritative"
+        }
+      },
+      "prov": {
+        "source": "MITRE CWE Database",
+        "tier": "official"
+      }
+    },
+    "CVE-2013-2465": {
+      "type": "cve",
+      "id": "CVE-2013-2465",
+      "name": "CVE-2013-2465",
+      "phase": "vulnerability",
+      "rels": {
+        "apt_group": {
+          "ids": [
+            "G0016"
+          ],
+          "source": "Pipeline (technique overlap)",
+          "tier": "derived"
+        },
+        "capec": {
+          "ids": [
+            "CAPEC-1"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1574.010"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    },
+    "CVE-2002-0367": {
+      "type": "cve",
+      "id": "CVE-2002-0367",
+      "name": "CVE-2002-0367",
+      "phase": "vulnerability",
+      "rels": {
+        "capec": {
+          "ids": [
+            "CAPEC-122",
+            "CAPEC-233",
+            "CAPEC-58"
+          ],
+          "source": "Pipeline (CWE\u2192CAPEC chain)",
+          "tier": "derived"
+        },
+        "cwe": {
+          "ids": [
+            "CWE-269"
+          ],
+          "source": "NVD Enrichment",
+          "tier": "authoritative"
+        },
+        "defend": {
+          "ids": [
+            "AccessModeling",
+            "ApplicationExceptionMonitoring",
+            "ConfigurationInventory",
+            "ExecutableAllowlisting",
+            "ExecutableDenylisting"
+          ],
+          "source": "Pipeline (Technique\u2192D3FEND chain)",
+          "tier": "derived"
+        },
+        "owasp": {
+          "ids": [
+            "A04:2021"
+          ],
+          "source": "Pipeline (CWE\u2192OWASP mapping)",
+          "tier": "derived"
+        },
+        "technique": {
+          "ids": [
+            "T1548"
+          ],
+          "source": "Pipeline (CAPEC\u2192Technique chain)",
+          "tier": "derived"
+        }
+      },
+      "prov": {
+        "source": "NVD",
+        "tier": "authoritative"
+      },
+      "kev": true
+    }
+  }
+}

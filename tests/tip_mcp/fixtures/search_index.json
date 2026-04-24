@@ -1,0 +1,608 @@
+{
+  "1": [
+    "CAPEC-1"
+  ],
+  "10": [
+    "CAPEC-10"
+  ],
+  "101": [
+    "CAPEC-101"
+  ],
+  "104": [
+    "CAPEC-104"
+  ],
+  "114": [
+    "CWE-114"
+  ],
+  "122": [
+    "CAPEC-122"
+  ],
+  "2002-0367": [
+    "CVE-2002-0367"
+  ],
+  "2013-0431": [
+    "CVE-2013-0431"
+  ],
+  "2013-0632": [
+    "CVE-2013-0632"
+  ],
+  "2013-2465": [
+    "CVE-2013-2465"
+  ],
+  "2018-13382": [
+    "CVE-2018-13382"
+  ],
+  "2019-7192": [
+    "CVE-2019-7192"
+  ],
+  "2021-30533": [
+    "CVE-2021-30533"
+  ],
+  "2022-23748": [
+    "CVE-2022-23748"
+  ],
+  "233": [
+    "CAPEC-233"
+  ],
+  "269": [
+    "CWE-269"
+  ],
+  "58": [
+    "CAPEC-58"
+  ],
+  "a04:2021": [
+    "A04:2021"
+  ],
+  "a09:2021": [
+    "A09:2021"
+  ],
+  "abuse": [
+    "CAPEC-122",
+    "T1053.005",
+    "T1548"
+  ],
+  "abuse elevation control mechanism": [
+    "T1548"
+  ],
+  "access": [
+    "T1053.005",
+    "AccessModeling"
+  ],
+  "access modeling": [
+    "AccessModeling"
+  ],
+  "accessing": [
+    "CAPEC-1"
+  ],
+  "accessing functionality not properly constrained by acls": [
+    "CAPEC-1"
+  ],
+  "accessmodeling": [
+    "AccessModeling"
+  ],
+  "acls": [
+    "CAPEC-1"
+  ],
+  "actor": [
+    "CWE-269"
+  ],
+  "adversaries": [
+    "T1053.005",
+    "T1548",
+    "T1574.010"
+  ],
+  "allowlisting": [
+    "ExecutableAllowlisting"
+  ],
+  "application": [
+    "CWE-114",
+    "Application-basedProcessIsolation",
+    "ApplicationExceptionMonitoring"
+  ],
+  "application exception monitoring": [
+    "ApplicationExceptionMonitoring"
+  ],
+  "application-based process isolation": [
+    "Application-basedProcessIsolation"
+  ],
+  "application-basedprocessisolation": [
+    "Application-basedProcessIsolation"
+  ],
+  "applicationexceptionmonitoring": [
+    "ApplicationExceptionMonitoring"
+  ],
+  "apt29": [
+    "G0016"
+  ],
+  "assign": [
+    "CWE-269"
+  ],
+  "attacker": [
+    "CWE-114"
+  ],
+  "based": [
+    "Application-basedProcessIsolation"
+  ],
+  "basedprocessisolation": [
+    "Application-basedProcessIsolation"
+  ],
+  "behalf": [
+    "CWE-114"
+  ],
+  "binaries": [
+    "T1574.010"
+  ],
+  "binary": [
+    "T1574.010"
+  ],
+  "blue kitsune": [
+    "G0016"
+  ],
+  "buffer": [
+    "CAPEC-10"
+  ],
+  "buffer overflow via environment variables": [
+    "CAPEC-10"
+  ],
+  "c0001": [
+    "C0001"
+  ],
+  "c0004": [
+    "C0004"
+  ],
+  "c0012": [
+    "C0012"
+  ],
+  "capec-1": [
+    "CAPEC-1"
+  ],
+  "capec-10": [
+    "CAPEC-10"
+  ],
+  "capec-101": [
+    "CAPEC-101"
+  ],
+  "capec-104": [
+    "CAPEC-104"
+  ],
+  "capec-122": [
+    "CAPEC-122"
+  ],
+  "capec-233": [
+    "CAPEC-233"
+  ],
+  "capec-58": [
+    "CAPEC-58"
+  ],
+  "cause": [
+    "CWE-114"
+  ],
+  "check": [
+    "CWE-269"
+  ],
+  "circumvent": [
+    "T1548"
+  ],
+  "code": [
+    "T1053.005"
+  ],
+  "commands": [
+    "CWE-114"
+  ],
+  "configuration": [
+    "ConfigurationInventory"
+  ],
+  "configuration inventory": [
+    "ConfigurationInventory"
+  ],
+  "configurationinventory": [
+    "ConfigurationInventory"
+  ],
+  "constrained": [
+    "CAPEC-1"
+  ],
+  "contain": [
+    "T1548"
+  ],
+  "control": [
+    "CWE-114",
+    "CWE-269",
+    "T1548"
+  ],
+  "costaricto": [
+    "C0004"
+  ],
+  "cozy bear": [
+    "G0016"
+  ],
+  "cozyduke": [
+    "G0016"
+  ],
+  "creating": [
+    "CWE-269"
+  ],
+  "cross": [
+    "CAPEC-104"
+  ],
+  "cross zone scripting": [
+    "CAPEC-104"
+  ],
+  "cuckoobees": [
+    "C0012"
+  ],
+  "cve-2002-0367": [
+    "CVE-2002-0367"
+  ],
+  "cve-2013-0431": [
+    "CVE-2013-0431"
+  ],
+  "cve-2013-0632": [
+    "CVE-2013-0632"
+  ],
+  "cve-2013-2465": [
+    "CVE-2013-2465"
+  ],
+  "cve-2018-13382": [
+    "CVE-2018-13382"
+  ],
+  "cve-2019-7192": [
+    "CVE-2019-7192"
+  ],
+  "cve-2021-30533": [
+    "CVE-2021-30533"
+  ],
+  "cve-2022-23748": [
+    "CVE-2022-23748"
+  ],
+  "cwe-114": [
+    "CWE-114"
+  ],
+  "cwe-269": [
+    "CWE-269"
+  ],
+  "dark halo": [
+    "G0016"
+  ],
+  "denylisting": [
+    "ExecutableDenylisting"
+  ],
+  "designed": [
+    "T1548"
+  ],
+  "elevate": [
+    "T1548"
+  ],
+  "elevation": [
+    "CAPEC-58",
+    "T1548"
+  ],
+  "environment": [
+    "CWE-114",
+    "CAPEC-10"
+  ],
+  "escalation": [
+    "CAPEC-233"
+  ],
+  "exception": [
+    "ApplicationExceptionMonitoring"
+  ],
+  "executable": [
+    "ExecutableAllowlisting",
+    "ExecutableDenylisting"
+  ],
+  "executable allowlisting": [
+    "ExecutableAllowlisting"
+  ],
+  "executable denylisting": [
+    "ExecutableDenylisting"
+  ],
+  "executableallowlisting": [
+    "ExecutableAllowlisting"
+  ],
+  "executabledenylisting": [
+    "ExecutableDenylisting"
+  ],
+  "execute": [
+    "CWE-114",
+    "T1574.010"
+  ],
+  "executed": [
+    "T1574.010"
+  ],
+  "executing": [
+    "CWE-114"
+  ],
+  "execution": [
+    "T1053.005"
+  ],
+  "file": [
+    "T1574.010"
+  ],
+  "flaws": [
+    "T1574.010"
+  ],
+  "frankenstein": [
+    "C0001"
+  ],
+  "functionality": [
+    "CAPEC-1"
+  ],
+  "g0016": [
+    "G0016"
+  ],
+  "g0019": [
+    "G0019"
+  ],
+  "g0021": [
+    "G0021"
+  ],
+  "gain": [
+    "T1548"
+  ],
+  "gaza cybergang": [
+    "G0021"
+  ],
+  "higher": [
+    "T1548"
+  ],
+  "hijacking": [
+    "T1574.010"
+  ],
+  "improper": [
+    "CWE-269"
+  ],
+  "improper privilege management": [
+    "CWE-269"
+  ],
+  "include": [
+    "CAPEC-101"
+  ],
+  "initial": [
+    "T1053.005"
+  ],
+  "injection": [
+    "CAPEC-101"
+  ],
+  "intended": [
+    "T1548"
+  ],
+  "inventory": [
+    "ConfigurationInventory"
+  ],
+  "iron hemlock": [
+    "G0016"
+  ],
+  "iron ritual": [
+    "G0016"
+  ],
+  "isolation": [
+    "Application-basedProcessIsolation"
+  ],
+  "level": [
+    "T1548"
+  ],
+  "libraries": [
+    "CWE-114"
+  ],
+  "limi": [
+    "T1548"
+  ],
+  "loading": [
+    "CWE-114"
+  ],
+  "malicious": [
+    "CWE-114",
+    "T1053.005",
+    "T1574.010"
+  ],
+  "management": [
+    "CWE-269"
+  ],
+  "mechanism": [
+    "T1548"
+  ],
+  "mechanisms": [
+    "T1548"
+  ],
+  "midnight blizzard": [
+    "G0016"
+  ],
+  "modeling": [
+    "AccessModeling"
+  ],
+  "modern": [
+    "T1548"
+  ],
+  "modify": [
+    "CWE-269"
+  ],
+  "molerats": [
+    "G0021"
+  ],
+  "monitoring": [
+    "ApplicationExceptionMonitoring"
+  ],
+  "multiple": [
+    "T1053.005"
+  ],
+  "naikon": [
+    "G0019"
+  ],
+  "native": [
+    "T1548"
+  ],
+  "nobelium": [
+    "G0016"
+  ],
+  "noblebaron": [
+    "G0016"
+  ],
+  "not": [
+    "CAPEC-1"
+  ],
+  "operation": [
+    "C0012"
+  ],
+  "operation cuckoobees": [
+    "C0012"
+  ],
+  "operation molerats": [
+    "G0021"
+  ],
+  "overflow": [
+    "CAPEC-10"
+  ],
+  "payloads": [
+    "CWE-114",
+    "T1574.010"
+  ],
+  "perform": [
+    "T1053.005"
+  ],
+  "permissions": [
+    "T1548",
+    "T1574.010"
+  ],
+  "privilege": [
+    "CWE-269",
+    "CAPEC-122",
+    "CAPEC-233",
+    "CAPEC-58"
+  ],
+  "privilege abuse": [
+    "CAPEC-122"
+  ],
+  "privilege escalation": [
+    "CAPEC-233"
+  ],
+  "privileges": [
+    "CWE-269",
+    "T1548"
+  ],
+  "process": [
+    "CWE-114",
+    "Application-basedProcessIsolation"
+  ],
+  "process control": [
+    "CWE-114"
+  ],
+  "product": [
+    "CWE-269"
+  ],
+  "properly": [
+    "CWE-269",
+    "CAPEC-1"
+  ],
+  "recurring": [
+    "T1053.005"
+  ],
+  "replace": [
+    "T1574.010"
+  ],
+  "restful": [
+    "CAPEC-58"
+  ],
+  "restful privilege elevation": [
+    "CAPEC-58"
+  ],
+  "scheduled": [
+    "T1053.005"
+  ],
+  "scheduled task": [
+    "T1053.005"
+  ],
+  "scheduler": [
+    "T1053.005"
+  ],
+  "scheduling": [
+    "T1053.005"
+  ],
+  "scripting": [
+    "CAPEC-104"
+  ],
+  "server": [
+    "CAPEC-101"
+  ],
+  "server side include (ssi) injection": [
+    "CAPEC-101"
+  ],
+  "services": [
+    "T1574.010"
+  ],
+  "services file permissions weakness": [
+    "T1574.010"
+  ],
+  "side": [
+    "CAPEC-101"
+  ],
+  "solarstorm": [
+    "G0016"
+  ],
+  "source": [
+    "CWE-114"
+  ],
+  "sphere": [
+    "CWE-269"
+  ],
+  "ssi": [
+    "CAPEC-101"
+  ],
+  "systems": [
+    "T1548"
+  ],
+  "t1053.005": [
+    "T1053.005"
+  ],
+  "t1548": [
+    "T1548"
+  ],
+  "t1574.010": [
+    "T1574.010"
+  ],
+  "task": [
+    "T1053.005"
+  ],
+  "the dukes": [
+    "G0016"
+  ],
+  "their": [
+    "T1574.010"
+  ],
+  "track": [
+    "CWE-269"
+  ],
+  "unc2452": [
+    "G0016"
+  ],
+  "unc3524": [
+    "G0016"
+  ],
+  "unintended": [
+    "CWE-269"
+  ],
+  "untrusted": [
+    "CWE-114"
+  ],
+  "variables": [
+    "CAPEC-10"
+  ],
+  "via": [
+    "CAPEC-10"
+  ],
+  "ways": [
+    "T1053.005"
+  ],
+  "weakness": [
+    "T1574.010"
+  ],
+  "windows": [
+    "T1053.005",
+    "T1574.010"
+  ],
+  "yttrium": [
+    "G0016"
+  ],
+  "zone": [
+    "CAPEC-104"
+  ]
+}

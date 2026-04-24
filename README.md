@@ -111,6 +111,61 @@ Two automated workflows keep data fresh:
 
 Both auto-commit results back to the repo. Requires `NVD_API_KEY` as a repository secret.
 
+## MCP Server (optional)
+
+Expose TIP's threat intelligence graph to Claude agents via the Model Context Protocol (MCP). Claude agents can ground threat reasoning in TIP's real data instead of hallucinating CVE IDs or MITRE relationships.
+
+**Status:** Phase A (v1 MVP) shipped. Three read-only tools:
+
+- `lookup_entity(entity_id)` returns a single entity record and its relationships
+- `pivot_from_entity(entity_id, target_type?)` returns entities related by type
+- `search_threat_intel(query, limit?, types?)` returns ranked hits from the inverted index
+
+### Install
+
+```bash
+pip install -r requirements-mcp.txt
+```
+
+Requires TIP's pre-built indexes at `docs/data/entity_index.json` and `docs/data/search_index.json`. Run the pipeline first if they are missing.
+
+### Run
+
+```bash
+PYTHONPATH=src python -m tip_mcp.server
+```
+
+The server speaks MCP over stdio; it loads both indexes into memory, then waits for a client to connect.
+
+### Claude Code / Claude Desktop configuration
+
+Add an entry to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "tip": {
+      "command": "python",
+      "args": ["-m", "tip_mcp.server"],
+      "cwd": "/absolute/path/to/Threat_Intelligence_Pipeline",
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}
+```
+
+Optionally set `TIP_DATA_DIR` in `env` to override the default `docs/data/` location.
+
+### Demo prompt
+
+Once the client is configured:
+
+> Use the tip threat intel tools. Look up CVE-2023-44487 and walk me through the attack chain and defenses. Cite entity IDs.
+
+See `src/tip_mcp/README.md` for full install and tool details, and `docs/superpowers/specs/mcp-server-scope.md` for the architecture rationale.
+
 ## Architecture
 
 ### Pipeline
@@ -158,6 +213,21 @@ PYTHONPATH=src python -m pytest tests/ --cov=src/tip
 
 - Python 3.9+
 - NVD API key (free, recommended for rate limit performance)
+
+## Roadmap
+
+### TIP core
+
+1. **All-CVE search architecture.** Currently indexes only the 1,351 CVEs with CWE mappings. Extend to cover all CVEs via a tiered approach (entity index for rich CVEs, search index for all IDs, on-demand JSONL lookup for detail).
+2. **Multi-entity analysis mode.** Paste multiple CVEs or entity IDs, see a combined relationship view.
+3. **Visual polish.** Graph legend, zoom, landing page enhancements, responsive tweaks.
+
+### MCP server
+
+Phase A shipped: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`.
+
+- **Phase B.** Add `build_attack_chain`, `get_defenses`, `kev_status`. Extend pytest coverage. Polish error handling and pagination.
+- **Phase C.** JSONL shard fallback for non-indexed CVEs (depends on TIP roadmap #1). Multi-entity pivot tool (depends on TIP roadmap #2).
 
 ## License
 
