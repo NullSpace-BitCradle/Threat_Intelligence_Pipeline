@@ -272,11 +272,18 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     print(f"  Loaded {len(vulnrich_db)} vulnrichment entries")
 
     # ── 8. Load all CVE JSONL files ───────────────────────────────
-    # Only index "interesting" CVEs: in CISA KEV, linked to an APT group,
-    # carrying CISA vulnrichment data, or rated CVSS >= 7.0 (HIGH+). The
-    # full filter expression lives below in the CVE loop. This keeps
-    # entity_index.json browser-friendly (currently ~8 MB for 2.7K CVEs;
-    # full 271K-CVE coverage would push past 100 MB and break browser load).
+    # Only index "interesting" CVEs in entity_index (Layer 2): in CISA KEV,
+    # linked to an APT group, or carrying CISA vulnrichment data. These are
+    # the CVEs we want to render with the full relationship graph.
+    #
+    # The 'CVSS >= 7.0' criterion was tried and dropped: with NVD CVSS now
+    # populated on ~91% of CVEs, that filter qualified ~126K CVEs, ballooning
+    # entity_index.json to ~250 MB and breaking browser load. The tiered
+    # architecture (Layer 1 cve_ids_index covers all 346K CVE IDs, Layer 3
+    # shard fetch covers all enrichment data on demand) means Layer 2 does
+    # NOT need to be comprehensive; it should be the curated highlight set.
+    # See docs/superpowers/specs/mcp-server-scope.md and Plans/ROADMAP.md
+    # for the layered design rationale.
     print("Loading CVE databases...")
     cve_files = sorted(db_dir.glob("CVE-*.jsonl.gz")) or sorted(db_dir.glob("CVE-*.jsonl"))
     cve_count = 0
@@ -323,7 +330,6 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     # "Interesting" CVE inclusion policy: indexed if ANY of these hold.
     # The browser loads entity_index.json in full, so we balance coverage
     # against file size (target: stay under ~15 MB).
-    HIGH_CVSS_THRESHOLD = 7.0
 
     def _severity_from_score(score: float) -> str:
         """Derive CVSS v3.x severity bucket from a numeric base score."""
@@ -370,10 +376,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         is_kev = cve_id in kev_db
         has_apt_groups = bool(cve_data.get("APT_GROUPS"))
         has_vulnrichment = cve_id in vulnrich_db or bool(cve_data.get("VULNRICHMENT"))
-        base_score = _cve_base_score(cve_id, cve_data)
-        is_high_severity = base_score is not None and base_score >= HIGH_CVSS_THRESHOLD
 
-        if not (is_kev or has_apt_groups or has_vulnrichment or is_high_severity):
+        if not (is_kev or has_apt_groups or has_vulnrichment):
             cve_filtered += 1
             continue
 
