@@ -38,11 +38,13 @@ function renderEntityHeader(container, entity, related) {
     idEl.textContent = entity.id;
     header.appendChild(idEl);
 
-    // Description / name
-    if (entity.name && entity.name !== entity.id) {
+    // Description block. Prefer the full description; fall back to the
+    // short display name. Only render when distinct from the entity ID.
+    const descText = entity.description || (entity.name !== entity.id ? entity.name : '');
+    if (descText) {
         const desc = document.createElement('div');
         desc.className = 'entity-desc';
-        desc.textContent = entity.name;
+        desc.textContent = descText;
         header.appendChild(desc);
     }
 
@@ -57,6 +59,27 @@ function renderEntityHeader(container, entity, related) {
     typeBadge.style.color = GRAPH_COLORS[entity.type] || 'var(--text-secondary)';
     typeBadge.textContent = (TYPE_CONFIG[entity.type] || {}).label || entity.type;
     badges.appendChild(typeBadge);
+
+    // Severity / CVSS badge (CVE entities only)
+    if (entity.type === 'cve' && typeof entity.cvss_score === 'number') {
+        const sev = (entity.severity || '').toUpperCase();
+        const palette = {
+            CRITICAL: '#d63031',
+            HIGH:     '#e17055',
+            MEDIUM:   '#fdcb6e',
+            LOW:      '#74b9ff',
+            NONE:     '#888'
+        };
+        const color = palette[sev] || '#888';
+        const sevBadge = document.createElement('span');
+        sevBadge.className = 'badge';
+        sevBadge.style.background = color + '25';
+        sevBadge.style.color = color;
+        const sevLabel = sev ? sev + ' ' : '';
+        sevBadge.textContent = sevLabel + 'CVSS ' + entity.cvss_score.toFixed(1);
+        if (entity.cvss_vector) sevBadge.title = entity.cvss_vector;
+        badges.appendChild(sevBadge);
+    }
 
     // Provenance badge
     if (entity.prov && entity.prov.tier) {
@@ -103,6 +126,26 @@ function renderSummaryCards(container, entity, related) {
             label: 'Timeline',
             value: entity.first_seen || '?',
             detail: entity.last_seen ? 'to ' + entity.last_seen : 'ongoing',
+            color: 'var(--text-primary)'
+        });
+    }
+
+    if (entity.type === 'cve' && (entity.published || entity.last_modified)) {
+        const pubShort = (entity.published || '').slice(0, 10);
+        const modShort = (entity.last_modified || '').slice(0, 10);
+        cards.push({
+            label: 'Disclosed',
+            value: pubShort || '?',
+            detail: modShort && modShort !== pubShort ? 'modified ' + modShort : '',
+            color: 'var(--text-primary)'
+        });
+    }
+
+    if (entity.type === 'cve' && Array.isArray(entity.references) && entity.references.length > 0) {
+        cards.push({
+            label: 'References',
+            value: String(entity.references.length),
+            detail: 'NVD-linked URLs',
             color: 'var(--text-primary)'
         });
     }

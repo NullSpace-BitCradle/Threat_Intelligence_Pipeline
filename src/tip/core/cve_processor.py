@@ -278,13 +278,60 @@ class CVEProcessor:
                         description = desc.get('value', '')
                         break
 
-                processed_cves[cve_id] = {
+                # Extract CVSS v3.1 / v3.0 metrics (prefer v3.1 primary)
+                cvss_score = None
+                cvss_vector = ''
+                cvss_severity = ''
+                cvss_version = ''
+                metrics = cve_data.get('cve', {}).get('metrics', {})
+                for key in ('cvssMetricV31', 'cvssMetricV30'):
+                    metric_list = metrics.get(key) or []
+                    primary = next(
+                        (m for m in metric_list if m.get('type') == 'Primary'),
+                        metric_list[0] if metric_list else None,
+                    )
+                    if primary:
+                        cvss_data = primary.get('cvssData', {})
+                        cvss_score = cvss_data.get('baseScore')
+                        cvss_vector = cvss_data.get('vectorString', '')
+                        cvss_severity = (
+                            cvss_data.get('baseSeverity')
+                            or primary.get('baseSeverity', '')
+                        )
+                        cvss_version = cvss_data.get('version', '')
+                        break
+
+                # Extract publication / modification timestamps
+                published = cve_data.get('cve', {}).get('published', '')
+                last_modified = cve_data.get('cve', {}).get('lastModified', '')
+
+                # Extract deduplicated reference URLs
+                reference_urls: List[str] = []
+                seen_urls: set = set()
+                for ref in cve_data.get('cve', {}).get('references', []):
+                    url = ref.get('url', '').strip()
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        reference_urls.append(url)
+
+                record: Dict[str, Any] = {
                     'CWE': unique_cwe_ids,
                     'CAPEC': [],
                     'TECHNIQUES': [],
                     'DEFEND': [],
-                    'DESCRIPTION': description[:300]
+                    'DESCRIPTION': description,
+                    'PUBLISHED': published,
+                    'LAST_MODIFIED': last_modified,
+                    'REFERENCES': reference_urls,
                 }
+                if cvss_score is not None:
+                    record['CVSS'] = {
+                        'score': cvss_score,
+                        'vector': cvss_vector,
+                        'severity': cvss_severity,
+                        'version': cvss_version,
+                    }
+                processed_cves[cve_id] = record
                 
             except Exception as e:
                 self.logger.warning(f"Error processing CVE {cve_id}: {e}")
@@ -426,6 +473,11 @@ class CVEProcessor:
         """Process a single CVE through the entire pipeline"""
         result = {}
         
+        # Fields preserved verbatim from ingest (raw NVD data) through enrichment.
+        PRESERVED_FIELDS = (
+            'DESCRIPTION', 'PUBLISHED', 'LAST_MODIFIED', 'REFERENCES', 'CVSS',
+        )
+
         for cve_id, data in cve_data.items():
             try:
                 # Step 1: Process CWE relationships
@@ -437,8 +489,12 @@ class CVEProcessor:
                     parent_cwes = self.get_parent_cwe(cwe_id)
                     if parent_cwes:
                         cwe_list.update(parent_cwes)
-                
+
                 result[cve_id] = {"CWE": list(sorted(cwe_list))}
+                # Carry forward raw NVD fields that enrichment does not regenerate.
+                for field in PRESERVED_FIELDS:
+                    if field in data:
+                        result[cve_id][field] = data[field]
                 
                 # Step 2: Get CAPEC entries
                 capec_list = set()
@@ -495,14 +551,18 @@ class CVEProcessor:
 
             except Exception as e:
                 self.logger.error(f"Error processing CVE {cve_id}: {e}")
-                # Return partial result
-                result[cve_id] = {
+                # Return partial result while still preserving raw NVD fields
+                partial: Dict[str, Any] = {
                     "CWE": data.get('CWE', []),
                     "CAPEC": [],
                     "TECHNIQUES": [],
                     "DEFEND": [],
                     "OWASP": []
                 }
+                for field in PRESERVED_FIELDS:
+                    if field in data:
+                        partial[field] = data[field]
+                result[cve_id] = partial
         
         return result
     

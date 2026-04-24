@@ -7,6 +7,7 @@ re-exports thin wrappers decorated with @mcp.tool().
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from .loader import IndexLoader
@@ -24,44 +25,128 @@ VALID_TYPES = {
     "kev",
 }
 
+_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+
+
+def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
+    """Project a shard CVE payload onto the same shape as an entity record.
+
+    The shard has raw enrichment fields (DESCRIPTION, CWE, CVSS, ...). The
+    entity_index format is snake_cased with a flat rels list, so we adapt.
+    """
+    description = payload.get("DESCRIPTION") or ""
+    first_sentence = description.split(". ", 1)[0].strip() if description else ""
+    name = first_sentence or cve_id.upper()
+
+    rels_out = []
+    for cwe in payload.get("CWE", []) or []:
+        # Normalize CWE-123 vs 123 form.
+        cwe_id = cwe if str(cwe).startswith("CWE-") else f"CWE-{cwe}"
+        rels_out.append({"target_id": cwe_id, "rel_type": "cwe", "source": "shard"})
+    for capec in payload.get("CAPEC", []) or []:
+        capec_id = capec if str(capec).startswith("CAPEC-") else f"CAPEC-{capec}"
+        rels_out.append({"target_id": capec_id, "rel_type": "capec", "source": "shard"})
+    for tech in payload.get("TECHNIQUES", []) or []:
+        tech_id = tech if str(tech).startswith("T") else f"T{tech}"
+        rels_out.append({"target_id": tech_id, "rel_type": "technique", "source": "shard"})
+    for owasp in payload.get("OWASP", []) or []:
+        rels_out.append({"target_id": owasp, "rel_type": "owasp", "source": "shard"})
+
+    record = {
+        "id": cve_id.upper(),
+        "type": "cve",
+        "name": name,
+        "phase": "vulnerability",
+        "kev": bool(payload.get("KEV")),
+        "description": description,
+        "rels": rels_out,
+    }
+    cvss = payload.get("CVSS")
+    if isinstance(cvss, dict):
+        if cvss.get("score") is not None:
+            record["cvss_score"] = cvss.get("score")
+        if cvss.get("severity"):
+            record["severity"] = cvss.get("severity")
+        if cvss.get("vector"):
+            record["cvss_vector"] = cvss.get("vector")
+    if payload.get("PUBLISHED"):
+        record["published"] = payload["PUBLISHED"]
+    if payload.get("LAST_MODIFIED"):
+        record["last_modified"] = payload["LAST_MODIFIED"]
+    refs = payload.get("REFERENCES")
+    if isinstance(refs, list) and refs:
+        record["references"] = refs
+    return record
+
 
 def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
-    """Look up a single entity by ID."""
+    """Look up a single entity by ID.
+
+    Falls back to scanning the per-year CVE JSONL shard when the ID looks
+    like a CVE but is not present in the enriched entity graph. This lets
+    callers find any CVE that the pipeline has ingested, even those below
+    the "interesting" threshold.
+    """
     if not entity_id or not isinstance(entity_id, str):
         return error_response(ErrorCode.BAD_PARAM, "entity_id must be a non-empty string")
 
     entity = loader.entities.get(entity_id)
-    if entity is None:
-        return error_response(
-            ErrorCode.NOT_FOUND,
-            f"entity {entity_id!r} not in entity graph",
-            hint=(
-                "CVE may exist in shard data but not in the enriched entity graph. "
-                "TIP currently indexes only CVEs with CWE mappings."
-            ),
-        )
+    if entity is not None:
+        rels_out = []
+        for rel_type, rel_body in entity.get("rels", {}).items():
+            for tid in rel_body.get("ids", []):
+                rels_out.append(
+                    {
+                        "target_id": tid,
+                        "rel_type": rel_type,
+                        "source": rel_body.get("source"),
+                    }
+                )
 
-    rels_out = []
-    for rel_type, rel_body in entity.get("rels", {}).items():
-        for tid in rel_body.get("ids", []):
-            rels_out.append(
-                {
-                    "target_id": tid,
-                    "rel_type": rel_type,
-                    "source": rel_body.get("source"),
-                }
-            )
+        record = {
+            "id": entity.get("id", entity_id),
+            "type": entity.get("type"),
+            "name": entity.get("name"),
+            "phase": entity.get("phase"),
+            "kev": bool(entity.get("kev", False)),
+            "rels": rels_out,
+        }
+        # Surface enriched CVE metadata if the entity carries it.
+        for field in (
+            "description",
+            "cvss_score",
+            "severity",
+            "cvss_vector",
+            "published",
+            "last_modified",
+            "references",
+        ):
+            if field in entity:
+                record[field] = entity[field]
+        meta = {"source": "entity_index.json", "rel_count": len(rels_out)}
+        return ok_response(record, meta=meta)
 
-    record = {
-        "id": entity.get("id", entity_id),
-        "type": entity.get("type"),
-        "name": entity.get("name"),
-        "phase": entity.get("phase"),
-        "kev": bool(entity.get("kev", False)),
-        "rels": rels_out,
-    }
-    meta = {"source": "entity_index.json", "rel_count": len(rels_out)}
-    return ok_response(record, meta=meta)
+    # Shard fallback: only for syntactically valid CVE IDs.
+    if _CVE_ID_RE.match(entity_id.strip()):
+        shard_hit = loader.find_cve_in_shards(entity_id)
+        if shard_hit is not None:
+            payload, shard_name = shard_hit
+            record = _build_shard_record(entity_id, payload, shard_name)
+            meta = {
+                "source": "shard",
+                "shard": shard_name,
+                "rel_count": len(record["rels"]),
+            }
+            return ok_response(record, meta=meta)
+
+    return error_response(
+        ErrorCode.NOT_FOUND,
+        f"entity {entity_id!r} not in entity graph",
+        hint=(
+            "CVE may exist in shard data but not in the enriched entity graph. "
+            "TIP currently indexes only CVEs with CWE mappings."
+        ),
+    )
 
 
 def pivot_from_entity_impl(

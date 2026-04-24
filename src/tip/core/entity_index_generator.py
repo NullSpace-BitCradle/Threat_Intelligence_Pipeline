@@ -301,18 +301,101 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
 
     print(f"  Found {len(all_cve_data)} CVEs with CWE data, filtering...")
 
+    # "Interesting" CVE inclusion policy: indexed if ANY of these hold.
+    # The browser loads entity_index.json in full, so we balance coverage
+    # against file size (target: stay under ~15 MB).
+    HIGH_CVSS_THRESHOLD = 7.0
+
+    def _severity_from_score(score: float) -> str:
+        """Derive CVSS v3.x severity bucket from a numeric base score."""
+        if score >= 9.0:
+            return "CRITICAL"
+        if score >= 7.0:
+            return "HIGH"
+        if score >= 4.0:
+            return "MEDIUM"
+        if score > 0.0:
+            return "LOW"
+        return "NONE"
+
+    def _cvss_from_vulnrichment_db(cve_id: str) -> dict | None:
+        """Return {score,vector,severity} from vulnrichment_db.json if present."""
+        vr_entry = vulnrich_db.get(cve_id)
+        if not isinstance(vr_entry, dict):
+            return None
+        cisa_cvss = vr_entry.get("cisaCVSS")
+        if not isinstance(cisa_cvss, dict):
+            return None
+        score = cisa_cvss.get("baseScore")
+        if not isinstance(score, (int, float)):
+            return None
+        severity = cisa_cvss.get("baseSeverity") or _severity_from_score(float(score))
+        return {
+            "score": float(score),
+            "vector": cisa_cvss.get("vector", ""),
+            "severity": severity,
+        }
+
+    def _cve_base_score(cve_id: str, data: dict) -> float | None:
+        cvss = data.get("CVSS")
+        if isinstance(cvss, dict):
+            score = cvss.get("score")
+            if isinstance(score, (int, float)):
+                return float(score)
+        vr_cvss = _cvss_from_vulnrichment_db(cve_id)
+        if vr_cvss is not None:
+            return vr_cvss["score"]
+        return None
+
     for cve_id, cve_data in all_cve_data:
         is_kev = cve_id in kev_db
         has_apt_groups = bool(cve_data.get("APT_GROUPS"))
+        has_vulnrichment = cve_id in vulnrich_db or bool(cve_data.get("VULNRICHMENT"))
+        base_score = _cve_base_score(cve_id, cve_data)
+        is_high_severity = base_score is not None and base_score >= HIGH_CVSS_THRESHOLD
 
-        # Only index CVEs that are in KEV or directly linked to APT groups
-        if not (is_kev or has_apt_groups):
+        if not (is_kev or has_apt_groups or has_vulnrichment or is_high_severity):
             cve_filtered += 1
             continue
 
         cve_desc = cve_data.get("DESCRIPTION", "")
-        cve_name = cve_desc[:200] if cve_desc else cve_id
+        # Short display name: first sentence (trimmed) or the CVE ID as fallback.
+        # The full description is carried on the entity record itself so we
+        # do not silently truncate intelligence data anywhere.
+        if cve_desc:
+            first_sentence = cve_desc.split(". ", 1)[0].strip()
+            cve_name = first_sentence if first_sentence else cve_id
+        else:
+            cve_name = cve_id
         ensure(cve_id, "cve", cve_name, "vulnerability")
+
+        # Attach enriched metadata directly on the entity record so the UI
+        # and MCP consumers can render score, severity, dates, and description
+        # without loading the JSONL shards.
+        cve_entity = entities[cve_id]
+        if cve_desc:
+            cve_entity["description"] = cve_desc
+        cvss = cve_data.get("CVSS")
+        if not isinstance(cvss, dict) or cvss.get("score") is None:
+            # Fall back to the CISA vulnrichment CVSS when NVD CVSS was not
+            # captured during ingest (legacy shards from before the
+            # process_nvd_cves fix).
+            cvss = _cvss_from_vulnrichment_db(cve_id)
+        if isinstance(cvss, dict):
+            if cvss.get("score") is not None:
+                cve_entity["cvss_score"] = cvss.get("score")
+            if cvss.get("severity"):
+                cve_entity["severity"] = cvss.get("severity")
+            if cvss.get("vector"):
+                cve_entity["cvss_vector"] = cvss.get("vector")
+        if cve_data.get("PUBLISHED"):
+            cve_entity["published"] = cve_data["PUBLISHED"]
+        if cve_data.get("LAST_MODIFIED"):
+            cve_entity["last_modified"] = cve_data["LAST_MODIFIED"]
+        refs = cve_data.get("REFERENCES")
+        if isinstance(refs, list) and refs:
+            cve_entity["references"] = refs
+
         cve_count += 1
 
         for cwe_ref in cve_data.get("CWE", []):
