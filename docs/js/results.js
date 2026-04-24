@@ -132,7 +132,7 @@ async function renderCveFromShard(main, graphPanel, cveId) {
 
     renderSummaryCards(main, synthEntity, related);
     renderDetailTabs(main, synthEntity, related, { description: description });
-    renderGraphPanel(graphPanel, cveId, related);
+    renderGraphPanel(graphPanel, cveId, related, synthEntity);
 }
 
 function renderEntityHeader(container, entity, related) {
@@ -629,7 +629,7 @@ function addOverviewField(container, label, value) {
     container.appendChild(section);
 }
 
-function renderGraphPanel(panel, entityId, related) {
+function renderGraphPanel(panel, entityId, related, entityOverride) {
     panel.textContent = '';
 
     // Graph header
@@ -643,8 +643,9 @@ function renderGraphPanel(panel, entityId, related) {
     graphEl.className = 'graph-container';
     panel.appendChild(graphEl);
 
-    // Render the D3 graph
-    renderGraph(graphEl, entityId);
+    // Render the D3 graph. entityOverride is passed from the shard fallback
+    // path so a CVE not in entity_index still produces a graph.
+    renderGraph(graphEl, entityId, entityOverride || null, related || null);
 
     // Related entities lists
     for (const [relType, relData] of Object.entries(related)) {

@@ -69,3 +69,8 @@ docs/superpowers/
 
 # PAI working directory (per-session PRDs, not for repo)
 MEMORY/
+
+# Playwright MCP working artifacts and root-level screenshot output
+.playwright-mcp/
+/d1-verify-*.png
+/page-*.png

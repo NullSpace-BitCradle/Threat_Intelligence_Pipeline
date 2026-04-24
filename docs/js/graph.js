@@ -20,14 +20,17 @@ const GRAPH_NODE_SIZES = {
     secondary: 12
 };
 
-function renderGraph(container, entityId) {
+function renderGraph(container, entityId, overrideEntity, overrideRelated) {
     // Clear previous graph
     while (container.firstChild) container.removeChild(container.firstChild);
 
-    const entity = getEntity(entityId);
+    // Accept a pre-synthesized entity and related map so shard-sourced CVE
+    // detail pages can render a graph even though the CVE is not in the
+    // curated entity_index. Fall back to index lookups otherwise.
+    const entity = overrideEntity || getEntity(entityId);
     if (!entity) return;
 
-    const related = getRelatedEntities(entityId);
+    const related = overrideRelated || getRelatedEntities(entityId);
     const nodes = [];
     const links = [];
     const nodeSet = new Set();
@@ -49,12 +52,15 @@ function renderGraph(container, entityId) {
         for (const relId of ids) {
             if (nodeSet.has(relId)) continue;
             const relEntity = getEntity(relId);
-            if (!relEntity) continue;
+            // When the related target is not in entity_index, synthesize a
+            // minimal node from the rel_type label so the graph still
+            // renders the shape of the relationship set.
+            const effectiveEntity = relEntity || { name: relId, type: relType };
             nodeSet.add(relId);
             nodes.push({
                 id: relId,
-                name: relEntity.name || relId,
-                type: relEntity.type,
+                name: effectiveEntity.name || relId,
+                type: effectiveEntity.type || relType,
                 r: GRAPH_NODE_SIZES.primary
             });
             links.push({ source: entityId, target: relId });
