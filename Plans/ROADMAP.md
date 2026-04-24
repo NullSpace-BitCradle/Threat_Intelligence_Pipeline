@@ -1,6 +1,6 @@
 # TIP Development Roadmap
 
-Last updated: 2026-04-24 (afternoon: N3 shipped, F1/F2/F3/F5 cleared)
+Last updated: 2026-04-24 (afternoon: N3 shipped, F1/F2/F3/F5 cleared, D1 All-CVE search shipped)
 Owner: the maintainer (Strategic Rogue / NullSpace-BitCradle)
 
 ## How to read this doc
@@ -107,6 +107,16 @@ DONE. PRD: `MEMORY/WORK/20260424-204159_pivot-shard-fallback/PRD.md`. Commit: `1
 - target_type filter and invalid_type validation order preserved; entity_index takes precedence over shard
 - 8 new tests, 67 passing overall
 
+### Phase 8: All-CVE tiered search architecture (2026-04-24, late afternoon)
+DONE. PRD: `MEMORY/WORK/20260424-205652_all-cve-search-tiered/PRD.md`.
+- Layer 1 all-IDs index: `docs/data/cve_ids_index.json`, 1.8 MB, 345,198 CVE IDs year-grouped by integer tails
+- Frontend search: any CVE prefix now surfaces matches from the full 345K-CVE corpus in a distinct "All CVEs" dropdown section
+- Layer 3 shard fetch: client downloads the relevant year's jsonl.gz via native DecompressionStream, caches parsed shards by year
+- Layer 3 detail page: CVEs outside the curated entity_index render a full detail page from shard data with a "from shard" provenance banner
+- Browser compatibility: Chrome 80+, Firefox 113+, Safari 16.4+
+- Entity graph unchanged; Layer 2 precedence preserved
+- Closes roadmap item D1 (the single largest gap)
+
 ---
 
 ## 3. Where the project is right now
@@ -144,14 +154,9 @@ DEPENDS ON: N2 (build_attack_chain is the centerpiece of this demo).
 
 ## 5. DEFERRED (scoped, parked behind a decision or external dependency)
 
-### D1. All-CVE search architecture (the big one)
-ORIGIN: Original roadmap item #1 from project memory; still the single largest gap.
-STATE: Today's work made an incremental dent (1,367 to 2,766 CVEs indexed). Full coverage of all 271K enriched CVEs would push entity_index.json well past 100 MB and break browser load.
-DESIGN PARKED: tiered architecture, three layers:
-- Layer 1: thin "all-IDs" search index (just CVE-YYYY-NNNN strings + year, ~5 MB) so the UI search bar can find any CVE ID
-- Layer 2: rich entity_index.json for the "interesting" subset (currently 2,766; could grow to 10K to 30K with broader filter)
-- Layer 3: on-demand fetch from JSONL shards for full detail (already shipped today as MCP shard fallback; needs UI-side equivalent)
-TRIGGER TO UNDEFER: when the maintainer decides the current 2,766 coverage feels too thin during real investigation work, or when a user explicitly hits a "CVE not found" wall in the UI for a CVE they expected.
+### D1. All-CVE search architecture
+STATUS: DONE 2026-04-24 late afternoon. See Phase 8 above.
+Shipped the full tiered architecture: Layer 1 all-IDs index (1.8 MB, 345K CVE IDs), Layer 2 rich entity graph (unchanged), Layer 3 on-demand shard fetch in the browser via `DecompressionStream('gzip')`. Any CVE the pipeline has ingested is now findable via the search bar and opens a detail page; curated CVEs still render the full rich page with relationships and provenance tiers.
 
 ### D2. Multi-entity analysis mode
 ORIGIN: 2026-03-28 UI redesign spec, explicitly deferred at the time. Project memory roadmap item #2.

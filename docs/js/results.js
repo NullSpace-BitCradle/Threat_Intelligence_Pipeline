@@ -9,6 +9,13 @@ async function renderResultPage(entityId) {
     const graphPanel = document.getElementById('result-graph');
 
     if (!entity) {
+        // Layer 3 fallback: when the entity is missing from the curated
+        // entity_index but the ID is a CVE pattern, fetch the shard on
+        // demand and render a minimal detail page.
+        if (/^CVE-\d{4}-\d+$/i.test(entityId)) {
+            await renderCveFromShard(main, graphPanel, entityId.toUpperCase());
+            return;
+        }
         main.textContent = '';
         var msg = document.createElement('div');
         Object.assign(msg.style, { padding: '40px', textAlign: 'center', color: 'var(--text-muted)' });
@@ -26,6 +33,106 @@ async function renderResultPage(entityId) {
     renderSummaryCards(main, entity, related);
     renderDetailTabs(main, entity, related, detail);
     renderGraphPanel(graphPanel, entityId, related);
+}
+
+// Render a CVE detail page from shard data when the CVE is not in the
+// curated entity_index. Shows description, CVSS, dates, references, and
+// the CWE/CAPEC/Technique relationship lists, marked with a "from shard"
+// provenance badge so users know they are looking at raw data.
+async function renderCveFromShard(main, graphPanel, cveId) {
+    main.textContent = '';
+    graphPanel.textContent = '';
+
+    // Loading indicator
+    var loading = document.createElement('div');
+    Object.assign(loading.style, {
+        padding: '40px', textAlign: 'center', color: 'var(--text-muted)'
+    });
+    loading.textContent = 'Loading ' + cveId + ' from shard...';
+    main.appendChild(loading);
+
+    var payload = await fetchCveFromShard(cveId);
+    main.textContent = '';
+
+    if (!payload) {
+        var notFound = document.createElement('div');
+        Object.assign(notFound.style, { padding: '40px', textAlign: 'center', color: 'var(--text-muted)' });
+        notFound.textContent = cveId + ' not found in any CVE shard.';
+        main.appendChild(notFound);
+        return;
+    }
+
+    // Synthesize an entity-like record from the shard payload so the
+    // existing renderers can be reused.
+    var description = payload.DESCRIPTION || '';
+    var firstSentence = description ? (description.split('. ')[0] || '').trim() : '';
+    var synthEntity = {
+        id: cveId,
+        type: 'cve',
+        name: firstSentence || cveId,
+        phase: 'vulnerability',
+        description: description,
+        kev: !!payload.KEV,
+        prov: { source: 'TIP CVE Shard', tier: 'shard' }
+    };
+    if (payload.CVSS && typeof payload.CVSS === 'object') {
+        if (payload.CVSS.score !== undefined && payload.CVSS.score !== null) {
+            synthEntity.cvss_score = payload.CVSS.score;
+        }
+        if (payload.CVSS.severity) synthEntity.severity = payload.CVSS.severity;
+        if (payload.CVSS.vector) synthEntity.cvss_vector = payload.CVSS.vector;
+    }
+    if (payload.PUBLISHED) synthEntity.published = payload.PUBLISHED;
+    if (payload.LAST_MODIFIED) synthEntity.last_modified = payload.LAST_MODIFIED;
+    if (Array.isArray(payload.REFERENCES) && payload.REFERENCES.length > 0) {
+        synthEntity.references = payload.REFERENCES;
+    }
+
+    // Build relationship structure from the shard's enrichment lists.
+    var related = {};
+    var relMap = [
+        ['cwe', payload.CWE, function(x) { return String(x).indexOf('CWE-') === 0 ? x : 'CWE-' + x; }],
+        ['capec', payload.CAPEC, function(x) { return String(x).indexOf('CAPEC-') === 0 ? x : 'CAPEC-' + x; }],
+        ['technique', payload.TECHNIQUES, function(x) { return String(x).indexOf('T') === 0 ? x : 'T' + x; }],
+        ['owasp', payload.OWASP, function(x) { return x; }]
+    ];
+    for (var rm = 0; rm < relMap.length; rm++) {
+        var relType = relMap[rm][0];
+        var rawList = relMap[rm][1] || [];
+        var normalize = relMap[rm][2];
+        if (!Array.isArray(rawList) || rawList.length === 0) continue;
+        var ids = rawList.map(normalize);
+        var resolved = ids.map(function(id) {
+            var ent = getEntity(id);
+            return ent || { id: id, type: relType, name: id };
+        });
+        related[relType] = {
+            ids: ids,
+            source: 'shard',
+            tier: 'shard',
+            entities: resolved
+        };
+    }
+
+    renderEntityHeader(main, synthEntity, related);
+    // Add a clear "from shard" provenance badge below the header so users
+    // know this is not from the curated graph.
+    var shardBadge = document.createElement('div');
+    Object.assign(shardBadge.style, {
+        padding: '6px 12px',
+        margin: '0 0 12px 0',
+        fontSize: '12px',
+        background: 'var(--accent-bg, rgba(255, 200, 100, 0.12))',
+        color: 'var(--text-muted)',
+        borderLeft: '3px solid #fdcb6e',
+        borderRadius: '2px'
+    });
+    shardBadge.textContent = 'Loaded on demand from CVE shard. Not in the curated entity graph; relationships derive directly from shard enrichment.';
+    main.appendChild(shardBadge);
+
+    renderSummaryCards(main, synthEntity, related);
+    renderDetailTabs(main, synthEntity, related, { description: description });
+    renderGraphPanel(graphPanel, cveId, related);
 }
 
 function renderEntityHeader(container, entity, related) {

@@ -62,7 +62,7 @@ function setupSearch(inputId, dropdownId) {
 
     input.addEventListener('input', function() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
+        debounceTimer = setTimeout(async function() {
             var query = input.value.trim();
             if (query.length < 2) {
                 dropdown.classList.remove('open');
@@ -70,7 +70,23 @@ function setupSearch(inputId, dropdownId) {
                 return;
             }
             var grouped = searchEntities(query);
-            renderSearchDropdown(grouped, dropdown, query);
+            // Layer 1: when query looks like a CVE prefix, also surface
+            // matches from the all-IDs index. Lazy-load the index.
+            var cveLayer1 = [];
+            var cveLayer1Total = 0;
+            if (/^cve/i.test(query)) {
+                await loadCveIdsIndex();
+                cveLayer1 = searchAllCves(query, 8);
+                cveLayer1Total = countAllCves(query);
+                // Filter out IDs already shown via the rich entity_index
+                // to avoid duplicate rows in the dropdown.
+                if (grouped.cve) {
+                    var dedup = {};
+                    grouped.cve.forEach(function(r) { dedup[r.id] = true; });
+                    cveLayer1 = cveLayer1.filter(function(id) { return !dedup[id]; });
+                }
+            }
+            renderSearchDropdown(grouped, dropdown, query, cveLayer1, cveLayer1Total);
         }, 150);
     });
 
@@ -129,14 +145,24 @@ function navigateToEntity(query) {
         return;
     }
 
+    // Layer 1 fallback: query looks like a full CVE ID, route to its
+    // detail page even if it is not in the curated entity_index.
+    // The result page will fetch the shard on demand.
+    if (/^cve-\d{4}-\d+$/i.test(query)) {
+        window.location.hash = '#/cve/' + query.toUpperCase();
+        return;
+    }
+
     showNotification('No results found for "' + query + '"');
 }
 
-function renderSearchDropdown(grouped, dropdown, query) {
+function renderSearchDropdown(grouped, dropdown, query, cveLayer1, cveLayer1Total) {
     dropdown.textContent = '';
     var types = Object.keys(grouped);
+    cveLayer1 = cveLayer1 || [];
+    cveLayer1Total = cveLayer1Total || 0;
 
-    if (types.length === 0) {
+    if (types.length === 0 && cveLayer1.length === 0) {
         var empty = document.createElement('div');
         Object.assign(empty.style, { padding: '12px 16px', color: 'var(--text-muted)', fontSize: '13px' });
         empty.textContent = 'No results for "' + query + '"';
@@ -183,6 +209,60 @@ function renderSearchDropdown(grouped, dropdown, query) {
             }
 
             dropdown.appendChild(row);
+        }
+    }
+
+    // Layer 1 (all-CVE-IDs) section: render at the bottom, visually distinct.
+    if (cveLayer1.length > 0) {
+        var cveCfg = TYPE_CONFIG.cve || { color: '#ff6b6b', label: 'CVE' };
+        var l1Header = document.createElement('div');
+        l1Header.className = 'search-group-header';
+        l1Header.style.borderTop = '1px solid var(--border)';
+        l1Header.style.marginTop = '4px';
+        l1Header.textContent = 'All CVEs (' + cveLayer1Total + ' match' + (cveLayer1Total === 1 ? '' : 'es') + ')';
+        dropdown.appendChild(l1Header);
+
+        for (var i = 0; i < cveLayer1.length; i++) {
+            var cveId = cveLayer1[i];
+            var l1Row = document.createElement('div');
+            l1Row.className = 'search-result-row';
+            (function(id) {
+                l1Row.addEventListener('click', function() {
+                    dropdown.classList.remove('open');
+                    window.location.hash = '#/cve/' + id;
+                });
+            })(cveId);
+
+            var l1Dot = document.createElement('span');
+            l1Dot.className = 'type-dot';
+            l1Dot.style.background = cveCfg.color;
+            l1Dot.style.opacity = '0.5';  // dimmer dot to mark Layer 1
+            l1Row.appendChild(l1Dot);
+
+            var l1IdSpan = document.createElement('span');
+            l1IdSpan.className = 'search-result-id';
+            l1IdSpan.textContent = cveId;
+            l1Row.appendChild(l1IdSpan);
+
+            var l1Note = document.createElement('span');
+            l1Note.className = 'search-result-name';
+            l1Note.style.fontStyle = 'italic';
+            l1Note.style.opacity = '0.7';
+            l1Note.textContent = 'fetch from shard';
+            l1Row.appendChild(l1Note);
+
+            dropdown.appendChild(l1Row);
+        }
+        if (cveLayer1Total > cveLayer1.length) {
+            var more = document.createElement('div');
+            Object.assign(more.style, {
+                padding: '8px 16px',
+                color: 'var(--text-muted)',
+                fontSize: '12px',
+                fontStyle: 'italic'
+            });
+            more.textContent = '+' + (cveLayer1Total - cveLayer1.length) + ' more; refine the year or tail to narrow';
+            dropdown.appendChild(more);
         }
     }
     dropdown.classList.add('open');

@@ -284,8 +284,13 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     cve_filtered = 0
     kev_cves: set[str] = set()
 
-    # First pass: collect all CVE data, then filter
+    # First pass: collect all CVE data, then filter.
+    # Also accumulate the Layer 1 "all-IDs" index keyed by year so the
+    # frontend search bar can find any ingested CVE even when the CVE is
+    # not in the curated entity_index. Tail integers keep the file small.
     all_cve_data: list[tuple[str, dict]] = []
+    cve_ids_by_year: dict[str, list[int]] = defaultdict(list)
+    total_cve_ids = 0
     for cve_file in cve_files:
         print(f"  Processing {cve_file.name}...")
         opener = gzip.open if cve_file.suffix == '.gz' else open
@@ -296,6 +301,17 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
                     continue
                 record = json.loads(line)
                 for cve_id, cve_data in record.items():
+                    # Layer 1: every ingested CVE goes into the all-IDs index,
+                    # regardless of CWE coverage.
+                    parts = cve_id.split("-")
+                    if len(parts) == 3 and parts[0] == "CVE":
+                        try:
+                            year = parts[1]
+                            tail = int(parts[2])
+                            cve_ids_by_year[year].append(tail)
+                            total_cve_ids += 1
+                        except ValueError:
+                            pass
                     cwes = cve_data.get("CWE", [])
                     if not cwes:
                         cve_skipped += 1
@@ -546,11 +562,33 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
         "entities": entities,
     }
 
-    return entity_index, search_index
+    # ── 14. Build Layer 1 (all-IDs) index ──────────────────────────
+    # Year-grouped sorted integer tails. Lets the frontend search bar
+    # match any ingested CVE ID via prefix without loading the full
+    # entity graph for the 99%+ of CVEs that are not "interesting".
+    print("Building all-CVE ID index...")
+    cve_ids_index = {
+        "v": 1,
+        "generated": datetime.now(timezone.utc).isoformat(),
+        "count": total_cve_ids,
+        "years": {
+            year: sorted(set(tails))
+            for year, tails in sorted(cve_ids_by_year.items())
+        },
+    }
+    print(f"  Indexed {total_cve_ids} CVE IDs across {len(cve_ids_by_year)} years")
+
+    return entity_index, search_index, cve_ids_index
 
 
-def write_outputs(entity_index: dict, search_index: dict, base_dir: str | Path):
-    """Write entity_index.json and search_index.json to docs/data/."""
+def write_outputs(
+    entity_index: dict,
+    search_index: dict,
+    base_dir: str | Path,
+    cve_ids_index: dict | None = None,
+):
+    """Write entity_index.json, search_index.json, and the optional
+    Layer 1 all-CVE-IDs index to docs/data/."""
     base = Path(base_dir)
     out_dir = base / "docs" / "data"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -570,6 +608,14 @@ def write_outputs(entity_index: dict, search_index: dict, base_dir: str | Path):
     si_size = si_path.stat().st_size / (1024 * 1024)
     print(f"  search_index.json: {si_size:.1f} MB")
 
+    if cve_ids_index is not None:
+        cve_ids_path = out_dir / "cve_ids_index.json"
+        print(f"Writing {cve_ids_path}...")
+        with open(cve_ids_path, "w", encoding="utf-8") as f:
+            json.dump(cve_ids_index, f, separators=(",", ":"))
+        cve_ids_size = cve_ids_path.stat().st_size / (1024 * 1024)
+        print(f"  cve_ids_index.json: {cve_ids_size:.1f} MB")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generate TIP entity and search indexes")
@@ -583,8 +629,8 @@ def main():
     print("=== TIP Entity Index Generator ===")
     print(f"Base dir: {args.base_dir}\n")
 
-    entity_index, search_index = generate_entity_index(args.base_dir)
-    write_outputs(entity_index, search_index, args.base_dir)
+    entity_index, search_index, cve_ids_index = generate_entity_index(args.base_dir)
+    write_outputs(entity_index, search_index, args.base_dir, cve_ids_index)
 
     # Summary
     type_counts = defaultdict(int)

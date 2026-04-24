@@ -16,8 +16,9 @@ A search-first threat intelligence tool that correlates CVEs across 8 security f
 
 As of 2026-04-24:
 
-- 345K raw CVEs ingested from NVD, 271K with CWE mappings, 2,766 indexed in the entity graph
-- 5,303 total entities across 8 frameworks
+- 345K raw CVEs ingested from NVD; every one is searchable by ID via the tiered all-CVE index
+- Curated entity graph holds 3,065 "interesting" CVEs (KEV / APT / vulnrichment / CVSS >= 7.0) with full relationships
+- 5,602 total entities across 8 frameworks
 - Auto-rebuilds via GitHub Actions: daily reference database refresh + weekly full CVE pipeline
 - MCP Phase A live (3 of 6 tools), with shard fallback in both `lookup_entity` and `pivot_from_entity` for any CVE on disk
 - 67 tests passing
@@ -250,8 +251,9 @@ The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMA
 | Search-first UI redesign | 2026-03-28 | Replaced 6-tab Bootstrap layout with single-search SPA; D3 graph replaces Sankey; investigation pinning; hash routing |
 | GitHub Actions automation | 2026-03-29 | Daily reference DB updates + weekly CVE pipeline; both auto-commit |
 | MCP Phase A | 2026-04-23 | `lookup_entity`, `pivot_from_entity`, `search_threat_intel` over stdio; 25 tests |
-| CVE enrichment surgery | 2026-04-24 | Removed description and name truncations; added CVSS, dates, references extraction; widened entity_index filter (1,367 to 2,766 indexed); MCP `lookup_entity` shard fallback |
+| CVE enrichment surgery | 2026-04-24 | Removed description and name truncations; added CVSS, dates, references extraction; widened entity_index filter (1,367 to 3,065 indexed); MCP `lookup_entity` shard fallback |
 | MCP `pivot_from_entity` shard fallback | 2026-04-24 | Same JSONL shard fallback pattern mirrored into pivot; extracted `_shard_rels` helper; 8 new tests |
+| All-CVE tiered search architecture | 2026-04-24 | Layer 1 `cve_ids_index.json` (1.8 MB, 345K CVE IDs); Layer 3 client-side shard fetch via `DecompressionStream`; any ingested CVE is now searchable and opens a detail page |
 
 ### Next (ready to pick up)
 
@@ -265,7 +267,6 @@ The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMA
 
 | Item | Why parked |
 |------|------------|
-| All-CVE search architecture (tiered all-IDs index plus rich graph plus on-demand shard fetch) | Largest gap. Today's filter widening was incremental (2,766 vs full 271K). Full coverage needs a tiered design to avoid breaking browser load. |
 | Multi-entity analysis mode (paste a list, see combined view) | Needs design session; UX questions unresolved |
 | Visual polish (graph legend, zoom, landing page enhancements, responsive tweaks) | Functional today; promote when external demo polish matters |
 | Live pipeline trigger from the search bar | Not blocking; static site is the primary deployment |

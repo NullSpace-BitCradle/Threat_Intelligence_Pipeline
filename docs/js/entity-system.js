@@ -8,6 +8,14 @@ let entityIndex = null;
 let searchIndex = null;
 let indicesLoading = false;
 
+// Layer 1: all-CVE-IDs index (lazily loaded; ~1.8 MB)
+let cveIdsIndex = null;
+let cveIdsLoading = null;  // promise-of-load to dedupe concurrent calls
+
+// Layer 3: per-year shard cache (parsed Map<cve_id, payload>)
+const shardCache = new Map();
+const shardLoading = new Map();  // year -> in-flight promise
+
 const TYPE_CONFIG = {
     cve:       { color: '#ff6b6b', label: 'CVE',       relLabel: 'Vulnerabilities' },
     cwe:       { color: '#4ecdc4', label: 'CWE',       relLabel: 'Weaknesses' },
@@ -41,6 +49,28 @@ async function loadIndices() {
     }
 }
 
+// Lazy-load the Layer 1 all-IDs index. Called only when the user types
+// a CVE prefix in the search bar or navigates to a CVE not in the rich
+// entity_index. Returns the parsed index or null on failure.
+async function loadCveIdsIndex() {
+    if (cveIdsIndex) return cveIdsIndex;
+    if (cveIdsLoading) return cveIdsLoading;
+    cveIdsLoading = (async function() {
+        try {
+            const res = await fetch('data/cve_ids_index.json');
+            if (!res.ok) throw new Error('cve_ids_index.json HTTP ' + res.status);
+            cveIdsIndex = await res.json();
+            return cveIdsIndex;
+        } catch (e) {
+            console.error('Failed to load cve_ids_index.json:', e);
+            return null;
+        } finally {
+            cveIdsLoading = null;
+        }
+    })();
+    return cveIdsLoading;
+}
+
 // ── Search ──────────────────────────────────────────────────────
 
 function searchEntities(query) {
@@ -70,6 +100,148 @@ function searchEntities(query) {
         grouped[type] = grouped[type].slice(0, 5);
     }
     return grouped;
+}
+
+// ── Layer 1: All-CVE-IDs search ─────────────────────────────────
+
+const _CVE_ID_RE = /^cve(?:-(\d{4})(?:-(\d+))?)?$/i;
+
+// Parse a free-form query into {year, tail} when it looks like a CVE prefix.
+// Accepts: "CVE", "CVE-2024", "CVE-2024-", "CVE-2024-1", "cve-2024-12345", etc.
+function _parseCvePrefix(query) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q.startsWith('cve')) return null;
+    const m = q.match(_CVE_ID_RE);
+    if (!m) return null;
+    return { year: m[1] || null, tail: m[2] || null };
+}
+
+// Returns up to `limit` CVE IDs matching the prefix from the Layer 1 index.
+// `cveIdsIndex` must be loaded first (caller awaits loadCveIdsIndex).
+function searchAllCves(query, limit) {
+    if (!cveIdsIndex || !cveIdsIndex.years) return [];
+    limit = limit || 10;
+    const parsed = _parseCvePrefix(query);
+    if (!parsed) return [];
+
+    const hits = [];
+    const years = parsed.year
+        ? (cveIdsIndex.years[parsed.year] ? [parsed.year] : [])
+        : Object.keys(cveIdsIndex.years).sort().reverse();  // newest first
+
+    for (const yr of years) {
+        const tails = cveIdsIndex.years[yr];
+        if (!tails) continue;
+        if (parsed.tail) {
+            const tailPrefix = parsed.tail;
+            for (let i = 0; i < tails.length && hits.length < limit; i++) {
+                const tStr = String(tails[i]).padStart(4, '0');
+                if (tStr.startsWith(tailPrefix) || String(tails[i]).startsWith(tailPrefix)) {
+                    hits.push('CVE-' + yr + '-' + tStr);
+                }
+            }
+        } else {
+            // Year matched, no tail; return first N from that year.
+            for (let i = 0; i < Math.min(tails.length, limit - hits.length); i++) {
+                hits.push('CVE-' + yr + '-' + String(tails[i]).padStart(4, '0'));
+            }
+        }
+        if (hits.length >= limit) break;
+    }
+    return hits;
+}
+
+// Returns the total count of CVEs matching the prefix (for "+K more" indicator)
+function countAllCves(query) {
+    if (!cveIdsIndex || !cveIdsIndex.years) return 0;
+    const parsed = _parseCvePrefix(query);
+    if (!parsed) return 0;
+    let total = 0;
+    const years = parsed.year
+        ? (cveIdsIndex.years[parsed.year] ? [parsed.year] : [])
+        : Object.keys(cveIdsIndex.years);
+    for (const yr of years) {
+        const tails = cveIdsIndex.years[yr];
+        if (!tails) continue;
+        if (!parsed.tail) {
+            total += tails.length;
+            continue;
+        }
+        for (let i = 0; i < tails.length; i++) {
+            const tStr = String(tails[i]).padStart(4, '0');
+            if (tStr.startsWith(parsed.tail) || String(tails[i]).startsWith(parsed.tail)) {
+                total++;
+            }
+        }
+    }
+    return total;
+}
+
+// ── Layer 3: On-demand shard fetch ──────────────────────────────
+
+const _CVE_FULL_RE = /^cve-(\d{4})-\d+$/i;
+
+// Fetch and parse the per-year CVE shard. Caches the parsed Map for reuse.
+// Uses native DecompressionStream (Chrome 80+, Firefox 113+, Safari 16.4+).
+// Returns Map<cve_id, payload> or null on error.
+async function fetchShardForYear(year) {
+    if (shardCache.has(year)) return shardCache.get(year);
+    if (shardLoading.has(year)) return shardLoading.get(year);
+
+    if (typeof DecompressionStream === 'undefined') {
+        console.error('DecompressionStream unavailable; cannot fetch shard');
+        return null;
+    }
+
+    const promise = (async function() {
+        try {
+            const url = 'database/CVE-' + year + '.jsonl.gz';
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.warn('Shard not found:', url, response.status);
+                return null;
+            }
+            const ds = new DecompressionStream('gzip');
+            const decompressed = response.body.pipeThrough(ds);
+            const text = await new Response(decompressed).text();
+
+            const cves = new Map();
+            const lines = text.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                    const obj = JSON.parse(trimmed);
+                    for (const key in obj) {
+                        cves.set(key.toUpperCase(), obj[key]);
+                    }
+                } catch (parseErr) {
+                    // Skip malformed lines; do not abort the whole shard.
+                }
+            }
+            shardCache.set(year, cves);
+            return cves;
+        } catch (err) {
+            console.error('Shard fetch failed for year', year, err);
+            return null;
+        } finally {
+            shardLoading.delete(year);
+        }
+    })();
+    shardLoading.set(year, promise);
+    return promise;
+}
+
+// Look up a single CVE in the shard for its year. Returns the payload dict
+// (DESCRIPTION, CWE, CAPEC, TECHNIQUES, OWASP, CVSS, ...) or null.
+async function fetchCveFromShard(cveId) {
+    if (!cveId) return null;
+    const m = cveId.match(_CVE_FULL_RE);
+    if (!m) return null;
+    const year = m[1];
+    const cves = await fetchShardForYear(year);
+    if (!cves) return null;
+    return cves.get(cveId.toUpperCase()) || null;
 }
 
 // ── Entity Helpers ──────────────────────────────────────────────
