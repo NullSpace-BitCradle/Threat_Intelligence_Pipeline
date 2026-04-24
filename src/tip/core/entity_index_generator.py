@@ -272,8 +272,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict]:
     print(f"  Loaded {len(vulnrich_db)} vulnrichment entries")
 
     # ── 8. Load all CVE JSONL files ───────────────────────────────
-    # Only index "interesting" CVEs: KEV-listed, APT-linked, or 3+ relationship types.
-    # This keeps entity_index.json browser-friendly (~2-4MB vs 200MB+).
+    # Only index "interesting" CVEs: in CISA KEV, linked to an APT group,
+    # carrying CISA vulnrichment data, or rated CVSS >= 7.0 (HIGH+). The
+    # full filter expression lives below in the CVE loop. This keeps
+    # entity_index.json browser-friendly (currently ~8 MB for 2.7K CVEs;
+    # full 271K-CVE coverage would push past 100 MB and break browser load).
     print("Loading CVE databases...")
     cve_files = sorted(db_dir.glob("CVE-*.jsonl.gz")) or sorted(db_dir.glob("CVE-*.jsonl"))
     cve_count = 0

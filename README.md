@@ -272,14 +272,17 @@ The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMA
 | Extended export formats (CSV, ATT&CK Navigator layer JSON) | JSON export shipped; promote on user request |
 | MCP `pivot_from_entities(ids)` (multi-entity pivot) | Blocked on multi-entity analysis design |
 
-### Followup (small leftovers)
+### Followup
 
-- Update or remove the prior "300-char description truncation" memory note (now obsolete after the 2026-04-24 surgery)
-- Rewrite stale comment in `src/tip/core/entity_index_generator.py` line 275 (filter description no longer matches the code)
-- Vertical campaign timeline UI for APT entity panels (currently shows date range only)
-- Campaign external link builder (`buildExternalLink` for `campaign` type)
-- Playwright smoke test for the static site (no automated UI tests today)
-- Merge vulnrichment `cisaCVSS` into shard CVE.CVSS at ingest so shards carry CVSS even if `vulnrichment_db.json` rotates
+Cleared 2026-04-24 afternoon (F1, F2, F3, F5):
+- Memory note refreshed to pointer-first structure
+- Stale comment in `entity_index_generator.py` rewritten to match current filter
+- `buildExternalLink` helper added; entity ID header now links to source site
+- APT group overview shows Campaign Timeline sorted by first_seen
+- `cve_processor` now merges vulnrichment `cisaCVSS` into CVE.CVSS at ingest (takes effect on next pipeline run)
+
+Remaining:
+- Playwright smoke test for the static site (no automated UI tests today, medium effort)
 
 ## License
 

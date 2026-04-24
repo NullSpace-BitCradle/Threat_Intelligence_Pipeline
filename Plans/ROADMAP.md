@@ -1,6 +1,6 @@
 # TIP Development Roadmap
 
-Last updated: 2026-04-24 (afternoon: N3 shipped)
+Last updated: 2026-04-24 (afternoon: N3 shipped, F1/F2/F3/F5 cleared)
 Owner: the maintainer (Strategic Rogue / NullSpace-BitCradle)
 
 ## How to read this doc
@@ -192,18 +192,26 @@ TRIGGER TO UNDEFER: D2.
 ## 6. FOLLOWUP (small leftovers)
 
 ### F1. Description-storage memory note
-SIZE: tiny (5 minutes).
-The user-level memory `~/.claude/MEMORY/AUTO/project_tip_v15_status.md` contains the line "CVE description storage added to processor (truncated to 300 chars currently)". That truncation was removed today. When this roadmap is reviewed, also update or rewrite that memory entry so future sessions start from accurate state.
+STATUS: DONE (2026-04-24 afternoon).
+Refreshed `~/.claude/MEMORY/AUTO/project_tip_v15_status.md` to remove stale "300-char truncation" reference and reshape as a pointer-first memory that routes future sessions to `Plans/ROADMAP.md` for live state.
 
 ### F2. Stale comment in entity_index_generator
-SIZE: tiny (2 minutes).
-Line 275 of `src/tip/core/entity_index_generator.py` reads `# Only index "interesting" CVEs: KEV-listed, APT-linked, or 3+ relationship types`. The "3+ relationship types" criterion has never been implemented (the actual filter has always been simpler). Today's filter is even broader. Comment should be rewritten to match current code.
+STATUS: DONE (2026-04-24 afternoon).
+Comment at `src/tip/core/entity_index_generator.py:275` rewritten to match the current filter (KEV + APT + vulnrichment + CVSS >= 7.0) and carry the 15 MB browser-load budget rationale.
 
 ### F3. Provenance plan cosmetic gaps (from Phase 2)
-SIZE: small (afternoon).
-- Vertical campaign timeline UI for APT entity panels (currently shows only date range)
-- Campaign external link builder (`buildExternalLink` for `campaign` type)
-TRIGGER TO PICK UP: visible during real APT investigation, otherwise stays cosmetic.
+STATUS: DONE (2026-04-24 afternoon).
+- `buildExternalLink(entity)` helper added in `docs/js/entity-system.js` covering cve, cwe, capec, technique, apt_group, campaign, defend, and owasp
+- Entity ID on the results header is now a link to the source site when one exists
+- APT group overview panel gains a "Campaign Timeline" section listing related campaigns sorted by first_seen, with date range and technique count per entry, click to navigate
+
+### F4. UI test coverage
+STATUS: PENDING (medium, 1 day).
+No automated UI tests today. Today's results.js changes (severity badge, description block, disclosure dates, campaign timeline, external links) were only manually inspected. Add a Playwright smoke test that loads the static site, searches for a known CVE, asserts the expected DOM exists.
+
+### F5. Vulnrichment CVSS into shards at ingest
+STATUS: DONE (2026-04-24 afternoon; takes effect on next pipeline run).
+`cve_processor.process_cve_pipeline()` now merges `VULNRICHMENT.cisaCVSS` into the top-level `CVSS` field at enrichment time when NVD CVSS is absent. Result: shards become self-contained (no longer need the entity_index_generator's vulnrichment_db.json fallback once shards are rebuilt by the next full pipeline). Includes a `source: "cisa_vulnrichment"` marker on the derived CVSS record.
 
 ### F4. UI test coverage
 SIZE: medium (1 day).

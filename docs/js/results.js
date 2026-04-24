@@ -32,10 +32,24 @@ function renderEntityHeader(container, entity, related) {
     const header = document.createElement('div');
     header.className = 'entity-header';
 
-    // Entity ID
+    // Entity ID (with optional external source link)
     const idEl = document.createElement('div');
     idEl.className = 'entity-id';
-    idEl.textContent = entity.id;
+    const externalUrl = typeof buildExternalLink === 'function' ? buildExternalLink(entity) : null;
+    if (externalUrl) {
+        const idLink = document.createElement('a');
+        idLink.href = externalUrl;
+        idLink.target = '_blank';
+        idLink.rel = 'noopener noreferrer';
+        idLink.textContent = entity.id;
+        idLink.title = 'View on source site';
+        idLink.style.color = 'inherit';
+        idLink.style.textDecoration = 'none';
+        idLink.style.borderBottom = '1px dotted var(--text-muted)';
+        idEl.appendChild(idLink);
+    } else {
+        idEl.textContent = entity.id;
+    }
     header.appendChild(idEl);
 
     // Description block. Prefer the full description; fall back to the
@@ -389,6 +403,76 @@ function renderOverviewContent(panel, entity, detail) {
     if ((entity.type === 'campaign') && (entity.first_seen || entity.last_seen)) {
         addOverviewField(content, 'First Seen', entity.first_seen || 'Unknown');
         addOverviewField(content, 'Last Seen', entity.last_seen || 'Ongoing');
+    }
+
+    // Campaign timeline for APT group entities: list related campaigns
+    // sorted by first_seen, showing date range and technique count.
+    if (entity.type === 'apt_group') {
+        const relatedCampaigns = [];
+        const groupRels = (getRelatedEntities(entity.id) || {});
+        const campaignRel = groupRels.campaign || { entities: [] };
+        for (const camp of (campaignRel.entities || [])) {
+            if (!camp) continue;
+            const campRels = getRelatedEntities(camp.id) || {};
+            relatedCampaigns.push({
+                id: camp.id,
+                name: camp.name || camp.id,
+                first_seen: camp.first_seen || '',
+                last_seen: camp.last_seen || '',
+                technique_count: (campRels.technique && campRels.technique.ids)
+                    ? campRels.technique.ids.length : 0
+            });
+        }
+        if (relatedCampaigns.length > 0) {
+            relatedCampaigns.sort(function(a, b) {
+                return (a.first_seen || '').localeCompare(b.first_seen || '');
+            });
+
+            const timelineSection = document.createElement('div');
+            timelineSection.className = 'overview-section';
+
+            const timelineLabel = document.createElement('div');
+            timelineLabel.className = 'overview-label';
+            timelineLabel.textContent = 'Campaign Timeline';
+            timelineSection.appendChild(timelineLabel);
+
+            const timeline = document.createElement('div');
+            timeline.className = 'campaign-timeline';
+
+            for (const camp of relatedCampaigns) {
+                const entry = document.createElement('div');
+                entry.className = 'campaign-timeline-entry';
+                entry.style.padding = '8px 0';
+                entry.style.borderLeft = '2px solid var(--accent)';
+                entry.style.paddingLeft = '12px';
+                entry.style.marginBottom = '6px';
+                entry.style.cursor = 'pointer';
+                entry.addEventListener('click', (function(id) {
+                    return function() { navigateToEntity(id); };
+                })(camp.id));
+
+                const idLine = document.createElement('div');
+                idLine.style.fontWeight = '600';
+                idLine.style.color = 'var(--accent)';
+                idLine.textContent = camp.id + ' - ' + camp.name;
+                entry.appendChild(idLine);
+
+                const metaLine = document.createElement('div');
+                metaLine.style.fontSize = '0.85em';
+                metaLine.style.color = 'var(--text-muted)';
+                const range = (camp.first_seen || '?') +
+                    (camp.last_seen ? ' to ' + camp.last_seen : ' (ongoing)');
+                const techPart = camp.technique_count > 0
+                    ? ' | ' + camp.technique_count + ' techniques'
+                    : '';
+                metaLine.textContent = range + techPart;
+                entry.appendChild(metaLine);
+
+                timeline.appendChild(entry);
+            }
+            timelineSection.appendChild(timeline);
+            content.appendChild(timelineSection);
+        }
     }
 
     // Provenance

@@ -106,6 +106,40 @@ function getEntitiesByType(type) {
         .map(([id, e]) => ({ id, ...e }));
 }
 
+// Return the canonical external URL for an entity on its source site,
+// or null if the type has no well-known external home page.
+function buildExternalLink(entity) {
+    if (!entity || !entity.id || !entity.type) return null;
+    const id = entity.id;
+    switch (entity.type) {
+        case 'cve':
+            return 'https://nvd.nist.gov/vuln/detail/' + encodeURIComponent(id);
+        case 'cwe':
+            return 'https://cwe.mitre.org/data/definitions/' +
+                encodeURIComponent(id.replace(/^CWE-/, '')) + '.html';
+        case 'capec':
+            return 'https://capec.mitre.org/data/definitions/' +
+                encodeURIComponent(id.replace(/^CAPEC-/, '')) + '.html';
+        case 'technique': {
+            // T1059 -> T1059; T1059.001 -> T1059/001 on ATT&CK
+            const parts = id.replace(/^T/, '').split('.');
+            const tail = parts.length > 1 ? parts[0] + '/' + parts[1] : parts[0];
+            return 'https://attack.mitre.org/techniques/T' + tail + '/';
+        }
+        case 'apt_group':
+            return 'https://attack.mitre.org/groups/' + encodeURIComponent(id) + '/';
+        case 'campaign':
+            return 'https://attack.mitre.org/campaigns/' + encodeURIComponent(id) + '/';
+        case 'defend':
+            return 'https://d3fend.mitre.org/technique/d3f:' + encodeURIComponent(id) + '/';
+        case 'owasp':
+            // OWASP IDs like A03:2021; canonical URL is the top 10 landing page
+            return 'https://owasp.org/Top10/';
+        default:
+            return null;
+    }
+}
+
 // ── Detail Fetching (lazy-loaded from raw DB files) ────────────
 
 const detailCache = {};

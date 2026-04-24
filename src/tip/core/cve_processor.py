@@ -542,6 +542,37 @@ class CVEProcessor:
                 vr_data = self.vulnrichment_processor.lookup(cve_id)
                 if vr_data:
                     result[cve_id]["VULNRICHMENT"] = vr_data
+                    # Merge cisaCVSS into the top-level CVSS field when NVD
+                    # did not provide one. Keeps the shard self-contained so
+                    # the entity_index generator does not need to re-open
+                    # vulnrichment_db.json on every rebuild.
+                    existing_cvss = result[cve_id].get("CVSS")
+                    has_nvd_cvss = (
+                        isinstance(existing_cvss, dict)
+                        and existing_cvss.get("score") is not None
+                    )
+                    cisa_cvss = vr_data.get("cisaCVSS") if isinstance(vr_data, dict) else None
+                    if not has_nvd_cvss and isinstance(cisa_cvss, dict):
+                        score = cisa_cvss.get("baseScore")
+                        if isinstance(score, (int, float)):
+                            score_f = float(score)
+                            if score_f >= 9.0:
+                                severity = "CRITICAL"
+                            elif score_f >= 7.0:
+                                severity = "HIGH"
+                            elif score_f >= 4.0:
+                                severity = "MEDIUM"
+                            elif score_f > 0.0:
+                                severity = "LOW"
+                            else:
+                                severity = "NONE"
+                            result[cve_id]["CVSS"] = {
+                                "score": score_f,
+                                "vector": cisa_cvss.get("vector", ""),
+                                "severity": cisa_cvss.get("baseSeverity") or severity,
+                                "version": "3.1",
+                                "source": "cisa_vulnrichment",
+                            }
 
                 # Step 8: APT Groups reverse lookup from techniques
                 if result[cve_id].get("TECHNIQUES"):
