@@ -1,4 +1,22 @@
 {
+    "CVE-2024-1708": {
+        "inKEV": true,
+        "dateAdded": "2026-04-28",
+        "dueDate": "2026-05-12",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "ConnectWise",
+        "product": "ScreenConnect"
+    },
+    "CVE-2026-32202": {
+        "inKEV": true,
+        "dateAdded": "2026-04-28",
+        "dueDate": "2026-05-12",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Microsoft",
+        "product": "Windows"
+    },
     "CVE-2025-29635": {
         "inKEV": true,
         "dateAdded": "2026-04-24",
