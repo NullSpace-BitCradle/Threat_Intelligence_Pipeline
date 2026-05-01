@@ -29,7 +29,7 @@
     },
     "1021": {
         "name": "Improper Restriction of Rendered UI Layers or Frames",
-        "description": "The web application does not restrict or incorrectly restricts frame objects or UI layers that belong to another application or domain, which can lead to user confusion about which interface the user is interacting with.",
+        "description": "The web application does not restrict or incorrectly restricts frame objects or UI layers that belong to another application or domain.",
         "ChildOf": [
             "441",
             "610",
@@ -1912,7 +1912,7 @@
         ]
     },
     "1290": {
-        "name": "Incorrect Decoding of Security Identifiers ",
+        "name": "Incorrect Decoding of Security Identifiers",
         "description": "The product implements a decoding mechanism to decode certain bus-transaction signals to security identifiers. If the decoding is implemented incorrectly, then untrusted agents can now gain unauthorized access to the asset.",
         "ChildOf": [
             "284",
@@ -2351,7 +2351,7 @@
     },
     "1333": {
         "name": "Inefficient Regular Expression Complexity",
-        "description": "The product uses a regular expression with an inefficient, possibly exponential worst-case computational complexity that consumes excessive CPU cycles.",
+        "description": "The product uses a regular expression with a worst-case computational complexity that is inefficient and possibly exponential.",
         "ChildOf": [
             "407",
             "407"
@@ -2553,6 +2553,7 @@
         "name": "Dependency on Vulnerable Third-Party Component",
         "description": "The product has a dependency on a third-party component that contains one or more known vulnerabilities.",
         "ChildOf": [
+            "1357",
             "657"
         ],
         "RelatedAttackPatterns": []
@@ -3399,7 +3400,7 @@
     },
     "203": {
         "name": "Observable Discrepancy",
-        "description": "The product behaves differently or sends different responses under different circumstances in a way that is observable to an unauthorized actor, which exposes security-relevant information about the state of the product, such as whether a particular operation was successful or not.",
+        "description": "The product behaves differently or sends different responses under different circumstances in a way that is observable to an unauthorized actor.",
         "ChildOf": [
             "200",
             "200"
@@ -4124,7 +4125,7 @@
         "RelatedAttackPatterns": []
     },
     "280": {
-        "name": "Improper Handling of Insufficient Permissions or Privileges ",
+        "name": "Improper Handling of Insufficient Permissions or Privileges",
         "description": "The product does not handle or incorrectly handles when it has insufficient privileges to access resources or functionality as specified by their permissions. This may cause it to follow unexpected code paths that may leave the product in an invalid state.",
         "ChildOf": [
             "755"
@@ -4345,7 +4346,7 @@
     },
     "296": {
         "name": "Improper Following of a Certificate's Chain of Trust",
-        "description": "The product does not follow, or incorrectly follows, the chain of trust for a certificate back to a trusted root certificate, resulting in incorrect trust of any resource that is associated with that certificate.",
+        "description": "The product does not follow, or incorrectly follows, the chain of trust for a certificate back to a trusted root certificate.",
         "ChildOf": [
             "295",
             "573"
@@ -4363,7 +4364,7 @@
     },
     "298": {
         "name": "Improper Validation of Certificate Expiration",
-        "description": "A certificate expiration is not validated or is incorrectly validated, so trust may be assigned to certificates that have been abandoned due to age.",
+        "description": "A certificate expiration is not validated or is incorrectly validated.",
         "ChildOf": [
             "295",
             "672"
@@ -7225,8 +7226,8 @@
         "RelatedAttackPatterns": []
     },
     "598": {
-        "name": "Use of GET Request Method With Sensitive Query Strings",
-        "description": "The web application uses the HTTP GET method to process a request and includes sensitive information in the query string of that request.",
+        "name": "Use of HTTP Request With Sensitive Query String",
+        "description": "The web application uses an HTTP method to process a request, but the request includes sensitive information in the query string.",
         "ChildOf": [
             "201"
         ],
@@ -7252,7 +7253,7 @@
         ]
     },
     "600": {
-        "name": "Uncaught Exception in Servlet ",
+        "name": "Uncaught Exception in Servlet",
         "description": "The Servlet does not catch all exceptions, which may reveal sensitive debugging information.",
         "ChildOf": [
             "248"
