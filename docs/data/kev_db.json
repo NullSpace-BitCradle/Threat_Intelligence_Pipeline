@@ -1,4 +1,13 @@
 {
+    "CVE-2026-31431": {
+        "inKEV": true,
+        "dateAdded": "2026-05-01",
+        "dueDate": "2026-05-15",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "\"Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Linux",
+        "product": "Kernel"
+    },
     "CVE-2026-41940": {
         "inKEV": true,
         "dateAdded": "2026-04-30",
