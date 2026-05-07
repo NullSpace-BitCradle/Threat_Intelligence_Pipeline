@@ -1,4 +1,13 @@
 {
+    "CVE-2026-0300": {
+        "inKEV": true,
+        "dateAdded": "2026-05-06",
+        "dueDate": "2026-05-09",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.    Until the vendor releases an official fix, the following workaround should be implemented:  - Restrict User-ID Authentication Portal access to only trusted zones.  - Disable User-ID Authentication Portal if not required.",
+        "vendorProject": "Palo Alto Networks",
+        "product": "PAN-OS"
+    },
     "CVE-2026-31431": {
         "inKEV": true,
         "dateAdded": "2026-05-01",
