@@ -1,4 +1,13 @@
 {
+    "CVE-2026-6973": {
+        "inKEV": true,
+        "dateAdded": "2026-05-07",
+        "dueDate": "2026-05-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Ivanti",
+        "product": "Endpoint Manager Mobile (EPMM)"
+    },
     "CVE-2026-0300": {
         "inKEV": true,
         "dateAdded": "2026-05-06",
