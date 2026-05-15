@@ -1,4 +1,13 @@
 {
+    "CVE-2026-20182": {
+        "inKEV": true,
+        "dateAdded": "2026-05-14",
+        "dueDate": "2026-05-17",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Please adhere to CISA\u2019s guidelines to assess exposure and mitigate risks associated with Cisco SD-WAN devices as outlined in CISA\u2019s Emergency Directive 26-03 (URL listed below in Notes) and CISA\u2019s Hunt & Hardening Guidance for Cisco SD-WAN Devices (URL listed below in Notes). Adhere to the applicable BOD 22-01 guidance for cloud services or discontinue use of the product if mitigations are not available.",
+        "vendorProject": "Cisco",
+        "product": "Catalyst SD-WAN"
+    },
     "CVE-2026-42208": {
         "inKEV": true,
         "dateAdded": "2026-05-08",
@@ -48,7 +57,7 @@
         "inKEV": true,
         "dateAdded": "2026-04-28",
         "dueDate": "2026-05-12",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "ConnectWise",
         "product": "ScreenConnect"
@@ -84,7 +93,7 @@
         "inKEV": true,
         "dateAdded": "2026-04-24",
         "dueDate": "2026-05-08",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "SimpleHelp ",
         "product": "SimpleHelp"
@@ -93,7 +102,7 @@
         "inKEV": true,
         "dateAdded": "2026-04-24",
         "dueDate": "2026-05-08",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "SimpleHelp ",
         "product": "SimpleHelp"
