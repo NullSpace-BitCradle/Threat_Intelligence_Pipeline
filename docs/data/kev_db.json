@@ -1,4 +1,22 @@
 {
+    "CVE-2025-34291": {
+        "inKEV": true,
+        "dateAdded": "2026-05-21",
+        "dueDate": "2026-06-04",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Langflow",
+        "product": "Langflow"
+    },
+    "CVE-2026-34926": {
+        "inKEV": true,
+        "dateAdded": "2026-05-21",
+        "dueDate": "2026-06-04",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Trend Micro",
+        "product": "Apex One"
+    },
     "CVE-2008-4250": {
         "inKEV": true,
         "dateAdded": "2026-05-20",
@@ -8013,7 +8031,7 @@
         "inKEV": true,
         "dateAdded": "2022-05-25",
         "dueDate": "2022-06-15",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Oracle",
         "product": "Java Runtime Environment (JRE)"
