@@ -1,4 +1,13 @@
 {
+    "CVE-2026-9082": {
+        "inKEV": true,
+        "dateAdded": "2026-05-22",
+        "dueDate": "2026-05-27",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Drupal",
+        "product": "Core"
+    },
     "CVE-2025-34291": {
         "inKEV": true,
         "dateAdded": "2026-05-21",
@@ -9435,7 +9444,7 @@
         "inKEV": true,
         "dateAdded": "2022-03-25",
         "dueDate": "2022-04-15",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Webmin",
         "product": "Webmin"
