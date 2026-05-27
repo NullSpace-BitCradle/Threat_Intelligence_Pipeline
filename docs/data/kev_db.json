@@ -1,4 +1,13 @@
 {
+    "CVE-2026-48172": {
+        "inKEV": true,
+        "dateAdded": "2026-05-26",
+        "dueDate": "2026-05-29",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "LiteSpeed",
+        "product": "cPanel Plugin"
+    },
     "CVE-2026-9082": {
         "inKEV": true,
         "dateAdded": "2026-05-22",
