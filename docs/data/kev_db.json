@@ -1,4 +1,31 @@
 {
+    "CVE-2026-48027": {
+        "inKEV": true,
+        "dateAdded": "2026-05-27",
+        "dueDate": "2026-06-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Nx",
+        "product": "Nx Console"
+    },
+    "CVE-2026-45321": {
+        "inKEV": true,
+        "dateAdded": "2026-05-27",
+        "dueDate": "2026-06-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "TanStack",
+        "product": "TanStack"
+    },
+    "CVE-2026-8398": {
+        "inKEV": true,
+        "dateAdded": "2026-05-27",
+        "dueDate": "2026-05-30",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Daemon",
+        "product": "Daemon Tools Lite"
+    },
     "CVE-2026-48172": {
         "inKEV": true,
         "dateAdded": "2026-05-26",
