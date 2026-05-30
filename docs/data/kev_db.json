@@ -1,4 +1,13 @@
 {
+    "CVE-2026-0257": {
+        "inKEV": true,
+        "dateAdded": "2026-05-29",
+        "dueDate": "2026-06-01",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Palo Alto Networks",
+        "product": "PAN-OS"
+    },
     "CVE-2026-48027": {
         "inKEV": true,
         "dateAdded": "2026-05-27",
