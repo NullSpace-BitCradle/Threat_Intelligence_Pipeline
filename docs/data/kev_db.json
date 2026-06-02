@@ -1,4 +1,13 @@
 {
+    "CVE-2024-21182": {
+        "inKEV": true,
+        "dateAdded": "2026-06-01",
+        "dueDate": "2026-06-04",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Oracle",
+        "product": "WebLogic Server"
+    },
     "CVE-2026-0257": {
         "inKEV": true,
         "dateAdded": "2026-05-29",
