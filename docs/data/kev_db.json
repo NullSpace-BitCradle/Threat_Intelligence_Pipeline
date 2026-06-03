@@ -1,4 +1,22 @@
 {
+    "CVE-2022-0492": {
+        "inKEV": true,
+        "dateAdded": "2026-06-02",
+        "dueDate": "2026-06-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Linux",
+        "product": "Kernel"
+    },
+    "CVE-2025-48595": {
+        "inKEV": true,
+        "dateAdded": "2026-06-02",
+        "dueDate": "2026-06-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Android",
+        "product": "Framework"
+    },
     "CVE-2024-21182": {
         "inKEV": true,
         "dateAdded": "2026-06-01",
