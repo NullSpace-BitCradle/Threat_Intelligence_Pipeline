@@ -1,4 +1,13 @@
 {
+    "CVE-2026-28318": {
+        "inKEV": true,
+        "dateAdded": "2026-06-05",
+        "dueDate": "2026-06-19",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "SolarWinds",
+        "product": "Serv-U"
+    },
     "CVE-2026-45247": {
         "inKEV": true,
         "dateAdded": "2026-06-03",
