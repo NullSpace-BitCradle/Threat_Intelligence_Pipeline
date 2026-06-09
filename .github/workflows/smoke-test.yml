@@ -1,12 +1,50 @@
 name: Site Smoke Test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'tests/smoke/**'
+      - '.github/workflows/smoke-test.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'tests/smoke/**'
+      - '.github/workflows/smoke-test.yml'
   schedule:
     - cron: '0 7 * * *'  # Daily at 07:00 UTC, after the 06:00 database update deploys
   workflow_dispatch:
 
 jobs:
-  smoke:
+  # Gates the content actually being pushed: serves docs/ from the checkout,
+  # so there is no race against the Pages deployment.
+  smoke-local:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest playwright pytest-playwright
+          playwright install --with-deps chromium
+
+      - name: Serve docs/ and run smoke tests against it
+        run: |
+          python -m http.server 8000 --directory docs &
+          sleep 2
+          BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium -q
+
+  # Daily canary against the deployed site: catches deploy drift, Pages
+  # outages, and external-dependency rot that the local job cannot see.
+  smoke-live:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
