@@ -288,6 +288,27 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 
 MIT License. See [LICENSE](LICENSE) for details.
 
+The MIT license covers the code in this repository. The threat intelligence data that the pipeline downloads and redistributes remains the property of its upstream sources and is provided under their respective terms, linked below.
+
+### Data licensing and attribution
+
+This product uses the NVD API but is not endorsed or certified by the NVD.
+
+ATT&CK, D3FEND, CWE, and CAPEC content: © The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation.
+
+| Source | Terms |
+|--------|-------|
+| NVD | [NVD API Terms of Use](https://nvd.nist.gov/developers/terms-of-use) |
+| MITRE ATT&CK | [ATT&CK Terms of Use](https://attack.mitre.org/resources/legal-and-branding/terms-of-use/) |
+| MITRE D3FEND | [D3FEND Resources / Terms of Use](https://d3fend.mitre.org/resources/) |
+| MITRE CWE | [CWE Terms of Use](https://cwe.mitre.org/about/termsofuse.html) |
+| MITRE CAPEC | [CAPEC Terms of Use](https://capec.mitre.org/about/termsofuse.html) |
+| CISA KEV | [CC0 1.0](https://www.cisa.gov/sites/default/files/licenses/kev/license.txt) |
+| CISA Vulnrichment | [CC0 1.0](https://github.com/cisagov/vulnrichment) |
+| OWASP Top 10 | [CC BY-SA 4.0](https://owasp.org/www-project-top-ten/) |
+
+Use of this data does not imply endorsement by NIST, MITRE, CISA, DHS, or OWASP.
+
 ## Acknowledgments
 
 - [Galeax](https://github.com/Galeax) for the original design that inspired this project
