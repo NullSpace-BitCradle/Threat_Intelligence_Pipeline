@@ -1,5 +1,8 @@
 # TIP Development Roadmap
 
+> **STATUS (2026-05-08): SUPERSEDED** — see [`MASTER_PLAN.md`](MASTER_PLAN.md) for the current single source of truth.
+> This file is preserved as historical record. New work, status changes, and decisions are tracked in MASTER_PLAN.md only.
+
 Last updated: 2026-04-24 (afternoon: N3 shipped, F1/F2/F3/F5 cleared, D1 All-CVE search shipped)
 Owner: the maintainer (Strategic Rogue / NullSpace-BitCradle)
 
