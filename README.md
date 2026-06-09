@@ -14,16 +14,17 @@ A search-first threat intelligence tool that correlates CVEs across 8 security f
 
 ## Status snapshot
 
-As of 2026-04-24:
+As of 2026-06-09:
 
-- 345K raw CVEs ingested from NVD; every one is searchable by ID via the tiered all-CVE index
-- Curated entity graph holds 3,065 "interesting" CVEs (KEV / APT / vulnrichment / CVSS >= 7.0) with full relationships
-- 5,602 total entities across 8 frameworks
-- Auto-rebuilds via GitHub Actions: daily reference database refresh + weekly full CVE pipeline
-- MCP Phase A live (3 of 6 tools), with shard fallback in both `lookup_entity` and `pivot_from_entity` for any CVE on disk
-- 67 tests passing
+- 356K+ raw CVEs ingested from NVD (356,014 at the last weekly run); every one is searchable by ID via the tiered all-CVE index
+- Curated entity graph holds 2,901 enriched CVEs (KEV / APT-linked / vulnrichment) with full cross-framework relationships
+- 5,438 total entities across 8 frameworks: 969 CWEs, 656 ATT&CK techniques, 559 CAPECs, 160 APT groups, 149 D3FEND countermeasures, 34 campaigns, 10 OWASP categories
+- 1,614 CISA KEV entries tracked with daily refresh
+- Fully automated: daily reference database refresh, weekly full CVE pipeline, daily site smoke test, plus a smoke gate on every push
+- MCP server Phase A live (3 of 6 planned tools) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph
+- 72 tests passing across pipeline processors, the MCP layer, and a Playwright smoke suite
 
-The full roadmap with status of every item lives in [Plans/ROADMAP.md](Plans/ROADMAP.md). A summary is included in the [Roadmap](#roadmap) section below.
+Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
 ## How it works
 
@@ -79,6 +80,11 @@ Features:
 | CISA KEV | Known exploited vulnerabilities, ransomware use, remediation deadlines | Daily (Actions) |
 | CISA Vulnrichment | SSVC decisions (exploit status, automatable, impact), CISA CVSS overrides | Daily (Actions) |
 
+## Requirements
+
+- Python 3.9+ (CI runs 3.12 for the pipeline, 3.13 for smoke tests)
+- NVD API key (free; recommended for rate limit performance)
+
 ## Quick start
 
 ### Use the hosted site (no install)
@@ -112,18 +118,20 @@ PYTHONPATH=src python run_pipeline.py --cve-only   # Process CVEs only (with res
 PYTHONPATH=src python run_pipeline.py --force      # Force full update
 PYTHONPATH=src python run_pipeline.py --status     # Show pipeline status
 PYTHONPATH=src python run_pipeline.py --health-check # System health check
+PYTHONPATH=src python run_pipeline.py --metrics    # Show pipeline metrics
 ```
 
 ## GitHub Actions
 
-Two automated workflows keep data fresh:
+Three automated workflows keep the data fresh and the site honest:
 
-| Workflow | Schedule | What it does |
-|----------|----------|--------------|
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
 | Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
+| Site Smoke Test | Push / PR + daily 07:00 UTC | Playwright suite: gates pushed content by serving `docs/` locally, plus a daily canary against the deployed site |
 
-Both auto-commit results back to the repo. Requires `NVD_API_KEY` as a repository secret.
+The data workflows auto-commit results back to the repo and require `NVD_API_KEY` as a repository secret. The smoke test needs no secrets.
 
 ## MCP server (optional)
 
@@ -131,9 +139,11 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 
 **Status:** Phase A (v1 MVP) shipped 2026-04-23. Three read-only tools, plus a JSONL shard fallback added 2026-04-24:
 
-- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 345K ingested CVEs is queryable by ID.
+- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 356K+ ingested CVEs is queryable by ID.
 - `pivot_from_entity(entity_id, target_type?)`: returns entities related by type. Same shard fallback as `lookup_entity`, so pivoting from any ingested CVE works even if it is not in the enriched graph.
 - `search_threat_intel(query, limit?, types?)`: returns ranked hits from the inverted index
+
+Phase B (`build_attack_chain`, `get_defenses`, `kev_status`) is the next development block; see the [Roadmap](#roadmap).
 
 ### Install
 
@@ -178,7 +188,7 @@ Once the client is configured:
 
 > Use the tip threat intel tools. Look up CVE-2023-44487 and walk me through the attack chain and defenses. Cite entity IDs.
 
-See `src/tip_mcp/README.md` for full install and tool details, and `docs/superpowers/specs/mcp-server-scope.md` for the architecture rationale.
+See [src/tip_mcp/README.md](src/tip_mcp/README.md) for full install and tool details.
 
 ## Architecture
 
@@ -226,64 +236,53 @@ docs/
 ## Testing
 
 ```bash
+# Unit and integration tests (pipeline + MCP)
 PYTHONPATH=src python -m pytest tests/ -v
 PYTHONPATH=src python -m pytest tests/ --cov=src/tip
+
+# Browser smoke tests against the live site (requires playwright + pytest-playwright)
+pytest tests/smoke/ --browser chromium
+
+# Or against a local copy of the site
+python -m http.server 8000 --directory docs &
+BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 67 tests across pipeline processors and the MCP layer.
-
-## Requirements
-
-- Python 3.9+ (3.12 used in CI)
-- NVD API key (free; recommended for rate limit performance)
+Current suite: 72 tests across pipeline processors, the MCP layer, and the Playwright smoke suite. The smoke suite also runs in CI on every push and daily against the deployed site.
 
 ## Roadmap
 
-The full roadmap with rationale, sizing, and source plans lives in [Plans/ROADMAP.md](Plans/ROADMAP.md). Summary below.
+The development plan with rationale, sizing, and acceptance criteria lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). Summary below.
 
-### Done (shipped, on disk)
+### Shipped
 
 | Item | When | Notes |
 |------|------|-------|
-| Pipeline foundation (NVD, CWE, CAPEC, ATT&CK, D3FEND, JSONL shards) | pre 2026-03 | `run_pipeline.py` orchestrator with `--db-only` / `--cve-only` / `--status` / `--force` |
-| KEV + Vulnrichment + APT integration | 2026-03-14 | Processors plus 24 unit tests; KEV marks 1,569 CVEs, vulnrichment covers 1,262 |
-| Provenance + Campaigns (entity_index v1.5) | 2026-03-18 | Per-entity and per-relationship provenance tiers; 34 MITRE campaigns ingested; KEV moved to top-level boolean |
-| Search-first UI redesign | 2026-03-28 | Replaced 6-tab Bootstrap layout with single-search SPA; D3 graph replaces Sankey; investigation pinning; hash routing |
+| Pipeline foundation (NVD, CWE, CAPEC, ATT&CK, D3FEND, JSONL shards) | pre 2026-03 | `run_pipeline.py` orchestrator with resume support |
+| KEV + Vulnrichment + APT integration | 2026-03-14 | Three processors plus unit tests |
+| Provenance + Campaigns | 2026-03-18 | Per-entity and per-relationship provenance tiers; 34 MITRE campaigns |
+| Search-first UI redesign | 2026-03-28 | Single-search SPA, D3 relationship graph, investigation pinning, hash routing |
 | GitHub Actions automation | 2026-03-29 | Daily reference DB updates + weekly CVE pipeline; both auto-commit |
-| MCP Phase A | 2026-04-23 | `lookup_entity`, `pivot_from_entity`, `search_threat_intel` over stdio; 25 tests |
-| CVE enrichment surgery | 2026-04-24 | Removed description and name truncations; added CVSS, dates, references extraction; widened entity_index filter (1,367 to 3,065 indexed); MCP `lookup_entity` shard fallback |
-| MCP `pivot_from_entity` shard fallback | 2026-04-24 | Same JSONL shard fallback pattern mirrored into pivot; extracted `_shard_rels` helper; 8 new tests |
-| All-CVE tiered search architecture | 2026-04-24 | Layer 1 `cve_ids_index.json` (1.8 MB, 345K CVE IDs); Layer 3 client-side shard fetch via `DecompressionStream`; any ingested CVE is now searchable and opens a detail page |
+| MCP Phase A | 2026-04-23 | `lookup_entity`, `pivot_from_entity`, `search_threat_intel` over stdio |
+| CVE enrichment surgery | 2026-04-24 | Full descriptions, CVSS, dates, references in shards; MCP shard fallback |
+| All-CVE tiered search | 2026-04-24 | Every ingested CVE searchable by ID and openable as a detail page |
+| P9 stabilization | 2026-06-09 | Pipeline verified healthy, Playwright smoke suite + CI gating, master plan landed |
 
-### Next (ready to pick up)
+### Next
 
-| Priority | Item | Size | Notes |
-|----------|------|------|-------|
-| N1 | Verify next scheduled pipeline run populates new NVD fields in shards | small | First run after 2026-04-24 fixes is Sunday 2026-04-26 08:00 UTC |
-| N2 | MCP Phase B: `build_attack_chain`, `get_defenses`, `kev_status` | medium (1 day) | Headline portfolio piece; centerpiece of Partner Network demo |
-| N3 | Capture CVE-2023-44487 demo for Partner Network README | small (half day) | Depends on N2 |
+| Phase | Item | Notes |
+|-------|------|-------|
+| P10 | MCP Phase B: `build_attack_chain`, `get_defenses`, `kev_status` | Completes the six-tool MCP surface, plus an end-to-end demo capture |
+| P11 | CVE2CAPEC parity check | Evidence-gated decision: replace, augment, or hold the current enrichment chain |
 
-### Deferred (scoped, parked behind a decision)
+### Later
 
-| Item | Why parked |
-|------|------------|
-| Multi-entity analysis mode (paste a list, see combined view) | Needs design session; UX questions unresolved |
-| Visual polish (graph legend, zoom, landing page enhancements, responsive tweaks) | Functional today; promote when external demo polish matters |
-| Live pipeline trigger from the search bar | Not blocking; static site is the primary deployment |
-| Extended export formats (CSV, ATT&CK Navigator layer JSON) | JSON export shipped; promote on user request |
-| MCP `pivot_from_entities(ids)` (multi-entity pivot) | Blocked on multi-entity analysis design |
-
-### Followup
-
-Cleared 2026-04-24 afternoon (F1, F2, F3, F5):
-- Memory note refreshed to pointer-first structure
-- Stale comment in `entity_index_generator.py` rewritten to match current filter
-- `buildExternalLink` helper added; entity ID header now links to source site
-- APT group overview shows Campaign Timeline sorted by first_seen
-- `cve_processor` now merges vulnrichment `cisaCVSS` into CVE.CVSS at ingest (takes effect on next pipeline run)
-
-Remaining:
-- Playwright smoke test for the static site (no automated UI tests today, medium effort)
+| Phase | Item | Notes |
+|-------|------|-------|
+| P12 | Local ctibutler + MCP wrapper | STIX query surface; conditional on the P11 decision |
+| P13 | Multi-entity analysis, visual polish, extended exports | Paste a list of entities, see the combined picture; CSV and ATT&CK Navigator exports |
+| P14 | Pipeline observability and hardening | Run summaries, failure alerting, data-quality checks |
+| P15 | Improvements grab-bag | Promoted item by item from the master plan |
 
 ## License
 
