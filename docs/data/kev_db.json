@@ -1,4 +1,31 @@
 {
+    "CVE-2026-11645": {
+        "inKEV": true,
+        "dateAdded": "2026-06-09",
+        "dueDate": "2026-06-23",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Google",
+        "product": "Chromium V8"
+    },
+    "CVE-2026-7473": {
+        "inKEV": true,
+        "dateAdded": "2026-06-09",
+        "dueDate": "2026-06-23",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Arista",
+        "product": "Extensible Operating System"
+    },
+    "CVE-2026-20245": {
+        "inKEV": true,
+        "dateAdded": "2026-06-09",
+        "dueDate": "2026-06-23",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Cisco",
+        "product": "Catalyst SD-WAN Manager"
+    },
     "CVE-2026-42271": {
         "inKEV": true,
         "dateAdded": "2026-06-08",
@@ -12,7 +39,7 @@
         "inKEV": true,
         "dateAdded": "2026-06-08",
         "dueDate": "2026-06-11",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Check Point",
         "product": "Security Gateway"
