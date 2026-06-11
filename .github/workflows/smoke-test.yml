@@ -16,6 +16,9 @@ on:
     - cron: '0 7 * * *'  # Daily at 07:00 UTC, after the 06:00 database update deploys
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   # Gates the content actually being pushed: serves docs/ from the checkout,
   # so there is no race against the Pages deployment.
