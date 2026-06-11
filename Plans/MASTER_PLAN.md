@@ -196,6 +196,10 @@ Seven phases, sequenced to maximize Strategic Rogue + Partner Network impact whi
 
 ### P11 — CVE2CAPEC parity check + decision (1 day)
 
+> **RESOLVED 2026-06-11 — decision by principal, parity check moot.** the maintainer: TIP was originally built off CVE2CAPEC's approach; whatever it does, TIP's in-house pipeline can do better. CVE2CAPEC will not be adopted in any posture (no REPLACE, no AUGMENT). Enrichment stays in-house. Supporting evidence from 2026-06-11 session: the in-house chain is local joins over static MITRE datasets (CAPEC CSV, ATT&CK XLSX, CWE XML) with no rate-limited dependency, and the NVD-cost argument collapsed — a full-corpus keyless NVD pass took ~20 minutes (CVSS backfill, commit 0f3a748). T11.1-T11.4 are superseded. The "do it better" successor work is closing the CWE-assignment gap that caps TECHNIQUES coverage (~75% modern years) — tracked as future in-house enrichment work, not as CVE2CAPEC adoption. Per the P12 conditional below, P12 (ctibutler) is deferred indefinitely.
+
+**Original phase content retained for historical context:**
+
 **Why before P12:** the 2026-04-29 plan claims CVE2CAPEC obsoletes the 2026-04-24 enrichment surgery. Before investing in P12 (ctibutler) or letting the next pipeline run rewrite shards, confirm the parity claim on real data.
 
 | Task | Description | Depends on |
@@ -325,7 +329,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 ## 8. Open decisions (await the maintainer)
 
 1. **Auto-pipeline status:** if T9.1 finds the pipeline has not run in two weeks, decide whether to repair (re-trigger workflow, fix Actions config) or accept manual `--db-only` runs as the new operating mode.
-2. **CVE2CAPEC posture (P11):** REPLACE / AUGMENT / HOLD. Decision evidence: the parity report from T11.1.
+2. **CVE2CAPEC posture (P11):** ~~REPLACE / AUGMENT / HOLD. Decision evidence: the parity report from T11.1.~~ **DECIDED 2026-06-11: none of the above — CVE2CAPEC rejected outright; enrichment stays in-house** (TIP was built off CVE2CAPEC's approach and can do it better). See the resolution note at P11. P12 deferred indefinitely per its conditional.
 3. **Multi-entity entity cap (T13.1):** propose 25; confirm.
 4. **GitHub Pages migration trigger (I17):** propose 80% of a 100 MB total corpus budget; confirm.
 5. **mypy strictness scope (I9):** propose `src/tip_mcp/` first, gradual on `src/tip/`; confirm.
