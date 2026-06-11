@@ -63,32 +63,8 @@ CONFIG_SCHEMA = {
                 },
                 "techniques": {
                     "type": "object",
-                    "required": ["enterprise", "mobile", "ics", "file"],
+                    "required": ["file"],
                     "properties": {
-                        "enterprise": {
-                            "type": "object",
-                            "required": ["url", "column"],
-                            "properties": {
-                                "url": {"type": "string", "format": "uri"},
-                                "column": {"type": "integer", "minimum": 0, "maximum": 20}
-                            }
-                        },
-                        "mobile": {
-                            "type": "object",
-                            "required": ["url", "column"],
-                            "properties": {
-                                "url": {"type": "string", "format": "uri"},
-                                "column": {"type": "integer", "minimum": 0, "maximum": 20}
-                            }
-                        },
-                        "ics": {
-                            "type": "object",
-                            "required": ["url", "column"],
-                            "properties": {
-                                "url": {"type": "string", "format": "uri"},
-                                "column": {"type": "integer", "minimum": 0, "maximum": 20}
-                            }
-                        },
                         "file": {"type": "string", "pattern": ".*\\.json$"}
                     }
                 },

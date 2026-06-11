@@ -12,7 +12,6 @@ import time
 from zipfile import ZipFile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-import pandas as pd  # type: ignore
 from datetime import datetime
 
 from tip.utils.config import get_config
@@ -51,18 +50,9 @@ class DatabaseManager:
                 'processor': self._process_cwe_data
             },
             'techniques': {
-                'enterprise': {
-                    'url': config.get('database.techniques.enterprise.url'),
-                    'column': config.get('database.techniques.enterprise.column', 9)
-                },
-                'mobile': {
-                    'url': config.get('database.techniques.mobile.url'),
-                    'column': config.get('database.techniques.mobile.column', 10)
-                },
-                'ics': {
-                    'url': config.get('database.techniques.ics.url'),
-                    'column': config.get('database.techniques.ics.column', 9)
-                },
+                # Sourced from the same always-latest ATT&CK STIX bundle as
+                # groups (database.groups.url); the legacy per-domain XLSX
+                # exports are version-pinned upstream and rot on release.
                 'file': config.get_database_path('techniques'),
                 'processor': self._process_techniques_data
             },
@@ -234,7 +224,7 @@ class DatabaseManager:
             # Download the enterprise ATT&CK STIX bundle (same source as APT processor)
             stix_url = config.get(
                 'database.groups.url',
-                'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json'
+                'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json'
             )
 
             self.logger.info(f"Downloading ATT&CK STIX bundle for techniques...")

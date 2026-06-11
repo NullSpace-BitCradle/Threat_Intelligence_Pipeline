@@ -29,6 +29,11 @@
         "name": "Windows Management Instrumentation",
         "description": "Adversaries may abuse Windows Management Instrumentation (WMI) to execute malicious commands and payloads. WMI is designed for programmers and is the infrastructure for management data and operations "
     },
+    "1687": {
+        "framework": "enterprise",
+        "name": "Exploitation for Defense Impairment",
+        "description": "Adversaries may exploit vulnerabilities in security software, infrastructure, or defensive components to degrade, disable, or otherwise continue to impair their ability to prevent, detect, or respond "
+    },
     "1113": {
         "framework": "enterprise",
         "name": "Screen Capture",
@@ -116,7 +121,7 @@
     },
     "1222.002": {
         "framework": "enterprise",
-        "name": "Linux and Mac File and Directory Permissions Modification",
+        "name": "Linux and Mac Permissions",
         "description": "Adversaries may modify file or directory permissions/attributes to evade access control lists (ACLs) and access protected files.(Citation: Hybrid Analysis Icacls1 June 2018)(Citation: Hybrid Analysis "
     },
     "1110.001": {
@@ -224,6 +229,11 @@
         "name": "JavaScript",
         "description": "Adversaries may abuse various implementations of JavaScript for execution. JavaScript (JS) is a platform-independent scripting language (compiled just-in-time at runtime) commonly associated with scri"
     },
+    "1685.003": {
+        "framework": "enterprise",
+        "name": "Modify or Spoof Tool UI",
+        "description": "Adversaries may spoof or manipulate security tool user interfaces (UIs) to falsely indicate tools are functioning normally and delay detection and response. \n\nAdversaries may present misleading or fal"
+    },
     "1590.002": {
         "framework": "enterprise",
         "name": "DNS",
@@ -294,6 +304,16 @@
         "name": "Sudo and Sudo Caching",
         "description": "Adversaries may perform sudo caching and/or use the sudoers file to elevate privileges. Adversaries may do this to execute commands as other users or spawn processes with higher privileges.\n\nWithin Li"
     },
+    "1685.001": {
+        "framework": "enterprise",
+        "name": "Disable or Modify Windows Event Log",
+        "description": "Adversaries may disable or modify the Windows Event Log to limit data that can be leveraged for detections and audits. Windows Event Log records user and system activity such as login attempts and pro"
+    },
+    "1682": {
+        "framework": "enterprise",
+        "name": "Query Public AI Services",
+        "description": "Adversaries may query publicly accessible artificial intelligence (AI) services, such as large language models (LLMs), to support targeting and operations. In addition to searching websites or databas"
+    },
     "1560.003": {
         "framework": "enterprise",
         "name": "Archive via Custom Method",
@@ -352,7 +372,7 @@
     "1574.011": {
         "framework": "enterprise",
         "name": "Services Registry Permissions Weakness",
-        "description": "Adversaries may execute their own malicious payloads by hijacking the Registry entries used by services. Adversaries may use flaws in the permissions for Registry keys related to services to redirect "
+        "description": "Adversaries may execute their own malicious payloads by hijacking the Registry entries used by services. Flaws in the permissions for Registry keys related to services can allow adversaries to redirec"
     },
     "1596.001": {
         "framework": "enterprise",
@@ -407,7 +427,7 @@
     "1542.003": {
         "framework": "enterprise",
         "name": "Bootkit",
-        "description": "Adversaries may use bootkits to persist on systems. Bootkits reside at a layer below the operating system and may make it difficult to perform full remediation unless an organization suspects one was "
+        "description": "Adversaries may use bootkits to persist on systems. A bootkit is a malware variant that modifies the boot sectors of a hard drive, allowing malicious code to execute before a computer's operating syst"
     },
     "1025": {
         "framework": "enterprise",
@@ -426,8 +446,8 @@
     },
     "1036.005": {
         "framework": "enterprise",
-        "name": "Match Legitimate Name or Location",
-        "description": "Adversaries may match or approximate the name or location of legitimate files or resources when naming/placing them. This is done for the sake of evading defenses and observation. This may be done by "
+        "name": "Match Legitimate Resource Name or Location",
+        "description": "Adversaries may match or approximate the name or location of legitimate files, Registry keys, or other resources when naming/placing them. This is done for the sake of evading defenses and observation"
     },
     "1587.003": {
         "framework": "enterprise",
@@ -467,7 +487,7 @@
     "1600": {
         "framework": "enterprise",
         "name": "Weaken Encryption",
-        "description": "Adversaries may compromise a network device\u2019s encryption capability in order to bypass encryption that would otherwise protect data communications. (Citation: Cisco Synful Knock Evolution)\n\nEncryption"
+        "description": "Adversaries may compromise a network device\u2019s encryption capability in order to bypass encryption that would otherwise protect data communications.(Citation: Cisco Synful Knock Evolution)\n\nEncryption "
     },
     "1606.002": {
         "framework": "enterprise",
@@ -477,7 +497,7 @@
     "1036.008": {
         "framework": "enterprise",
         "name": "Masquerade File Type",
-        "description": "Adversaries may masquerade malicious payloads as legitimate files through changes to the payload's formatting, including the file\u2019s signature, extension, and contents. Various file types have a typica"
+        "description": "Adversaries may masquerade malicious payloads as legitimate files through changes to the payload's formatting, including the file\u2019s signature, extension, icon, and contents. Various file types have a "
     },
     "1489": {
         "framework": "enterprise",
@@ -524,6 +544,11 @@
         "name": "Identify Business Tempo",
         "description": "Adversaries may gather information about the victim's business tempo that can be used during targeting. Information about an organization\u2019s business tempo may include a variety of details, including o"
     },
+    "1685.004": {
+        "framework": "enterprise",
+        "name": "Disable or Modify Linux Audit System Log",
+        "description": "Adversaries may disable or modify the Linux Audit system to hide malicious activity and avoid detection. Linux admins use the Linux Audit system to track security-relevant information on a system. The"
+    },
     "1071.005": {
         "framework": "enterprise",
         "name": "Publish/Subscribe Protocols",
@@ -544,6 +569,11 @@
         "name": "Trust Modification",
         "description": "Adversaries may add new domain trusts, modify the properties of existing domain trusts, or otherwise change the configuration of trust relationships between domains and tenants to evade defenses and/o"
     },
+    "1213.006": {
+        "framework": "enterprise",
+        "name": "Databases",
+        "description": "Adversaries may leverage databases to mine valuable information. These databases may be hosted on-premises or in the cloud (both in platform-as-a-service and software-as-a-service environments). \n\nExa"
+    },
     "1573.001": {
         "framework": "enterprise",
         "name": "Symmetric Cryptography",
@@ -559,15 +589,20 @@
         "name": "Social Media Accounts",
         "description": "Adversaries may compromise social media accounts that can be used during targeting. For operations incorporating social engineering, the utilization of an online persona may be important. Rather than "
     },
-    "1562.009": {
+    "1176.001": {
         "framework": "enterprise",
-        "name": "Safe Mode Boot",
-        "description": "Adversaries may abuse Windows safe mode to disable endpoint defenses. Safe mode starts up the Windows operating system with a limited set of drivers and services. Third-party security software such as"
+        "name": "Browser Extensions",
+        "description": "Adversaries may abuse internet browser extensions to establish persistent access to victim systems. Browser extensions or plugins are small programs that can add functionality to and customize aspects"
     },
     "1542.005": {
         "framework": "enterprise",
         "name": "TFTP Boot",
         "description": "Adversaries may abuse netbooting to load an unauthorized network device operating system from a Trivial File Transfer Protocol (TFTP) server. TFTP boot (netbooting) is commonly used by network adminis"
+    },
+    "1686.003": {
+        "framework": "enterprise",
+        "name": "Windows Host Firewall",
+        "description": "Adversaries may disable or modify the Windows host firewall to bypass controls limiting network usage. This can include disabling the Windows host firewall entirely, suppressing specific profiles (dom"
     },
     "1543.003": {
         "framework": "enterprise",
@@ -603,11 +638,6 @@
         "framework": "enterprise",
         "name": "Spearphishing Link",
         "description": "Adversaries may send spearphishing emails with a malicious link in an attempt to gain access to victim systems. Spearphishing with a link is a specific variant of spearphishing. It is different from o"
-    },
-    "1070.002": {
-        "framework": "enterprise",
-        "name": "Clear Linux or Mac System Logs",
-        "description": "Adversaries may clear system logs to hide evidence of an intrusion. macOS and Linux both keep track of system or user-initiated actions via system logs. The majority of native system logging is stored"
     },
     "1499.004": {
         "framework": "enterprise",
@@ -661,13 +691,18 @@
     },
     "1574.001": {
         "framework": "enterprise",
-        "name": "DLL Search Order Hijacking",
-        "description": "Adversaries may execute their own malicious payloads by hijacking the search order used to load DLLs. Windows systems use a common method to look for required DLLs to load into a program. (Citation: M"
+        "name": "DLL",
+        "description": "Adversaries may abuse dynamic-link library files (DLLs) in order to achieve persistence, escalate privileges, and evade defenses. DLLs are libraries that contain code and data that can be simultaneous"
     },
     "1119": {
         "framework": "enterprise",
         "name": "Automated Collection",
         "description": "Once established within a system or network, an adversary may use automated techniques for collecting internal data. Methods for performing this technique could include use of a [Command and Scripting"
+    },
+    "1689": {
+        "framework": "enterprise",
+        "name": "Downgrade Attack",
+        "description": "Adversaries may downgrade or use a version of system features that may be outdated, vulnerable, and/or does not support updated security controls. Downgrade attacks typically take advantage of a syste"
     },
     "1115": {
         "framework": "enterprise",
@@ -693,6 +728,11 @@
         "framework": "enterprise",
         "name": "Gatekeeper Bypass",
         "description": "Adversaries may modify file attributes and subvert Gatekeeper functionality to evade user prompts and execute untrusted programs. Gatekeeper is a set of technologies that act as layer of Apple\u2019s secur"
+    },
+    "1675": {
+        "framework": "enterprise",
+        "name": "ESXi Administration Command",
+        "description": "Adversaries may abuse ESXi administration services to execute commands on guest machines hosted within an ESXi virtual environment. Persistent background services on ESXi-hosted VMs, such as the VMwar"
     },
     "1608.004": {
         "framework": "enterprise",
@@ -756,13 +796,18 @@
     },
     "1222.001": {
         "framework": "enterprise",
-        "name": "Windows File and Directory Permissions Modification",
+        "name": "Windows Permissions",
         "description": "Adversaries may modify file or directory permissions/attributes to evade access control lists (ACLs) and access protected files.(Citation: Hybrid Analysis Icacls1 June 2018)(Citation: Hybrid Analysis "
     },
     "1137.006": {
         "framework": "enterprise",
         "name": "Add-ins",
         "description": "Adversaries may abuse Microsoft Office add-ins to obtain persistence on a compromised system. Office add-ins can be used to add functionality to Office programs. (Citation: Microsoft Office Add-ins) T"
+    },
+    "1685.002": {
+        "framework": "enterprise",
+        "name": "Disable or Modify Cloud Log",
+        "description": "An adversary may disable or modify cloud logging capabilities and integrations to limit what data is collected on their activities and avoid detection. Cloud environments allow for collection and anal"
     },
     "1505.002": {
         "framework": "enterprise",
@@ -772,7 +817,7 @@
     "1082": {
         "framework": "enterprise",
         "name": "System Information Discovery",
-        "description": "An adversary may attempt to get detailed information about the operating system and hardware, including version, patches, hotfixes, service packs, and architecture. Adversaries may use the information"
+        "description": "An adversary may attempt to get detailed information about the operating system and hardware, including version, patches, hotfixes, service packs, and architecture. Adversaries may use this informatio"
     },
     "1071": {
         "framework": "enterprise",
@@ -831,8 +876,8 @@
     },
     "1176": {
         "framework": "enterprise",
-        "name": "Browser Extensions",
-        "description": "Adversaries may abuse Internet browser extensions to establish persistent access to victim systems. Browser extensions or plugins are small programs that can add functionality and customize aspects of"
+        "name": "Software Extensions",
+        "description": "Adversaries may abuse software extensions to establish persistent access to victim systems. Software extensions are modular components that enhance or customize the functionality of software applicati"
     },
     "1499.002": {
         "framework": "enterprise",
@@ -897,7 +942,7 @@
     "1005": {
         "framework": "enterprise",
         "name": "Data from Local System",
-        "description": "Adversaries may search local system sources, such as file systems and configuration files or local databases, to find files of interest and sensitive data prior to Exfiltration.\n\nAdversaries may do th"
+        "description": "Adversaries may search local system sources, such as file systems, configuration files, local databases, virtual machine files, or process memory, to find files of interest and sensitive data prior to"
     },
     "1140": {
         "framework": "enterprise",
@@ -908,11 +953,6 @@
         "framework": "enterprise",
         "name": "Outlook Rules",
         "description": "Adversaries may abuse Microsoft Outlook rules to obtain persistence on a compromised system. Outlook rules allow a user to define automated behavior to manage email messages. A benign rule might, for "
-    },
-    "1562": {
-        "framework": "enterprise",
-        "name": "Impair Defenses",
-        "description": "Adversaries may maliciously modify components of a victim environment in order to hinder or disable defensive mechanisms. This not only involves impairing preventative defenses, such as firewalls and "
     },
     "1586.003": {
         "framework": "enterprise",
@@ -961,8 +1001,8 @@
     },
     "1219": {
         "framework": "enterprise",
-        "name": "Remote Access Software",
-        "description": "An adversary may use legitimate desktop support and remote access software to establish an interactive command and control channel to target systems within networks. These services, such as `VNC`, `Te"
+        "name": "Remote Access Tools",
+        "description": "An adversary may use legitimate remote access tools to establish an interactive command and control channel within a network. Remote access tools create a session between two trusted hosts through a g"
     },
     "1583.001": {
         "framework": "enterprise",
@@ -978,6 +1018,11 @@
         "framework": "enterprise",
         "name": "Thread Execution Hijacking",
         "description": "Adversaries may inject malicious code into hijacked processes in order to evade process-based defenses as well as possibly elevate privileges. Thread Execution Hijacking is a method of executing arbit"
+    },
+    "1684": {
+        "framework": "enterprise",
+        "name": "Social Engineering",
+        "description": "Adversaries may use social engineering techniques to influence users to take actions that result in unauthorized access, approval of changes, disclosure of sensitive information, or execution of adver"
     },
     "1036": {
         "framework": "enterprise",
@@ -1072,7 +1117,12 @@
     "1611": {
         "framework": "enterprise",
         "name": "Escape to Host",
-        "description": "Adversaries may break out of a container to gain access to the underlying host. This can allow an adversary access to other containerized resources from the host level or to the host itself. In princi"
+        "description": "Adversaries may break out of a container or virtualized environment to gain access to the underlying host. This can allow an adversary access to other containerized or virtualized resources from the h"
+    },
+    "1518.002": {
+        "framework": "enterprise",
+        "name": "Backup Software Discovery",
+        "description": "Adversaries may attempt to get a listing of backup software or configurations that are installed on a system. Adversaries may use this information to shape follow-on behaviors, such as [Data Destructi"
     },
     "1547.009": {
         "framework": "enterprise",
@@ -1084,6 +1134,11 @@
         "name": "Application Window Discovery",
         "description": "Adversaries may attempt to get a listing of open application windows. Window listings could convey information about how the system is used.(Citation: Prevailion DarkWatchman 2021) For example, inform"
     },
+    "1569.003": {
+        "framework": "enterprise",
+        "name": "Systemctl",
+        "description": "Adversaries may abuse systemctl to execute commands or programs. Systemctl is the primary interface for systemd, the Linux init system and service manager. Typically invoked from a shell, Systemctl ca"
+    },
     "1087.003": {
         "framework": "enterprise",
         "name": "Email Account",
@@ -1091,8 +1146,8 @@
     },
     "1497.003": {
         "framework": "enterprise",
-        "name": "Time Based Evasion",
-        "description": "Adversaries may employ various time-based methods to detect and avoid virtualization and analysis environments. This may include enumerating time-based properties, such as uptime or the system clock, "
+        "name": "Time Based Checks",
+        "description": "Adversaries may employ various time-based methods to detect virtualization and analysis environments, particularly those that attempt to manipulate time mechanisms to simulate longer elapses of time. "
     },
     "1218.003": {
         "framework": "enterprise",
@@ -1103,11 +1158,6 @@
         "framework": "enterprise",
         "name": "SSH Hijacking",
         "description": "Adversaries may hijack a legitimate user's SSH session to move laterally within an environment. Secure Shell (SSH) is a standard means of remote access on Linux and macOS systems. It allows a user to "
-    },
-    "1562.002": {
-        "framework": "enterprise",
-        "name": "Disable Windows Event Logging",
-        "description": "Adversaries may disable Windows event logging to limit data that can be leveraged for detections and audits. Windows event logs record user and system activity such as login attempts, process creation"
     },
     "1029": {
         "framework": "enterprise",
@@ -1149,6 +1199,11 @@
         "name": "Security Support Provider",
         "description": "Adversaries may abuse security support providers (SSPs) to execute DLLs when the system boots. Windows SSP DLLs are loaded into the Local Security Authority (LSA) process at system start. Once loaded "
     },
+    "1036.011": {
+        "framework": "enterprise",
+        "name": "Overwrite Process Arguments",
+        "description": "Adversaries may modify a process's in-memory arguments to change its name in order to appear as a legitimate or benign process. On Linux, the operating system stores command-line arguments in the proc"
+    },
     "1550": {
         "framework": "enterprise",
         "name": "Use Alternate Authentication Material",
@@ -1173,11 +1228,6 @@
         "framework": "enterprise",
         "name": "Gather Victim Identity Information",
         "description": "Adversaries may gather information about the victim's identity that can be used during targeting. Information about identities may include a variety of details, including personal data (ex: employee n"
-    },
-    "1562.004": {
-        "framework": "enterprise",
-        "name": "Disable or Modify System Firewall",
-        "description": "Adversaries may disable or modify system firewalls in order to bypass controls limiting network usage. Changes could be disabling the entire mechanism as well as adding, deleting, or modifying particu"
     },
     "1560": {
         "framework": "enterprise",
@@ -1229,11 +1279,6 @@
         "name": "Electron Applications",
         "description": "Adversaries may abuse components of the Electron framework to execute malicious code. The Electron framework hosts many common applications such as Signal, Slack, and Microsoft Teams.(Citation: Electr"
     },
-    "1562.012": {
-        "framework": "enterprise",
-        "name": "Disable or Modify Linux Audit System",
-        "description": "Adversaries may disable or modify the Linux audit system to hide malicious activity and avoid detection. Linux admins use the Linux Audit system to track security-relevant information on a system. The"
-    },
     "1207": {
         "framework": "enterprise",
         "name": "Rogue Domain Controller",
@@ -1252,7 +1297,7 @@
     "1112": {
         "framework": "enterprise",
         "name": "Modify Registry",
-        "description": "Adversaries may interact with the Windows Registry to hide configuration information within Registry keys, remove information as part of cleaning up, or as part of other techniques to aid in persisten"
+        "description": "Adversaries may interact with the Windows Registry as part of a variety of other techniques to aid in defense evasion, persistence, and execution.\n\nAccess to specific areas of the Registry depends on "
     },
     "1543.004": {
         "framework": "enterprise",
@@ -1294,6 +1339,11 @@
         "name": "Remote Service Session Hijacking",
         "description": "Adversaries may take control of preexisting sessions with remote services to move laterally in an environment. Users may use valid credentials to log into a service specifically designed to accept rem"
     },
+    "1564.013": {
+        "framework": "enterprise",
+        "name": "Bind Mounts",
+        "description": "Adversaries may abuse bind mounts on file structures to hide their activity and artifacts from native utilities. A bind mount maps a directory or file from one location on the filesystem to another, s"
+    },
     "1027.001": {
         "framework": "enterprise",
         "name": "Binary Padding",
@@ -1308,6 +1358,11 @@
         "framework": "enterprise",
         "name": "Group Policy Modification",
         "description": "Adversaries may modify Group Policy Objects (GPOs) to subvert the intended discretionary access controls for a domain, usually with the intention of escalating privileges on the domain. Group policy a"
+    },
+    "1685.006": {
+        "framework": "enterprise",
+        "name": "Clear Linux or Mac System Logs",
+        "description": "Adversaries may clear system logs to hide evidence of an intrusion. macOS and Linux both keep track of system or user-initiated actions via system logs. The majority of native system logging is stored"
     },
     "1217": {
         "framework": "enterprise",
@@ -1359,15 +1414,20 @@
         "name": "Local Account",
         "description": "Adversaries may create a local account to maintain access to victim systems. Local accounts are those configured by an organization for use by users, remote support, services, or for administration on"
     },
+    "1681": {
+        "framework": "enterprise",
+        "name": "Search Threat Vendor Data",
+        "description": "Threat actors may seek information/indicators from closed or open threat intelligence sources gathered about their own campaigns, as well as those conducted by other adversaries that may align with th"
+    },
+    "1674": {
+        "framework": "enterprise",
+        "name": "Input Injection",
+        "description": "Adversaries may simulate keystrokes on a victim\u2019s computer by various means to perform any type of action on behalf of the user, such as launching the command interpreter using keyboard shortcuts,  ty"
+    },
     "1092": {
         "framework": "enterprise",
         "name": "Communication Through Removable Media",
         "description": "Adversaries can perform command and control between compromised hosts on potentially disconnected networks using removable media to transfer commands from system to system.(Citation: ESET Sednit USBSt"
-    },
-    "1070.001": {
-        "framework": "enterprise",
-        "name": "Clear Windows Event Logs",
-        "description": "Adversaries may clear Windows Event Logs to hide the activity of an intrusion. Windows Event Logs are a record of a computer's alerts and notifications. There are three system-defined sources of event"
     },
     "1585.002": {
         "framework": "enterprise",
@@ -1376,8 +1436,8 @@
     },
     "1557.001": {
         "framework": "enterprise",
-        "name": "LLMNR/NBT-NS Poisoning and SMB Relay",
-        "description": "By responding to LLMNR/NBT-NS network traffic, adversaries may spoof an authoritative source for name resolution to force communication with an adversary controlled system. This activity may be used t"
+        "name": "Name Resolution Poisoning and SMB Relay",
+        "description": "By responding to LLMNR/NBT-NS/mDNS network traffic, adversaries may spoof an authoritative source for name resolution to force communication with an adversary controlled system.(Citation: BlackCat ran"
     },
     "1222": {
         "framework": "enterprise",
@@ -1389,15 +1449,25 @@
         "name": "LSASS Memory",
         "description": "Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS). After a user logs on, the system generates and stores a va"
     },
+    "1176.002": {
+        "framework": "enterprise",
+        "name": "IDE Extensions",
+        "description": "Adversaries may abuse an integrated development environment (IDE) extension to establish persistent access to victim systems.(Citation: Mnemonic misuse visual studio) IDEs such as Visual Studio Code, "
+    },
     "1595": {
         "framework": "enterprise",
         "name": "Active Scanning",
         "description": "Adversaries may execute active reconnaissance scans to gather information that can be used during targeting. Active scans are those where the adversary probes victim infrastructure via network traffic"
     },
+    "1027.016": {
+        "framework": "enterprise",
+        "name": "Junk Code Insertion",
+        "description": "Adversaries may use junk code / dead code to obfuscate a malware\u2019s functionality. Junk code is code that either does not execute, or if it does execute, does not change the functionality of the code. "
+    },
     "1548": {
         "framework": "enterprise",
         "name": "Abuse Elevation Control Mechanism",
-        "description": "Adversaries may circumvent mechanisms designed to control elevate privileges to gain higher-level permissions. Most modern systems contain native elevation control mechanisms that are intended to limi"
+        "description": "Adversaries may circumvent mechanisms designed to control privilege elevation to gain higher-level permissions. Most modern systems contain native elevation control mechanisms that are intended to lim"
     },
     "1134.002": {
         "framework": "enterprise",
@@ -1444,6 +1514,11 @@
         "name": "Spearphishing Voice",
         "description": "Adversaries may use voice communications to elicit sensitive information that can be used during targeting. Spearphishing for information is an attempt to trick targets into divulging information, fre"
     },
+    "1683.001": {
+        "framework": "enterprise",
+        "name": "Written Content",
+        "description": "Adversaries may create or tailor written materials to support targeting and malicious operations. Content may include phishing lures, fraudulent financial communications, fabricated job postings, fabr"
+    },
     "1003.005": {
         "framework": "enterprise",
         "name": "Cached Domain Credentials",
@@ -1452,7 +1527,12 @@
     "1098.004": {
         "framework": "enterprise",
         "name": "SSH Authorized Keys",
-        "description": "Adversaries may modify the SSH <code>authorized_keys</code> file to maintain persistence on a victim host. Linux distributions and macOS commonly use key-based authentication to secure the authenticat"
+        "description": "Adversaries may modify the SSH <code>authorized_keys</code> file to maintain persistence on a victim host. Linux distributions, macOS, and ESXi hypervisors commonly use key-based authentication to sec"
+    },
+    "1673": {
+        "framework": "enterprise",
+        "name": "Virtual Machine Discovery",
+        "description": "An adversary may attempt to enumerate running virtual machines (VMs) after gaining access to a host or hypervisor. For example, adversaries may enumerate a list of VMs on an ESXi hypervisor using a [H"
     },
     "1590.006": {
         "framework": "enterprise",
@@ -1539,20 +1619,35 @@
         "name": "Command and Scripting Interpreter",
         "description": "Adversaries may abuse command and script interpreters to execute commands, scripts, or binaries. These interfaces and languages provide ways of interacting with computer systems and are a common featu"
     },
-    "1562.006": {
+    "1204.005": {
         "framework": "enterprise",
-        "name": "Indicator Blocking",
-        "description": "An adversary may attempt to block indicators or events typically captured by sensors from being gathered and analyzed. This could include maliciously redirecting(Citation: Microsoft Lamin Sept 2017) o"
+        "name": "Malicious Library",
+        "description": "Adversaries may rely on a user installing a malicious library to facilitate execution. Threat actors may [Upload Malware](https://attack.mitre.org/techniques/T1608/001) to package managers such as NPM"
+    },
+    "1685.005": {
+        "framework": "enterprise",
+        "name": "Clear Windows Event Logs",
+        "description": "Adversaries may clear Windows Event Logs to hide the activity of an intrusion. Windows Event Logs are a record of a computer's alerts and notifications. There are three system-defined sources of event"
     },
     "1136.002": {
         "framework": "enterprise",
         "name": "Domain Account",
         "description": "Adversaries may create a domain account to maintain access to victim systems. Domain accounts are those managed by Active Directory Domain Services where access and permissions are configured across s"
     },
+    "1564.014": {
+        "framework": "enterprise",
+        "name": "Extended Attributes",
+        "description": "Adversaries may abuse extended attributes (xattrs) on macOS and Linux to hide their malicious data in order to evade detection. Extended attributes are key-value pairs of file and directory metadata u"
+    },
     "1589.003": {
         "framework": "enterprise",
         "name": "Employee Names",
         "description": "Adversaries may gather employee names that can be used during targeting. Employee names be used to derive email addresses as well as to help guide other reconnaissance efforts and/or craft more-believ"
+    },
+    "1677": {
+        "framework": "enterprise",
+        "name": "Poisoned Pipeline Execution",
+        "description": "Adversaries may manipulate continuous integration / continuous development (CI/CD) processes by injecting malicious code into the build process. There are several mechanisms for poisoning pipelines: \n"
     },
     "1482": {
         "framework": "enterprise",
@@ -1574,10 +1669,10 @@
         "name": "Client Configurations",
         "description": "Adversaries may gather information about the victim's client configurations that can be used during targeting. Information about client configurations may include a variety of details and settings, in"
     },
-    "1562.007": {
+    "1219.001": {
         "framework": "enterprise",
-        "name": "Disable or Modify Cloud Firewall",
-        "description": "Adversaries may disable or modify a firewall within a cloud environment to bypass controls that limit access to cloud resources. Cloud firewalls are separate from system firewalls that are described i"
+        "name": "IDE Tunneling",
+        "description": "Adversaries may abuse Integrated Development Environment (IDE) software with remote development features to establish an interactive command and control channel on target systems within a network. IDE"
     },
     "1036.002": {
         "framework": "enterprise",
@@ -1589,6 +1684,11 @@
         "name": "Malware",
         "description": "Adversaries may buy, steal, or download malware that can be used during targeting. Malicious software can include payloads, droppers, post-compromise tools, backdoors, packers, and C2 protocols. Adver"
     },
+    "1027.017": {
+        "framework": "enterprise",
+        "name": "SVG Smuggling",
+        "description": "Adversaries may smuggle data and files past content filters by hiding malicious payloads inside of seemingly benign SVG files.(Citation: Trustwave SVG Smuggling 2025) SVGs, or Scalable Vector Graphics"
+    },
     "1542.002": {
         "framework": "enterprise",
         "name": "Component Firmware",
@@ -1597,7 +1697,7 @@
     "1070": {
         "framework": "enterprise",
         "name": "Indicator Removal",
-        "description": "Adversaries may delete or modify artifacts generated within systems to remove evidence of their presence or hinder defenses. Various artifacts may be created by an adversary or something that can be a"
+        "description": "Adversaries may selectively delete or modify artifacts generated to reduce indications of their presence and blend in with legitimate activity. Rather than broadly removing evidence, adversaries may t"
     },
     "1048.001": {
         "framework": "enterprise",
@@ -1658,6 +1758,11 @@
         "framework": "enterprise",
         "name": "Plist File Modification",
         "description": "Adversaries may modify property list files (plist files) to enable other malicious activity, while also potentially evading and bypassing system defenses. macOS applications use plist files, such as t"
+    },
+    "1127.003": {
+        "framework": "enterprise",
+        "name": "JamPlus",
+        "description": "Adversaries may use `JamPlus` to proxy the execution of a malicious script. `JamPlus` is a build utility tool for code and data build systems. It works with several popular compilers and can be used f"
     },
     "1546.009": {
         "framework": "enterprise",
@@ -1746,13 +1851,8 @@
     },
     "1552.003": {
         "framework": "enterprise",
-        "name": "Bash History",
-        "description": "Adversaries may search the bash command history on compromised systems for insecurely stored credentials. Bash keeps track of the commands users type on the command-line with the \"history\" utility. On"
-    },
-    "1562.010": {
-        "framework": "enterprise",
-        "name": "Downgrade Attack",
-        "description": "Adversaries may downgrade or use a version of system features that may be outdated, vulnerable, and/or does not support updated security controls. Downgrade attacks typically take advantage of a syste"
+        "name": "Shell History",
+        "description": "Adversaries may search the command history on compromised systems for insecurely stored credentials.\n\nOn Linux and macOS systems, shells such as Bash and Zsh keep track of the commands users type on t"
     },
     "1559.003": {
         "framework": "enterprise",
@@ -1909,15 +2009,15 @@
         "name": "Cloud Account",
         "description": "Adversaries may attempt to get a listing of cloud accounts. Cloud accounts are those created and configured by an organization for use by users, remote support, services, or for administration of reso"
     },
+    "1683.002": {
+        "framework": "enterprise",
+        "name": "Audio-Visual Content",
+        "description": "Adversaries may create or manipulate audio, image, and video content to support targeting and malicious operations. Adversaries may also use synthetic voice recordings, real-time altered audio or vide"
+    },
     "1057": {
         "framework": "enterprise",
         "name": "Process Discovery",
         "description": "Adversaries may attempt to get information about running processes on a system. Information obtained could be used to gain an understanding of common software/applications running on systems within th"
-    },
-    "1562.003": {
-        "framework": "enterprise",
-        "name": "Impair Command History Logging",
-        "description": "Adversaries may impair command history logging to hide commands they run on a compromised system. Various command interpreters keep track of the commands users type in their terminal so that users can"
     },
     "1556.008": {
         "framework": "enterprise",
@@ -2009,6 +2109,11 @@
         "name": "File Transfer Protocols",
         "description": "Adversaries may communicate using application layer protocols associated with transferring files to avoid detection/network filtering by blending in with existing traffic. Commands to the remote syste"
     },
+    "1679": {
+        "framework": "enterprise",
+        "name": "Selective Exclusion",
+        "description": "Adversaries may intentionally exclude certain files, folders, directories, file types, or system components from encryption or tampering during a ransomware or malicious payload execution. Some file e"
+    },
     "1212": {
         "framework": "enterprise",
         "name": "Exploitation for Credential Access",
@@ -2084,10 +2189,20 @@
         "name": "Kernel Modules and Extensions",
         "description": "Adversaries may modify the kernel to automatically execute programs on system boot. Loadable Kernel Modules (LKMs) are pieces of code that can be loaded and unloaded into the kernel upon demand. They "
     },
+    "1678": {
+        "framework": "enterprise",
+        "name": "Delay Execution",
+        "description": "Adversaries may employ various time-based methods to evade detection and analysis. These techniques often exploit system clocks, delays, or timing mechanisms to obscure malicious activity, blend in wi"
+    },
     "1056.002": {
         "framework": "enterprise",
         "name": "GUI Input Capture",
         "description": "Adversaries may mimic common operating system GUI components to prompt users for credentials with a seemingly legitimate prompt. When programs are executed that need additional privileges than are pre"
+    },
+    "1686.002": {
+        "framework": "enterprise",
+        "name": "Network Device Firewall",
+        "description": "Adversaries may disable network device-based firewall mechanisms entirely or add, delete, or modify particular rules in order to bypass controls limiting network usage.  \n\nAdversaries may obtain acces"
     },
     "1588.002": {
         "framework": "enterprise",
@@ -2152,17 +2267,17 @@
     "1059.004": {
         "framework": "enterprise",
         "name": "Unix Shell",
-        "description": "Adversaries may abuse Unix shell commands and scripts for execution. Unix shells are the primary command prompt on Linux and macOS systems, though many variations of the Unix shell exist (e.g. sh, bas"
+        "description": "Adversaries may abuse Unix shell commands and scripts for execution. Unix shells are the primary command prompt on Linux, macOS, and ESXi systems, though many variations of the Unix shell exist (e.g. "
     },
     "1137.003": {
         "framework": "enterprise",
         "name": "Outlook Forms",
         "description": "Adversaries may abuse Microsoft Outlook forms to obtain persistence on a compromised system. Outlook forms are used as templates for presentation and functionality in Outlook messages. Custom Outlook "
     },
-    "1562.001": {
+    "1219.003": {
         "framework": "enterprise",
-        "name": "Disable or Modify Tools",
-        "description": "Adversaries may modify and/or disable security tools to avoid possible detection of their malware/tools and activities. This may take many forms, such as killing security software processes or service"
+        "name": "Remote Access Hardware",
+        "description": "An adversary may use legitimate remote access hardware to establish an interactive command and control channel to target systems within networks. These services, including IP-based keyboard, video, or"
     },
     "1565": {
         "framework": "enterprise",
@@ -2198,6 +2313,11 @@
         "framework": "enterprise",
         "name": "Hijack Execution Flow",
         "description": "Adversaries may execute their own malicious payloads by hijacking the way operating systems run programs. Hijacking execution flow can be for the purposes of persistence, since this hijacked execution"
+    },
+    "1036.012": {
+        "framework": "enterprise",
+        "name": "Browser Fingerprint",
+        "description": "Adversaries may attempt to blend in with legitimate traffic by spoofing browser and system attributes like operating system, system language, platform, user-agent string, resolution, time zone, etc.  "
     },
     "1059.011": {
         "framework": "enterprise",
@@ -2284,6 +2404,11 @@
         "name": "Invalid Code Signature",
         "description": "Adversaries may attempt to mimic features of valid code signatures to increase the chance of deceiving a user, analyst, or tool. Code signing provides a level of authenticity on a binary from the deve"
     },
+    "1683": {
+        "framework": "enterprise",
+        "name": "Generate Content",
+        "description": "Adversaries may create or generate content to support targeting and operations. This content may be used to establish personas, impersonate known individuals or organizations, and support [Social Engi"
+    },
     "1564.006": {
         "framework": "enterprise",
         "name": "Run Virtual Instance",
@@ -2328,6 +2453,11 @@
         "framework": "enterprise",
         "name": "Data Encrypted for Impact",
         "description": "Adversaries may encrypt data on target systems or on large numbers of systems in a network to interrupt availability to system and network resources. They can attempt to render stored data inaccessibl"
+    },
+    "1690": {
+        "framework": "enterprise",
+        "name": "Prevent Command History Logging",
+        "description": "Adversaries may impair command history logging to hide commands they run on a compromised system. Various command interpreters keep track of the commands users type in their terminal so that users can"
     },
     "1553": {
         "framework": "enterprise",
@@ -2384,6 +2514,11 @@
         "name": "Exploits",
         "description": "Adversaries may develop exploits that can be used during targeting. An exploit takes advantage of a bug or vulnerability in order to cause unintended or unanticipated behavior to occur on computer har"
     },
+    "1685": {
+        "framework": "enterprise",
+        "name": "Disable or Modify Tools",
+        "description": "Adversaries may disable, degrade, or tamper with security tools or applications (e.g., endpoint detection and response (EDR) tools, intrusion detection systems (IDS), antivirus, logging agents, sensor"
+    },
     "1593.001": {
         "framework": "enterprise",
         "name": "Social Media",
@@ -2411,8 +2546,8 @@
     },
     "1036.003": {
         "framework": "enterprise",
-        "name": "Rename System Utilities",
-        "description": "Adversaries may rename legitimate system utilities to try to evade security mechanisms concerning the usage of those utilities. Security monitoring and control mechanisms may be in place for system ut"
+        "name": "Rename Legitimate Utilities",
+        "description": "Adversaries may rename legitimate / system utilities to try to evade security mechanisms concerning the usage of those utilities. Security monitoring and control mechanisms may be in place for legitim"
     },
     "1102.002": {
         "framework": "enterprise",
@@ -2429,10 +2564,10 @@
         "name": "Wordlist Scanning",
         "description": "Adversaries may iteratively probe infrastructure using brute-forcing and crawling techniques. While this technique employs similar methods to [Brute Force](https://attack.mitre.org/techniques/T1110), "
     },
-    "1562.011": {
+    "1667": {
         "framework": "enterprise",
-        "name": "Spoof Security Alerting",
-        "description": "Adversaries may spoof security alerting from tools, presenting false evidence to impair defenders\u2019 awareness of malicious activity.(Citation: BlackBasta) Messages produced by defensive tools contain i"
+        "name": "Email Bombing",
+        "description": "Adversaries may flood targeted email addresses with an overwhelming volume of messages. This may bury legitimate emails in a flood of spam and disrupt business operations.(Citation: sophos-bombing)(Ci"
     },
     "1137.004": {
         "framework": "enterprise",
@@ -2479,6 +2614,11 @@
         "name": "Non-Application Layer Protocol",
         "description": "Adversaries may use an OSI non-application layer protocol for communication between host and C2 server or among infected hosts within a network. The list of possible protocols is extensive.(Citation: "
     },
+    "1059.013": {
+        "framework": "enterprise",
+        "name": "Container CLI/API",
+        "description": "Adversaries may abuse built-in CLI tools or API calls to execute malicious commands in containerized environments.\n\nThe Docker CLI is used for managing containers via an exposed API point from the `do"
+    },
     "1027.003": {
         "framework": "enterprise",
         "name": "Steganography",
@@ -2488,6 +2628,11 @@
         "framework": "enterprise",
         "name": "DNS Server",
         "description": "Adversaries may compromise third-party DNS servers that can be used during targeting. During post-compromise activity, adversaries may utilize DNS traffic for various tasks, including for Command and "
+    },
+    "1671": {
+        "framework": "enterprise",
+        "name": "Cloud Application Integration",
+        "description": "Adversaries may achieve persistence by leveraging OAuth application integrations in a software-as-a-service environment. Adversaries may create a custom application, add a legitimate application into "
     },
     "1001.003": {
         "framework": "enterprise",
@@ -2519,6 +2664,11 @@
         "name": "Regsvcs/Regasm",
         "description": "Adversaries may abuse Regsvcs and Regasm to proxy execution of code through a trusted Windows utility. Regsvcs and Regasm are Windows command-line utilities that are used to register .NET [Component O"
     },
+    "1546.018": {
+        "framework": "enterprise",
+        "name": "Python Startup Hooks",
+        "description": "Adversaries may achieve persistence by leveraging Python\u2019s startup mechanisms, including path configuration (`.pth`) files and the `sitecustomize.py` or `usercustomize.py` modules. These files are aut"
+    },
     "1553.004": {
         "framework": "enterprise",
         "name": "Install Root Certificate",
@@ -2538,6 +2688,11 @@
         "framework": "enterprise",
         "name": "Compile After Delivery",
         "description": "Adversaries may attempt to make payloads difficult to discover and analyze by delivering files to victims as uncompiled code. Text-based source code files may subvert analysis and scrutiny from protec"
+    },
+    "1688": {
+        "framework": "enterprise",
+        "name": "Safe Mode Boot",
+        "description": "Adversaries may abuse Windows safe mode to disable endpoint defenses. Safe mode starts up the Windows operating system with a limited set of drivers and services. Third-party security software such as"
     },
     "1614": {
         "framework": "enterprise",
@@ -2559,11 +2714,6 @@
         "name": "MSBuild",
         "description": "Adversaries may use MSBuild to proxy execution of code through a trusted Windows utility. MSBuild.exe (Microsoft Build Engine) is a software build platform used by Visual Studio. It handles XML format"
     },
-    "1656": {
-        "framework": "enterprise",
-        "name": "Impersonation",
-        "description": "Adversaries may impersonate a trusted person or organization in order to persuade and trick a target into performing some action on their behalf. For example, adversaries may communicate with victims "
-    },
     "1578.005": {
         "framework": "enterprise",
         "name": "Modify Cloud Compute Configurations",
@@ -2578,11 +2728,6 @@
         "framework": "enterprise",
         "name": "ARP Cache Poisoning",
         "description": "Adversaries may poison Address Resolution Protocol (ARP) caches to position themselves between the communication of two or more networked devices. This activity may be used to enable follow-on behavio"
-    },
-    "1562.008": {
-        "framework": "enterprise",
-        "name": "Disable or Modify Cloud Logs",
-        "description": "An adversary may disable or modify cloud logging capabilities and integrations to limit what data is collected on their activities and avoid detection. Cloud environments allow for collection and anal"
     },
     "1518.001": {
         "framework": "enterprise",
@@ -2633,6 +2778,11 @@
         "framework": "enterprise",
         "name": "Resource Hijacking",
         "description": "Adversaries may leverage the resources of co-opted systems to complete resource-intensive tasks, which may impact system and/or hosted service availability. \n\nResource hijacking may take a number of d"
+    },
+    "1684.001": {
+        "framework": "enterprise",
+        "name": "Impersonation",
+        "description": "Adversaries may impersonate a trusted person or organization in order to persuade and trick a target into performing some action on their behalf. For example, adversaries may communicate with victims "
     },
     "1585": {
         "framework": "enterprise",
@@ -2724,6 +2874,11 @@
         "name": "Clear Persistence",
         "description": "Adversaries may clear artifacts associated with previously established persistence on a host system to remove evidence of their activity. This may involve various actions, such as removing services, d"
     },
+    "1059.012": {
+        "framework": "enterprise",
+        "name": "Hypervisor CLI",
+        "description": "Adversaries may abuse hypervisor command line interpreters (CLIs) to execute malicious commands. Hypervisor CLIs typically enable a wide variety of functionality for managing both the hypervisor itsel"
+    },
     "1555.004": {
         "framework": "enterprise",
         "name": "Windows Credential Manager",
@@ -2737,7 +2892,12 @@
     "1200": {
         "framework": "enterprise",
         "name": "Hardware Additions",
-        "description": "Adversaries may introduce computer accessories, networking hardware, or other computing devices into a system or network that can be used as a vector to gain access. Rather than just connecting and di"
+        "description": "Adversaries may physically introduce computer accessories, networking hardware, or other computing devices into a system or network that can be used as a vector to gain access. Rather than just connec"
+    },
+    "1219.002": {
+        "framework": "enterprise",
+        "name": "Remote Desktop Software",
+        "description": "An adversary may use legitimate desktop support software to establish an interactive command and control channel to target systems within networks. Desktop support software provides a graphical interf"
     },
     "1505": {
         "framework": "enterprise",
@@ -2787,7 +2947,7 @@
     "1189": {
         "framework": "enterprise",
         "name": "Drive-by Compromise",
-        "description": "Adversaries may gain access to a system through a user visiting a website over the normal course of browsing. With this technique, the user's web browser is typically targeted for exploitation, but ad"
+        "description": "Adversaries may gain access to a system through a user visiting a website over the normal course of browsing. Multiple ways of delivering exploit code to a browser exist (i.e., [Drive-by Target](https"
     },
     "1498": {
         "framework": "enterprise",
@@ -2817,7 +2977,7 @@
     "1037.004": {
         "framework": "enterprise",
         "name": "RC Scripts",
-        "description": "Adversaries may establish persistence by modifying RC scripts which are executed during a Unix-like system\u2019s startup. These files allow system administrators to map and start custom services at startu"
+        "description": "Adversaries may establish persistence by modifying RC scripts, which are executed during a Unix-like system\u2019s startup. These files allow system administrators to map and start custom services at start"
     },
     "1134": {
         "framework": "enterprise",
@@ -2859,6 +3019,11 @@
         "name": "Systemd Service",
         "description": "Adversaries may create or modify systemd services to repeatedly execute malicious payloads as part of persistence. Systemd is a system and service manager commonly used for managing background daemon "
     },
+    "1668": {
+        "framework": "enterprise",
+        "name": "Exclusive Control",
+        "description": "Adversaries who successfully compromise a system may attempt to maintain persistence by \u201cclosing the door\u201d behind them  \u2013 in other words, by preventing other threat actors from initially accessing or "
+    },
     "1563.002": {
         "framework": "enterprise",
         "name": "RDP Hijacking",
@@ -2883,6 +3048,11 @@
         "framework": "enterprise",
         "name": "Cloud Service Discovery",
         "description": "An adversary may attempt to enumerate the cloud services running on a system after gaining access. These methods can differ from platform-as-a-service (PaaS), to infrastructure-as-a-service (IaaS), or"
+    },
+    "1204.004": {
+        "framework": "enterprise",
+        "name": "Malicious Copy and Paste",
+        "description": "An adversary may rely upon a user copying and pasting code in order to gain execution. Users may be subjected to social engineering to get them to copy and paste code directly into a [Command and Scri"
     },
     "1018": {
         "framework": "enterprise",
@@ -2944,11 +3114,6 @@
         "name": "Exfiltration Over Physical Medium",
         "description": "Adversaries may attempt to exfiltrate data via a physical medium, such as a removable drive. In certain circumstances, such as an air-gapped network compromise, exfiltration could occur via a physical"
     },
-    "1574.002": {
-        "framework": "enterprise",
-        "name": "DLL Side-Loading",
-        "description": "Adversaries may execute their own malicious payloads by side-loading DLLs. Similar to [DLL Search Order Hijacking](https://attack.mitre.org/techniques/T1574/001), side-loading involves hijacking which"
-    },
     "1105": {
         "framework": "enterprise",
         "name": "Ingress Tool Transfer",
@@ -2978,6 +3143,11 @@
         "framework": "enterprise",
         "name": "TCC Manipulation",
         "description": "Adversaries can manipulate or abuse the Transparency, Consent, & Control (TCC) service or database to grant malicious executables elevated permissions. TCC is a Privacy & Security macOS control mechan"
+    },
+    "1027.018": {
+        "framework": "enterprise",
+        "name": "Invisible Unicode",
+        "description": "Adversaries may abuse invisible or non-printing Unicode characters to conceal malicious content within files, scripts, or text. By inserting characters that do not visibly render, adversaries may hide"
     },
     "1055.008": {
         "framework": "enterprise",
@@ -3012,7 +3182,7 @@
     "1665": {
         "framework": "enterprise",
         "name": "Hide Infrastructure",
-        "description": "Adversaries may manipulate network traffic in order to hide and evade detection of their C2 infrastructure. This can be accomplished in various ways including by identifying and filtering traffic from"
+        "description": "Adversaries may manipulate network traffic in order to hide and evade detection of their C2 infrastructure. This can be accomplished by identifying and filtering traffic from defensive tools,(Citation"
     },
     "1484": {
         "framework": "enterprise",
@@ -3059,10 +3229,20 @@
         "name": "NTDS",
         "description": "Adversaries may attempt to access or create a copy of the Active Directory domain database in order to steal credential information, as well as obtain other information about domain members such as de"
     },
+    "1686.001": {
+        "framework": "enterprise",
+        "name": "Cloud Firewall",
+        "description": "Adversaries may disable or modify a firewall within a cloud environment to bypass controls that limit access to cloud resources.\n\nCloud environments typically utilize restrictive security groups and f"
+    },
     "1602.001": {
         "framework": "enterprise",
         "name": "SNMP (MIB Dump)",
         "description": "Adversaries may target the Management Information Base (MIB) to collect and/or mine valuable information in a network managed using Simple Network Management Protocol (SNMP).\n\nThe MIB is a configurati"
+    },
+    "1686": {
+        "framework": "enterprise",
+        "name": "Disable or Modify System Firewall",
+        "description": "Adversaries may disable or modify host-based or network firewalls to impair defensive mechanisms and enable further action. Once an adversary has gathered sufficient privileges, they can tamper with f"
     },
     "1001.002": {
         "framework": "enterprise",
@@ -3103,6 +3283,11 @@
         "framework": "enterprise",
         "name": "Fallback Channels",
         "description": "Adversaries may use fallback or alternate communication channels if the primary channel is compromised or inaccessible in order to maintain reliable command and control and to avoid data transfer thre"
+    },
+    "1680": {
+        "framework": "enterprise",
+        "name": "Local Storage Discovery",
+        "description": "Adversaries may enumerate local drives, disks, and/or volumes and their attributes like total or free space and volume serial number. This can be done to prepare for ransomware-related encryption, to "
     },
     "1564.004": {
         "framework": "enterprise",
@@ -3152,7 +3337,7 @@
     "1056.004": {
         "framework": "enterprise",
         "name": "Credential API Hooking",
-        "description": "Adversaries may hook into Windows application programming interface (API) functions to collect user credentials. Malicious hooking mechanisms may capture API calls that include parameters that reveal "
+        "description": "Adversaries may hook into Windows application programming interface (API) functions and Linux system functions to collect user credentials. Malicious hooking mechanisms may capture API or function cal"
     },
     "1495": {
         "framework": "enterprise",
@@ -3199,6 +3384,11 @@
         "name": "Spearphishing Service",
         "description": "Adversaries may send spearphishing messages via third-party services to elicit sensitive information that can be used during targeting. Spearphishing for information is an attempt to trick targets int"
     },
+    "1505.006": {
+        "framework": "enterprise",
+        "name": "vSphere Installation Bundles",
+        "description": "Adversaries may abuse vSphere Installation Bundles (VIBs) to establish persistent access to ESXi hypervisors. VIBs are collections of files used for software distribution and virtual system management"
+    },
     "1552.007": {
         "framework": "enterprise",
         "name": "Container API",
@@ -3234,6 +3424,11 @@
         "name": "Exfiltration Over Unencrypted Non-C2 Protocol",
         "description": "Adversaries may steal data by exfiltrating it over an un-encrypted network protocol other than that of the existing command and control channel. The data may also be sent to an alternate network locat"
     },
+    "1027.015": {
+        "framework": "enterprise",
+        "name": "Compression",
+        "description": "Adversaries may use compression to obfuscate their payloads or files. Compressed file formats such as ZIP, gzip, 7z, and RAR can compress and archive multiple files together to make it easier and fast"
+    },
     "1574.004": {
         "framework": "enterprise",
         "name": "Dylib Hijacking",
@@ -3244,15 +3439,25 @@
         "name": "Downgrade System Image",
         "description": "Adversaries may install an older version of the operating system of a network device to weaken security.  Older operating system versions on network devices often have weaker encryption ciphers and, i"
     },
+    "1684.002": {
+        "framework": "enterprise",
+        "name": "Email Spoofing",
+        "description": "Adversaries may fake, or spoof, a sender\u2019s identity by modifying the value of relevant email headers in order to establish contact with victims under false pretenses.(Citation: Proofpoint TA427 April "
+    },
     "1078.003": {
         "framework": "enterprise",
         "name": "Local Accounts",
         "description": "Adversaries may obtain and abuse credentials of a local account as a means of gaining Initial Access, Persistence, Privilege Escalation, or Defense Evasion. Local accounts are those configured by an o"
     },
+    "1669": {
+        "framework": "enterprise",
+        "name": "Wi-Fi Networks",
+        "description": "Adversaries may gain initial access to target systems by connecting to wireless networks. They may accomplish this by exploiting open Wi-Fi networks used by target devices or by accessing secured Wi-F"
+    },
     "1211": {
         "framework": "enterprise",
-        "name": "Exploitation for Defense Evasion",
-        "description": "Adversaries may exploit a system or application vulnerability to bypass security features. Exploitation of a vulnerability occurs when an adversary takes advantage of a programming error in a program,"
+        "name": "Exploitation for Stealth",
+        "description": "Adversaries may exploit vulnerabilities to evade detection by hiding activity, suppressing logging, or operating within trusted or unmonitored components. \n\nAdversaries may exploit a system or applica"
     },
     "1127": {
         "framework": "enterprise",

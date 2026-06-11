@@ -30,7 +30,7 @@ def _download_stix_bundle() -> Dict[str, Any]:
     """Download ATT&CK Enterprise STIX bundle."""
     url = config.get(
         'database.groups.url',
-        'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json'
+        'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json'
     )
     context = create_api_context("campaign_fetch", url)
     logger.info(f"Downloading ATT&CK STIX bundle from {url}")

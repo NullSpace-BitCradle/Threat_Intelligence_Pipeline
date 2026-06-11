@@ -30,18 +30,6 @@
             "file": "docs/data/cwe_db.json"
         },
         "techniques": {
-            "enterprise": {
-                "url": "https://attack.mitre.org/docs/enterprise-attack-v17.1/enterprise-attack-v17.1-techniques.xlsx",
-                "column": 9
-            },
-            "mobile": {
-                "url": "https://attack.mitre.org/docs/mobile-attack-v17.1/mobile-attack-v17.1-techniques.xlsx",
-                "column": 10
-            },
-            "ics": {
-                "url": "https://attack.mitre.org/docs/ics-attack-v17.1/ics-attack-v17.1-techniques.xlsx",
-                "column": 9
-            },
             "file": "docs/data/techniques_db.json"
         },
         "defend": {
@@ -57,7 +45,7 @@
             "state_file": "docs/data/vulnrichment_state.json"
         },
         "groups": {
-            "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json",
+            "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json",
             "file": "docs/data/groups_db.json"
         }
     },

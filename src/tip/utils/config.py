@@ -62,18 +62,6 @@ class Config:
                     "file": "resources/cwe_db.json"
                 },
                 "techniques": {
-                    "enterprise": {
-                        "url": "https://attack.mitre.org/docs/enterprise-attack-v17.1/enterprise-attack-v17.1-techniques.xlsx",
-                        "column": 9
-                    },
-                    "mobile": {
-                        "url": "https://attack.mitre.org/docs/mobile-attack-v17.1/mobile-attack-v17.1-techniques.xlsx",
-                        "column": 10
-                    },
-                    "ics": {
-                        "url": "https://attack.mitre.org/docs/ics-attack-v17.1/ics-attack-v17.1-techniques.xlsx",
-                        "column": 9
-                    },
                     "file": "resources/techniques_db.json"
                 },
                 "defend": {

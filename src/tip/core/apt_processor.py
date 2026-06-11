@@ -34,7 +34,7 @@ class APTProcessor:
         """Download ATT&CK Enterprise STIX bundle"""
         url = config.get(
             'database.groups.url',
-            'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-16.1.json'
+            'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json'
         )
         context = create_api_context("download_stix", url)
 
