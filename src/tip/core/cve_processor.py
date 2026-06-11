@@ -278,13 +278,14 @@ class CVEProcessor:
                         description = desc.get('value', '')
                         break
 
-                # Extract CVSS v3.1 / v3.0 metrics (prefer v3.1 primary)
+                # Extract CVSS metrics, newest version first. v2 fallback matters
+                # for pre-2016 CVEs that NVD never re-scored against v3.
                 cvss_score = None
                 cvss_vector = ''
                 cvss_severity = ''
                 cvss_version = ''
                 metrics = cve_data.get('cve', {}).get('metrics', {})
-                for key in ('cvssMetricV31', 'cvssMetricV30'):
+                for key in ('cvssMetricV40', 'cvssMetricV31', 'cvssMetricV30', 'cvssMetricV2'):
                     metric_list = metrics.get(key) or []
                     primary = next(
                         (m for m in metric_list if m.get('type') == 'Primary'),
