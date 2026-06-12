@@ -122,6 +122,7 @@ Proposed during this 2026-05-08 review. Not yet committed; ranked by impact-to-e
 - **I7: Saved searches / watchlists (localStorage).** Investigation pinning exists; extend to "watch this APT group / CWE / technique." Per-device, no server. ~half day.
 - **I8: Diff view between pipeline runs.** "What changed in this week's pipeline?" is a real analyst question and free with the auto-pipeline cadence. ~1 day.
 - **I9: Type-strict mypy pass.** Project uses Python 3.9+; add `mypy --strict` to CI and address findings. ~1 day on first pass.
+- **I21: CWE-assignment gap closure (added 2026-06-11).** The chain-coverage ceiling: TECHNIQUES coverage caps at ~75% in modern years (near zero pre-2010) because many NVD records carry no usable CWE to join from — the joins themselves are fine. Close it in-house, in provenance-tagged tiers: (a) CNA-provided CWEs from the NVD record's CNA/ADP containers, (b) CISA vulnrichment CWE assignments (already ingested, currently only used for SSVC/CVSS), (c) description-based CWE inference as an explicitly-labeled lowest tier. This is the "better than CVE2CAPEC" successor work from the P11 decision. ~2-3 days for (a)+(b); (c) scoped separately if (a)+(b) leave a gap worth chasing.
 
 ### 4.2 Higher effort, conditional value
 
@@ -196,7 +197,7 @@ Seven phases, sequenced to maximize Strategic Rogue + Partner Network impact whi
 
 ### P11 — CVE2CAPEC parity check + decision (1 day)
 
-> **RESOLVED 2026-06-11 — decision by principal, parity check moot.** the maintainer: TIP was originally built off CVE2CAPEC's approach; whatever it does, TIP's in-house pipeline can do better. CVE2CAPEC will not be adopted in any posture (no REPLACE, no AUGMENT). Enrichment stays in-house. Supporting evidence from 2026-06-11 session: the in-house chain is local joins over static MITRE datasets (CAPEC CSV, ATT&CK XLSX, CWE XML) with no rate-limited dependency, and the NVD-cost argument collapsed — a full-corpus keyless NVD pass took ~20 minutes (CVSS backfill, commit 0f3a748). T11.1-T11.4 are superseded. The "do it better" successor work is closing the CWE-assignment gap that caps TECHNIQUES coverage (~75% modern years) — tracked as future in-house enrichment work, not as CVE2CAPEC adoption. Per the P12 conditional below, P12 (ctibutler) is deferred indefinitely.
+> **RESOLVED 2026-06-11 — decision by principal, parity check moot.** the maintainer: TIP was originally built off CVE2CAPEC's approach; whatever it does, TIP's in-house pipeline can do better. CVE2CAPEC will not be adopted in any posture (no REPLACE, no AUGMENT). Enrichment stays in-house. Supporting evidence from 2026-06-11 session: the in-house chain is local joins over static MITRE datasets (CAPEC CSV, ATT&CK XLSX, CWE XML) with no rate-limited dependency, and the NVD-cost argument collapsed — a full-corpus keyless NVD pass took ~20 minutes (CVSS backfill, commit 0f3a748). T11.1-T11.4 are superseded. The "do it better" successor work is closing the CWE-assignment gap that caps TECHNIQUES coverage (~75% modern years) — tracked as **I21** in §4.1 and slotted #2 in the P15 promotion order. Per the P12 conditional below, P12 (ctibutler) is deferred indefinitely.
 
 **Original phase content retained for historical context:**
 
@@ -279,17 +280,18 @@ Take items from §4 in order of analyst-leverage. Each item gets its own design 
 Initial promotion order (revisable):
 
 1. **I1 (EPSS scoring)** — highest signal-to-effort; cve-mcp already has the data.
-2. **I3 (CWE Top 25)** — 2-4 hours, additive UI.
-3. **I7 (saved searches / watchlists)** — half day, real workflow value.
-4. **I6 (schema versioning doc)** — half day, pays back the next time entity_index changes.
-5. **I8 (diff view between runs)** — answers a real analyst question.
-6. **I2 (MITRE ATLAS framework)** — strategic positioning for AI-security work.
-7. **I4 (Sigma rules pivot)** — differentiator vs. competitors.
-8. **I14 (annotation layer)** — extends investigation pinning.
-9. **I11 (DISARM framework)** — the maintainer's OSINT interest.
-10. **I15 (STIX 2.1 export)** — interchange format.
-11. **I12 (NIST CSF subcategory mapping)** — compliance audiences.
-12. **I10 (embedding-based similarity)** — heavier lift; requires real product validation first.
+2. **I21 (CWE-assignment gap closure)** — raises the chain-coverage ceiling itself; the in-house "better than CVE2CAPEC" successor work per the P11 decision.
+3. **I3 (CWE Top 25)** — 2-4 hours, additive UI.
+4. **I7 (saved searches / watchlists)** — half day, real workflow value.
+5. **I6 (schema versioning doc)** — half day, pays back the next time entity_index changes.
+6. **I8 (diff view between runs)** — answers a real analyst question.
+7. **I2 (MITRE ATLAS framework)** — strategic positioning for AI-security work.
+8. **I4 (Sigma rules pivot)** — differentiator vs. competitors.
+9. **I14 (annotation layer)** — extends investigation pinning.
+10. **I11 (DISARM framework)** — the maintainer's OSINT interest.
+11. **I15 (STIX 2.1 export)** — interchange format.
+12. **I12 (NIST CSF subcategory mapping)** — compliance audiences.
+13. **I10 (embedding-based similarity)** — heavier lift; requires real product validation first.
 
 T13.3 (live pipeline trigger from UI) and I13 (RSS/webhook) require a server-mode deployment; both are deferred until there is a use case that justifies leaving the static-site model.
 

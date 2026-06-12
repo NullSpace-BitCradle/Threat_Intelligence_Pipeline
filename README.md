@@ -14,9 +14,11 @@ A search-first threat intelligence tool that correlates CVEs across 8 security f
 
 ## Status snapshot
 
-As of 2026-06-09:
+As of 2026-06-11:
 
 - 356K+ raw CVEs ingested from NVD (356,014 at the last weekly run); every one is searchable by ID via the tiered all-CVE index
+- CVSS coverage is corpus-wide: 75,945 historical CVEs backfilled from NVD on 2026-06-11 (the 1999 shard went from 2.4% to 98% scored); extraction falls back v4.0 -> v3.1 -> v3.0 -> v2, so every CVE NVD has ever scored carries a severity
+- MITRE sources track always-latest (version pins removed 2026-06-11); ATT&CK reference data refreshed v16.1 -> v19.1, 656 -> 697 techniques (graph counts pick this up on the next index build)
 - Curated entity graph holds 2,901 enriched CVEs (KEV / APT-linked / vulnrichment) with full cross-framework relationships
 - 5,438 total entities across 8 frameworks: 969 CWEs, 656 ATT&CK techniques, 559 CAPECs, 160 APT groups, 149 D3FEND countermeasures, 34 campaigns, 10 OWASP categories
 - 1,614 CISA KEV entries tracked with daily refresh
@@ -267,22 +269,25 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | CVE enrichment surgery | 2026-04-24 | Full descriptions, CVSS, dates, references in shards; MCP shard fallback |
 | All-CVE tiered search | 2026-04-24 | Every ingested CVE searchable by ID and openable as a detail page |
 | P9 stabilization | 2026-06-09 | Pipeline verified healthy, Playwright smoke suite + CI gating, master plan landed |
+| CVSS long-tail backfill | 2026-06-11 | 75,945 historical CVEs gained CVSS via one-time NVD pass; processor fallback chain extended v4.0 through v2 |
+| Always-latest MITRE sources | 2026-06-11 | ATT&CK STIX de-pinned (was frozen at v16.1); techniques refreshed to v19.1; dead XLSX config removed; CodeQL alerts at zero |
+| Enrichment direction decided | 2026-06-11 | CVE2CAPEC adoption rejected (P11 closed); enrichment stays in-house; CWE-gap closure tracked as I21 |
 
 ### Next
 
 | Phase | Item | Notes |
 |-------|------|-------|
 | P10 | MCP Phase B: `build_attack_chain`, `get_defenses`, `kev_status` | Completes the six-tool MCP surface, plus an end-to-end demo capture |
-| P11 | CVE2CAPEC parity check | Evidence-gated decision: replace, augment, or hold the current enrichment chain |
 
 ### Later
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P12 | Local ctibutler + MCP wrapper | STIX query surface; conditional on the P11 decision |
 | P13 | Multi-entity analysis, visual polish, extended exports | Paste a list of entities, see the combined picture; CSV and ATT&CK Navigator exports |
 | P14 | Pipeline observability and hardening | Run summaries, failure alerting, data-quality checks |
-| P15 | Improvements grab-bag | Promoted item by item from the master plan |
+| P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 (CWE-assignment gap closure) slotted #2 |
+
+P11 (CVE2CAPEC parity check) closed 2026-06-11 by decision: enrichment stays in-house. P12 (ctibutler) deferred indefinitely per its conditional.
 
 ## License
 
