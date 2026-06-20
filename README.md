@@ -14,17 +14,18 @@ A search-first threat intelligence tool that correlates CVEs across 8 security f
 
 ## Status snapshot
 
-As of 2026-06-11:
+As of 2026-06-20:
 
-- 356K+ raw CVEs ingested from NVD (356,014 at the last weekly run); every one is searchable by ID via the tiered all-CVE index
+- 357K+ raw CVEs ingested from NVD (357,794 at the last weekly run); every one is searchable by ID via the tiered all-CVE index
 - CVSS coverage is corpus-wide: 75,945 historical CVEs backfilled from NVD on 2026-06-11 (the 1999 shard went from 2.4% to 98% scored); extraction falls back v4.0 -> v3.1 -> v3.0 -> v2, so every CVE NVD has ever scored carries a severity
-- MITRE sources track always-latest (version pins removed 2026-06-11); ATT&CK reference data refreshed v16.1 -> v19.1, 656 -> 697 techniques (graph counts pick this up on the next index build)
-- Curated entity graph holds 2,901 enriched CVEs (KEV / APT-linked / vulnrichment) with full cross-framework relationships
-- 5,438 total entities across 8 frameworks: 969 CWEs, 656 ATT&CK techniques, 559 CAPECs, 160 APT groups, 149 D3FEND countermeasures, 34 campaigns, 10 OWASP categories
-- 1,614 CISA KEV entries tracked with daily refresh
+- MITRE sources track always-latest (version pins removed 2026-06-11); ATT&CK reference data is at v19.1 (697 techniques)
+- Curated entity graph holds 2,891 enriched CVEs (KEV / APT-linked / vulnrichment) with full cross-framework relationships
+- 5,503 total entities across 8 frameworks: 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 174 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
+- 1,623 CISA KEV entries tracked with daily refresh
 - Fully automated: daily reference database refresh, weekly full CVE pipeline, daily site smoke test, plus a smoke gate on every push
-- MCP server Phase A live (3 of 6 planned tools) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph
-- 72 tests passing across pipeline processors, the MCP layer, and a Playwright smoke suite
+- MCP server Phase A live (3 of 6 planned tools) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
+- Web triage: a worklist mode (paste a list of IDs for one sortable cohort table across CVSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / CISA-override badges and clickable references on CVE pages
+- 82 tests passing across pipeline processors, the MCP layer, and a Playwright smoke suite
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -58,10 +59,11 @@ Search-first design with two views.
 
 Features:
 - Search by ID (`CVE-2024-37079`, `T1059`, `CWE-79`) or name (`APT29`, `Log4Shell`)
-- CVE pages render full description, CVSS severity badge, disclosure dates, and reference count
+- CVE pages render full description, CVSS severity badge, KEV / ransomware / SSVC / CISA-CVSS-override triage badges, disclosure dates, and a clickable references list
 - Overview tab with descriptions, aliases, KEV details, and data provenance
 - Framework tabs: ATT&CK, D3FEND, APT Groups, OWASP, CWE, CAPEC, KEV detail
 - Interactive relationship graph; click any node to navigate
+- **Worklist / triage mode** (`#/list`): paste a list of IDs and get one sortable table across the cohort — CVSS, KEV, ransomware use, SSVC exploit status, and remediation due date — with a shareable URL
 - Investigation pinning with JSON export
 - Dark and light theme
 - Hash-based routing with shareable URLs and browser back / forward
@@ -73,8 +75,8 @@ Features:
 |--------|------------------|------------------|
 | NVD API 2.0 | CVE records, CVSS scores, CWE assignments, descriptions, references | Weekly (Actions) |
 | MITRE ATT&CK | Attack techniques (enterprise, mobile, ICS) | Weekly (Actions) |
-| MITRE ATT&CK Groups | 160 threat groups with aliases and technique usage | Weekly (Actions) |
-| MITRE ATT&CK Campaigns | 34 named campaigns with attribution and timelines | Weekly (Actions) |
+| MITRE ATT&CK Groups | 174 threat groups with aliases and technique usage | Weekly (Actions) |
+| MITRE ATT&CK Campaigns | 56 named campaigns with attribution and timelines | Weekly (Actions) |
 | MITRE D3FEND | Defensive countermeasure mappings per technique | Weekly (Actions) |
 | MITRE CWE | Weakness definitions and parent relationships | Weekly (Actions) |
 | MITRE CAPEC | Attack pattern definitions and technique mappings | Weekly (Actions) |
@@ -141,9 +143,11 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 
 **Status:** Phase A (v1 MVP) shipped 2026-04-23. Three read-only tools, plus a JSONL shard fallback added 2026-04-24:
 
-- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 356K+ ingested CVEs is queryable by ID.
+- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 357K+ ingested CVEs is queryable by ID.
 - `pivot_from_entity(entity_id, target_type?)`: returns entities related by type. Same shard fallback as `lookup_entity`, so pivoting from any ingested CVE works even if it is not in the enriched graph.
 - `search_threat_intel(query, limit?, types?)`: returns ranked hits from the inverted index
+
+CVE lookups carry the full intelligence the pipeline stores in the shards — KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics — projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
 
 Phase B (`build_attack_chain`, `get_defenses`, `kev_status`) is the next development block; see the [Roadmap](#roadmap).
 
@@ -211,6 +215,8 @@ src/tip/
   monitoring/                 # Health checks, metrics, web server
   utils/                      # Config, error handling, rate limiting
   database/                   # JSONL file manager
+src/tip_intel/
+  cve_blocks.py               # Shared CVE intelligence contract (KEV/SSVC/CVSS/D3FEND) for generator + MCP
 src/tip_mcp/
   loader.py                   # Loads entity / search indexes; CVE shard scanner
   tools.py                    # MCP tool implementations
@@ -230,6 +236,7 @@ docs/
     app.js                    # Router, search, landing page, theme, investigation
     entity-system.js          # Entity index, search, data lookup helpers
     results.js                # Result page rendering (header, tabs, summary cards)
+    worklist.js               # Worklist / triage mode (sortable cohort table)
     graph.js                  # D3 force-directed relationship graph
   data/                       # Reference databases (auto-updated)
   database/                   # CVE database by year (auto-updated)
@@ -250,7 +257,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 72 tests across pipeline processors, the MCP layer, and the Playwright smoke suite. The smoke suite also runs in CI on every push and daily against the deployed site.
+Current suite: 82 tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), and the Playwright smoke suite. The smoke suite also runs in CI on every push and daily against the deployed site.
 
 ## Roadmap
 
@@ -272,6 +279,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | CVSS long-tail backfill | 2026-06-11 | 75,945 historical CVEs gained CVSS via one-time NVD pass; processor fallback chain extended v4.0 through v2 |
 | Always-latest MITRE sources | 2026-06-11 | ATT&CK STIX de-pinned (was frozen at v16.1); techniques refreshed to v19.1; dead XLSX config removed; CodeQL alerts at zero |
 | Enrichment direction decided | 2026-06-11 | CVE2CAPEC adoption rejected (P11 closed); enrichment stays in-house; CWE-gap closure tracked as I21 |
+| P9.5 surface-gap closure | 2026-06-20 | MCP now passes full KEV/SSVC/CVSS/D3FEND detail (I22); schema-driven shared contract `tip_intel.cve_blocks` with cross-seam parity test (I24); web triage badges + clickable references (I23); worklist/triage mode (I28); graph node-label and `/health` 404 fixes (I25/I26) |
 
 ### Next
 
@@ -283,7 +291,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P13 | Multi-entity analysis, visual polish, extended exports | Paste a list of entities, see the combined picture; CSV and ATT&CK Navigator exports |
+| P13 | Visual polish, extended exports, worklist follow-ups | Multi-entity worklist MVP shipped 2026-06-20; remaining: graph legend/zoom, worklist filters + CSV export, ATT&CK Navigator export |
 | P14 | Pipeline observability and hardening | Run summaries, failure alerting, data-quality checks |
 | P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 (CWE-assignment gap closure) slotted #2 |
 
