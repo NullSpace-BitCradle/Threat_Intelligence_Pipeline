@@ -251,16 +251,31 @@ function getEntity(entityId) {
     return { id: entityId, ...entityIndex.entities[entityId] };
 }
 
+// Some curated entity_index rels carry a bare numeric id (e.g. a CWE stored
+// as "664" instead of "CWE-664"), which renders as an unprefixed, untyped
+// node in the graph and a dead link in the tabs. Normalize to the canonical
+// prefixed form so the label, color, and navigation all resolve. Mirrors the
+// normalization the MCP shard projection already does (_shard_rels).
+function normalizeRelId(relType, id) {
+    const s = String(id);
+    if (/^\d+$/.test(s)) {
+        if (relType === 'cwe') return 'CWE-' + s;
+        if (relType === 'capec') return 'CAPEC-' + s;
+    }
+    return s;
+}
+
 function getRelatedEntities(entityId) {
     const entity = getEntity(entityId);
     if (!entity || !entity.rels) return {};
     const related = {};
     for (const [relType, relData] of Object.entries(entity.rels)) {
+        const ids = (relData.ids || []).map(id => normalizeRelId(relType, id));
         related[relType] = {
-            ids: relData.ids || [],
+            ids: ids,
             source: relData.source || '',
             tier: relData.tier || 'derived',
-            entities: (relData.ids || []).map(id => getEntity(id)).filter(Boolean)
+            entities: ids.map(id => getEntity(id)).filter(Boolean)
         };
     }
     return related;

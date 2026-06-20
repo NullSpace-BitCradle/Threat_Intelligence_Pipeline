@@ -568,6 +568,13 @@ function showNotification(message) {
 // ── Mode Detection ─────────────────────────────────────────────
 
 function detectMode() {
+    // The /health probe only makes sense behind a local pipeline server. On
+    // static hosting (GitHub Pages) it 404s on every load and pollutes the
+    // console, so skip it unless we are running on localhost.
+    var host = location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0') {
+        return;
+    }
     var controller = new AbortController();
     setTimeout(function() { controller.abort(); }, 500);
     fetch('/health', { signal: controller.signal })

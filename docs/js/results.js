@@ -29,7 +29,7 @@ async function renderResultPage(entityId) {
     const detail = await fetchEntityDetail(entityId);
 
     main.textContent = '';
-    renderEntityHeader(main, entity, related);
+    renderEntityHeader(main, entity, related, detail);
     renderSummaryCards(main, entity, related);
     renderDetailTabs(main, entity, related, detail);
     renderGraphPanel(graphPanel, entityId, related);
@@ -114,7 +114,12 @@ async function renderCveFromShard(main, graphPanel, cveId) {
         };
     }
 
-    renderEntityHeader(main, synthEntity, related);
+    var shardDetail = {
+        description: description,
+        kev: (payload.KEV && typeof payload.KEV === 'object') ? payload.KEV : null,
+        ssvc: (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') ? payload.VULNRICHMENT : null
+    };
+    renderEntityHeader(main, synthEntity, related, shardDetail);
     // Add a clear "from shard" provenance badge below the header so users
     // know this is not from the curated graph.
     var shardBadge = document.createElement('div');
@@ -131,11 +136,11 @@ async function renderCveFromShard(main, graphPanel, cveId) {
     main.appendChild(shardBadge);
 
     renderSummaryCards(main, synthEntity, related);
-    renderDetailTabs(main, synthEntity, related, { description: description });
+    renderDetailTabs(main, synthEntity, related, shardDetail);
     renderGraphPanel(graphPanel, cveId, related, synthEntity);
 }
 
-function renderEntityHeader(container, entity, related) {
+function renderEntityHeader(container, entity, related, detail) {
     const header = document.createElement('div');
     header.className = 'entity-header';
 
@@ -200,6 +205,54 @@ function renderEntityHeader(container, entity, related) {
         sevBadge.textContent = sevLabel + 'CVSS ' + entity.cvss_score.toFixed(1);
         if (entity.cvss_vector) sevBadge.title = entity.cvss_vector;
         badges.appendChild(sevBadge);
+    }
+
+    // Triage badges (CVE) — render-if-present so they light up wherever the
+    // data is attached (KEV detail and SSVC ride in via `detail`). `detail`
+    // may be undefined; never assume it.
+    if (entity.type === 'cve') {
+        const kevDetail = (detail && detail.kev) ? detail.kev : null;
+        const ssvc = (detail && detail.ssvc) ? detail.ssvc : null;
+        if (entity.kev) {
+            const kevBadge = document.createElement('span');
+            kevBadge.className = 'badge';
+            kevBadge.style.background = '#d6303125';
+            kevBadge.style.color = '#d63031';
+            kevBadge.textContent = 'KEV';
+            if (kevDetail && kevDetail.dueDate) {
+                kevBadge.title = 'CISA KEV — remediation due ' + kevDetail.dueDate;
+            }
+            badges.appendChild(kevBadge);
+        }
+        if (kevDetail && kevDetail.knownRansomwareCampaignUse === 'Known') {
+            const ransBadge = document.createElement('span');
+            ransBadge.className = 'badge';
+            ransBadge.style.background = '#b71c1c25';
+            ransBadge.style.color = '#b71c1c';
+            ransBadge.textContent = '⚠ Ransomware';
+            badges.appendChild(ransBadge);
+        }
+        if (ssvc && ssvc.ssvcExploitStatus) {
+            const ssvcBadge = document.createElement('span');
+            ssvcBadge.className = 'badge';
+            ssvcBadge.style.background = '#6c5ce725';
+            ssvcBadge.style.color = '#6c5ce7';
+            ssvcBadge.textContent = 'SSVC: ' + String(ssvc.ssvcExploitStatus).toUpperCase();
+            const ssvcBits = [];
+            if (ssvc.ssvcAutomatable) ssvcBits.push('automatable=' + ssvc.ssvcAutomatable);
+            if (ssvc.ssvcTechnicalImpact) ssvcBits.push('impact=' + ssvc.ssvcTechnicalImpact);
+            if (ssvcBits.length) ssvcBadge.title = ssvcBits.join(', ');
+            badges.appendChild(ssvcBadge);
+        }
+        if (ssvc && ssvc.cisaCVSS && typeof ssvc.cisaCVSS.baseScore === 'number') {
+            const cisaBadge = document.createElement('span');
+            cisaBadge.className = 'badge';
+            cisaBadge.style.background = '#00838f25';
+            cisaBadge.style.color = '#00838f';
+            cisaBadge.textContent = 'CISA CVSS ' + ssvc.cisaCVSS.baseScore.toFixed(1);
+            if (ssvc.cisaCVSS.vector) cisaBadge.title = ssvc.cisaCVSS.vector;
+            badges.appendChild(cisaBadge);
+        }
     }
 
     // Provenance badge
@@ -399,6 +452,14 @@ function renderDetailTabs(container, entity, related, detail) {
     container.appendChild(panelContainer);
 }
 
+// Guard external reference URLs to http(s) only, so reference data (NVD,
+// upstream) cannot smuggle a javascript:/data: scheme into an href. The
+// description renderer is already safe (its regex only matches https?:// and
+// no innerHTML is used anywhere in this file).
+function isSafeHttpUrl(u) {
+    return typeof u === 'string' && /^https?:\/\//i.test(u);
+}
+
 function renderMarkdownText(container, text) {
     // Strip (Citation: ...) references
     var cleaned = text.replace(/\(Citation:[^)]*\)/g, '');
@@ -445,6 +506,40 @@ function renderOverviewContent(panel, entity, detail) {
         descSection.appendChild(descText);
 
         content.appendChild(descSection);
+    }
+
+    // References (CVE) — render the actual NVD-linked URLs as click-through
+    // links rather than only a count. Each href is validated to http(s).
+    if (entity.type === 'cve' && Array.isArray(entity.references) && entity.references.length > 0) {
+        var refSection = document.createElement('div');
+        refSection.className = 'overview-section';
+        var refLabel = document.createElement('div');
+        refLabel.className = 'overview-label';
+        refLabel.textContent = 'References (' + entity.references.length + ')';
+        refSection.appendChild(refLabel);
+        var refList = document.createElement('div');
+        refList.className = 'overview-refs';
+        var shownRefs = 0;
+        for (var ri = 0; ri < entity.references.length; ri++) {
+            var refUrl = entity.references[ri];
+            if (!isSafeHttpUrl(refUrl)) continue;
+            var refLink = document.createElement('a');
+            refLink.href = refUrl;
+            refLink.target = '_blank';
+            refLink.rel = 'noopener noreferrer';
+            refLink.textContent = refUrl;
+            refLink.style.display = 'block';
+            refLink.style.color = 'var(--accent)';
+            refLink.style.fontSize = '12px';
+            refLink.style.wordBreak = 'break-all';
+            refLink.style.marginBottom = '4px';
+            refList.appendChild(refLink);
+            shownRefs++;
+        }
+        if (shownRefs > 0) {
+            refSection.appendChild(refList);
+            content.appendChild(refSection);
+        }
     }
 
     // Type-specific fields
