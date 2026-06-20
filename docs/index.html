@@ -23,6 +23,8 @@
 
     <div class="hint-chips" id="hint-chips"></div>
 
+    <a class="worklist-link" href="#/list">Build a triage worklist from a list of IDs →</a>
+
     <div class="stats-bar" id="stats-bar"></div>
 
     <div class="quick-access">
@@ -75,10 +77,34 @@
     <div class="search-results-page" id="search-results-body"></div>
 </div>
 
+<!-- ===== WORKLIST / TRIAGE PAGE ===== -->
+<div id="page-worklist" class="hidden">
+    <div class="top-bar">
+        <div class="top-bar-brand" id="brand-home-wl">TIP</div>
+        <div class="worklist-title">Worklist · triage</div>
+        <div class="top-bar-actions">
+            <button class="icon-btn" id="btn-theme-wl" title="Toggle theme">&#9790;</button>
+        </div>
+    </div>
+    <div class="worklist-page">
+        <div class="worklist-controls">
+            <textarea id="worklist-input" class="worklist-input"
+                placeholder="Paste IDs — CVE-2023-44487, T1499, CWE-79, APT29 (comma, space, or newline separated)"></textarea>
+            <div class="worklist-actions">
+                <button id="worklist-build" class="worklist-build-btn">Build worklist</button>
+                <label class="worklist-toggle"><input type="checkbox" id="worklist-kev-only"> KEV only</label>
+            </div>
+        </div>
+        <div id="worklist-status" class="worklist-status"></div>
+        <div id="worklist-table"></div>
+    </div>
+</div>
+
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="js/entity-system.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/results.js"></script>
+<script src="js/worklist.js"></script>
 <script src="js/app.js"></script>
 
 </body>

@@ -754,3 +754,44 @@
         justify-content: center;
     }
 }
+
+/* ===== Worklist / triage (I28) ===== */
+.worklist-link {
+    display: inline-block;
+    margin: 18px 0 4px;
+    color: var(--accent);
+    font-size: 13px;
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent);
+}
+.worklist-link:hover { opacity: 0.8; }
+.worklist-title { font-weight: 600; color: var(--text-secondary); }
+.worklist-page { padding: 20px 28px; max-width: 1200px; margin: 0 auto; }
+.worklist-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.worklist-input {
+    width: 100%; min-height: 80px; padding: 10px 12px; resize: vertical;
+    background: var(--bg-card); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 13px; box-sizing: border-box;
+}
+.worklist-actions { display: flex; align-items: center; gap: 16px; }
+.worklist-build-btn {
+    padding: 8px 18px; background: var(--accent); color: #fff;
+    border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.worklist-build-btn:hover { opacity: 0.9; }
+.worklist-toggle { font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+.worklist-status { color: var(--text-muted); font-size: 13px; margin: 6px 0; }
+.worklist-summary { color: var(--text-secondary); font-size: 13px; margin: 6px 0 12px; }
+.worklist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.worklist-table th, .worklist-table td {
+    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.worklist-table th { color: var(--text-muted); font-weight: 600; }
+.worklist-table th.sortable { cursor: pointer; user-select: none; }
+.worklist-table th.sortable:hover { color: var(--text-primary); }
+.worklist-table td:last-child { white-space: normal; color: var(--text-secondary); }
+.worklist-table tr.clickable { cursor: pointer; }
+.worklist-table tr.clickable:hover td { background: var(--bg-card); }
+.worklist-table tr.not-found td { color: var(--text-muted); font-style: italic; }

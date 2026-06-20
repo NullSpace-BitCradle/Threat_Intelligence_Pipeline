@@ -5,7 +5,7 @@
 // ── Page Management ────────────────────────────────────────────
 
 function showPage(pageId) {
-    var pages = document.querySelectorAll('#page-landing, #page-results, #page-search-results');
+    var pages = document.querySelectorAll('#page-landing, #page-results, #page-search-results, #page-worklist');
     for (var i = 0; i < pages.length; i++) {
         pages[i].classList.add('hidden');
         if (pages[i].id === 'page-landing') pages[i].style.display = '';
@@ -25,6 +25,14 @@ function handleRoute() {
     if (!hash || hash === '#/' || hash === '#') {
         showPage('page-landing');
         document.getElementById('landing-search').focus();
+        return;
+    }
+
+    // Route: #/list  or  #/list/<comma-separated-ids>  (worklist / triage)
+    var listMatch = hash.match(/^#\/list(?:\/(.+))?$/);
+    if (listMatch) {
+        var listIds = listMatch[1] ? decodeURIComponent(listMatch[1]) : '';
+        showWorklistPage(listIds);
         return;
     }
 
@@ -434,13 +442,15 @@ function setupTheme() {
 
     function updateThemeIcons(theme) {
         var icon = theme === 'dark' ? '\u263E' : '\u2606';
-        var btns = document.querySelectorAll('#btn-theme, #btn-theme-sr');
+        var btns = document.querySelectorAll('#btn-theme, #btn-theme-sr, #btn-theme-wl');
         for (var i = 0; i < btns.length; i++) btns[i].textContent = icon;
     }
 
     document.getElementById('btn-theme').addEventListener('click', toggleTheme);
     var btnSr = document.getElementById('btn-theme-sr');
     if (btnSr) btnSr.addEventListener('click', toggleTheme);
+    var btnWl = document.getElementById('btn-theme-wl');
+    if (btnWl) btnWl.addEventListener('click', toggleTheme);
 
     updateThemeIcons(document.documentElement.getAttribute('data-theme') || 'dark');
 }
@@ -590,6 +600,10 @@ function setupBrandLinks() {
     });
     var brandSr = document.getElementById('brand-home-sr');
     if (brandSr) brandSr.addEventListener('click', function() {
+        window.location.hash = '#/';
+    });
+    var brandWl = document.getElementById('brand-home-wl');
+    if (brandWl) brandWl.addEventListener('click', function() {
         window.location.hash = '#/';
     });
 }
