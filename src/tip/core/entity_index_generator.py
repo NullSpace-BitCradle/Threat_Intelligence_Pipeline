@@ -14,6 +14,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from tip_intel import cve_blocks
+
 
 # Provenance metadata — entity-level derived from type
 ENTITY_PROVENANCE = {
@@ -418,6 +420,14 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         refs = cve_data.get("REFERENCES")
         if isinstance(refs, list) and refs:
             cve_entity["references"] = refs
+
+        # Attach the shared CVE intelligence blocks (full KEV detail, SSVC,
+        # CISA CVSS override, CVSS version/source) from the same shard payload.
+        # One contract, shared with the MCP layer (tip_intel.cve_blocks), so a
+        # new field reaches both surfaces without editing three allowlists.
+        # Additive: existing fields above are untouched. rels are finalized
+        # later, so D3FEND-semantics decoration is a no-op here by design.
+        cve_blocks.enrich(cve_entity, cve_data)
 
         cve_count += 1
 
