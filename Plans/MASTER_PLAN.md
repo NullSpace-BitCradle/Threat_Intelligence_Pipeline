@@ -4,14 +4,14 @@ status: active
 version: 1.0
 authored: 2026-05-08
 authored_by: maintainer (PAI Algorithm v6.3.0, E3)
-supersedes: Plans/ROADMAP.md (kept as historical reference)
+supersedes: Plans/ROADMAP.md (removed 2026-06-20; git history retains it)
 review_cadence: monthly + after each phase ships
 ---
 
 # TIP Master Plan
 
 > **Single source of truth for what TIP is, what is shipping next, and what is parked.**
-> Replaces the layered Plans/ROADMAP.md + Plans/2026-04-29_cve2capec-ctibutler-integration.md split. ROADMAP.md remains as historical record but is no longer authoritative.
+> The single canonical plan. Supersedes the earlier layered ROADMAP + 2026-04-29 CVE2CAPEC-proposal split; both files were removed 2026-06-20 (git history retains them).
 
 ## How to read this doc
 
@@ -372,7 +372,6 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 ## 9. Source documents (carry forward)
 
-- `Plans/ROADMAP.md` — historical, frozen with pointer to this file
 - `docs/superpowers/specs/mcp-server-scope.md` — canonical for MCP scope; P10 follows §5.4-§5.6 verbatim
 - `docs/superpowers/specs/2026-03-14-tip-v2-redesign-design.md`
 - `docs/superpowers/plans/2026-03-14-kev-vulnrichment-integration.md`
@@ -391,6 +390,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append-only log; new entries on top)
 
+- 2026-06-20 — Removed `Plans/ROADMAP.md`. MASTER_PLAN is the sole plan of record; the superseded ROADMAP added no value in-tree. Git history retains it. Updated the `supersedes` frontmatter, the intro line, and the §9 source-doc list; earlier P9 ISC/narrative mentions of ROADMAP are left as historical record.
 - 2026-06-20 — Removed two obsolete files: `Plans/2026-04-29_cve2capec-ctibutler-integration.md` (superseded — CVE2CAPEC rejected at P11; content absorbed into P11/P12) and the unreferenced root-level `d1-after-pipeline-layer2-with-desc.png` screenshot. `Plans/ROADMAP.md` retained as frozen historical record; `CLAUDE.md` retained as active project rules. Git history preserves the removed files. Source-doc list (§9) updated.
 
 - 2026-06-20 — Deployed-state review (technical + usability, live-probed). Root finding: `entity_index_generator.py` is a lossy manual re-projection with a 3-place hand-maintained field allowlist; ingested intelligence (SSVC, full KEV, CVSS source/version, D3FEND semantics) is stripped before reaching the website OR MCP, and the MCP surface is strictly weaker than the website. Logged as I22–I28; I6 absorbed into I24.
