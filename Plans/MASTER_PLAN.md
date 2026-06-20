@@ -373,7 +373,6 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 ## 9. Source documents (carry forward)
 
 - `Plans/ROADMAP.md` — historical, frozen with pointer to this file
-- `Plans/2026-04-29_cve2capec-ctibutler-integration.md` — absorbed into P11/P12 above
 - `docs/superpowers/specs/mcp-server-scope.md` — canonical for MCP scope; P10 follows §5.4-§5.6 verbatim
 - `docs/superpowers/specs/2026-03-14-tip-v2-redesign-design.md`
 - `docs/superpowers/plans/2026-03-14-kev-vulnrichment-integration.md`
@@ -391,6 +390,8 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 ## Decisions
 
 (append-only log; new entries on top)
+
+- 2026-06-20 — Removed two obsolete files: `Plans/2026-04-29_cve2capec-ctibutler-integration.md` (superseded — CVE2CAPEC rejected at P11; content absorbed into P11/P12) and the unreferenced root-level `d1-after-pipeline-layer2-with-desc.png` screenshot. `Plans/ROADMAP.md` retained as frozen historical record; `CLAUDE.md` retained as active project rules. Git history preserves the removed files. Source-doc list (§9) updated.
 
 - 2026-06-20 — Deployed-state review (technical + usability, live-probed). Root finding: `entity_index_generator.py` is a lossy manual re-projection with a 3-place hand-maintained field allowlist; ingested intelligence (SSVC, full KEV, CVSS source/version, D3FEND semantics) is stripped before reaching the website OR MCP, and the MCP surface is strictly weaker than the website. Logged as I22–I28; I6 absorbed into I24.
 - 2026-06-20 — Sequencing decision (Advisor-backed): insert P9.5 ahead of P10. I22 (MCP shard-passthrough) is a Phase B prerequisite — `kev_status`/`get_defenses`/`build_attack_chain` consume exactly the stripped fields. Scope the pre-MCP fix to MCP-only; defer the schema-driven generator rewrite (I24) to post-demo to avoid SPA regression before the Partner Network demo. Quick wins I23/I25/I26 run alongside in P9.5.
