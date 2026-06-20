@@ -124,6 +124,18 @@ Proposed during this 2026-05-08 review. Not yet committed; ranked by impact-to-e
 - **I9: Type-strict mypy pass.** Project uses Python 3.9+; add `mypy --strict` to CI and address findings. ~1 day on first pass.
 - **I21: CWE-assignment gap closure (added 2026-06-11).** The chain-coverage ceiling: TECHNIQUES coverage caps at ~75% in modern years (near zero pre-2010) because many NVD records carry no usable CWE to join from — the joins themselves are fine. Close it in-house, in provenance-tagged tiers: (a) CNA-provided CWEs from the NVD record's CNA/ADP containers, (b) CISA vulnrichment CWE assignments (already ingested, currently only used for SSVC/CVSS), (c) description-based CWE inference as an explicitly-labeled lowest tier. This is the "better than CVE2CAPEC" successor work from the P11 decision. ~2-3 days for (a)+(b); (c) scoped separately if (a)+(b) leave a gap worth chasing.
 
+### 4.1b Pre-MCP deployed-state review findings (added 2026-06-20)
+
+From a full technical + usability review of the deployed system (live-probed via Playwright; data-layer + frontend audited). Root finding: `entity_index_generator.py` is a lossy manual re-projection with a hand-maintained field allowlist mirrored in three places (generator emission + `tip_mcp/tools.py` `_build_shard_record` + `lookup_entity_impl`). Intelligence ingested into the shards is silently dropped before it reaches the website OR MCP. The MCP surface is strictly weaker than the website. These items sequence ahead of P10 (see P9.5).
+
+- **I22: MCP data-contract passthrough (Phase B prerequisite).** Extend `tip_mcp` so CVE lookups carry the rich intelligence already in the shards: full KEV detail (dateAdded, dueDate, knownRansomwareCampaignUse, requiredAction, vendorProject, product), SSVC decision (ssvcExploitStatus, ssvcAutomatable, ssvcTechnicalImpact) when present, CISA CVSS override, CVSS version/source, and D3FEND relationship semantics (the `relationship` verb on each defense). Merge shard detail onto CVE *entities* too — curated CVEs (e.g. CVE-2023-44487) take the entity path and never read the shard today, so they would otherwise miss the detail. Also add APT-group and D3FEND rels to `_shard_rels`. Touches zero website code. `kev_status` / `get_defenses` / `build_attack_chain` consume exactly these fields — without I22 the Phase B tools return hollow answers. ~half day. NEW.
+- **I23: Surface captured fields on the website (quick wins).** SSVC + CISA-CVSS-override + ransomware-use header badges; render the references list as clickable links (currently a count only). All data is already present in the record. ~hours. NEW.
+- **I24: Schema-driven entity bridge (durable structural fix, post-demo).** Define one jsonschema for the CVE entity record covering every intelligence field; generate the generator emission AND both MCP projections from it; add a cross-seam test asserting "field in ingest fixture → entity record → MCP record." Collapses the three hand-maintained allowlists into one contract so a dropped field fails CI instead of vanishing silently. Absorbs and supersedes **I6**. ~1 day. NEW. Sequenced post-P10 (regression risk on the shipping SPA argues against a generator rewrite right before the Partner Network demo).
+- **I25: Graph node-label bug.** Live CVE relationship graph renders a bare unprefixed node (observed: "664") with no entity-type prefix. Fix label derivation in `docs/js/graph.js`. NEW (bug).
+- **I26: `/health` 404 on every page load.** The deployed site requests a health endpoint that does not exist (404 in console on load). Either remove the request or ship the endpoint (ties to I5/T14.1). NEW (bug).
+- **I27: Description/reference sanitization audit.** The SPA parses markdown links out of NVD descriptions/references and GitHub Pages cannot set a CSP. Confirm this cannot carry stored-XSS for a security tool. Audit, not yet a confirmed vuln. NEW (security).
+- **I28: Worklist / triage mode.** The deployed SPA has no list/filter/sort across a result set (search caps at 5/type) — an analyst cannot ask "KEV CVEs with ransomware use due this month" though every field exists. Biggest usability lift. Extends **I13.1** (multi-entity). Own design pass. NEW.
+
 ### 4.2 Higher effort, conditional value
 
 - **I10: Embedding-based similarity ("CVEs like this one").** Adds semantic search on top of the inverted index. ~3-5 days, depends on embedding model choice and corpus index size.
@@ -171,9 +183,28 @@ Seven phases, sequenced to maximize Strategic Rogue + Partner Network impact whi
 - ISC-9.5: `grep -c "MASTER_PLAN" Plans/ROADMAP.md` returns ≥1.
 - ISC-9.6: Anti — no production code changes land in P9 except the Playwright test scaffold and a release commit. Behavior is unchanged.
 
+### P9.5 — Close the surface gap (pre-P10, added 2026-06-20)
+
+**Why before P10:** the 2026-06-20 deployed-state review found that the data Phase B exists to surface (full KEV, SSVC, D3FEND semantics, CVSS source) is ingested into the shards but stripped before it reaches MCP. Building Phase B on the lossy contract yields hollow demo tools (a `kev_status` without dueDate/ransomware is a boolean). I22 is therefore a Phase B prerequisite, not a parallel nicety. The website quick wins (I23/I25/I26) are cheap and bank analyst-visible value while the contract is open. Decision basis: Advisor pass 2026-06-20 — scope the pre-MCP fix to the MCP shard-passthrough only; defer the schema-driven generator rewrite (I24) to post-demo to avoid SPA regression before the Partner Network demo.
+
+| Task | Description | Depends on |
+|------|-------------|------------|
+| T9.5.1 | I22: MCP data-contract passthrough — merge shard KEV detail, SSVC, CISA CVSS override, CVSS version/source, and D3FEND relationship semantics onto CVE lookups (entity path AND shard fallback); add APT-group + D3FEND rels to `_shard_rels`. | nothing |
+| T9.5.2 | Extend `tests/tip_mcp/` to assert the new fields round-trip for both a curated CVE (CVE-2023-44487) and a shard-only CVE. | T9.5.1 |
+| T9.5.3 | I23: website quick wins — SSVC / CISA-override / ransomware badges; clickable references. | nothing |
+| T9.5.4 | I25 + I26: fix the bare graph node label; remove or wire the `/health` 404. | nothing |
+| T9.5.5 | I27: sanitization audit of NVD description/reference markdown rendering. | nothing |
+
+**Acceptance criteria (ISCs for P9.5):**
+- ISC-9.5.1: `lookup_entity("CVE-2023-44487")` returns `kev_detail` with `dueDate` and `knownRansomwareCampaignUse`, plus D3FEND rels carrying a `relationship` verb — verified by direct impl call.
+- ISC-9.5.2: A CVE with non-null VULNRICHMENT returns an `ssvc` block (exploit status / automatable / technical impact) — verified by direct impl call.
+- ISC-9.5.3: `pytest tests/tip_mcp/` passes including the new round-trip assertions.
+- ISC-9.5.4: Anti — T9.5.1 (I22) is MCP-only: no change to `entity_index_generator.py` or the entity_index schema. The deferred schema-driven generator rewrite (I24) does not land in P9.5. (Website *rendering* changes for I23/I25/I26 ARE in scope; what is deferred is the generator / data-contract rewrite, not surface tweaks.)
+- ISC-9.5.5: Anti — no Phase A response-envelope break; existing MCP tests still pass.
+
 ### P10 — MCP Phase B + Partner Network demo (2 days)
 
-**Why next:** highest-leverage portfolio work. Partner Network reviewers can run the demo end-to-end. CCA Foundations evidence builds.
+**Why next:** highest-leverage portfolio work. Partner Network reviewers can run the demo end-to-end. CCA Foundations evidence builds. **Gated on P9.5 (I22) so the three new tools return real intelligence, not stripped placeholders.**
 
 | Task | Description | Depends on |
 |------|-------------|------------|
@@ -361,6 +392,8 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append-only log; new entries on top)
 
+- 2026-06-20 — Deployed-state review (technical + usability, live-probed). Root finding: `entity_index_generator.py` is a lossy manual re-projection with a 3-place hand-maintained field allowlist; ingested intelligence (SSVC, full KEV, CVSS source/version, D3FEND semantics) is stripped before reaching the website OR MCP, and the MCP surface is strictly weaker than the website. Logged as I22–I28; I6 absorbed into I24.
+- 2026-06-20 — Sequencing decision (Advisor-backed): insert P9.5 ahead of P10. I22 (MCP shard-passthrough) is a Phase B prerequisite — `kev_status`/`get_defenses`/`build_attack_chain` consume exactly the stripped fields. Scope the pre-MCP fix to MCP-only; defer the schema-driven generator rewrite (I24) to post-demo to avoid SPA regression before the Partner Network demo. Quick wins I23/I25/I26 run alongside in P9.5.
 - 2026-06-09 — P9 executed. T9.1 resolution: fast-forward pull (local ahead 0 / behind 52; every remote commit was auto-pipeline `[skip ci]` data maintenance — pipeline ran healthy through the entire 2026-05-08 → 2026-06-09 stall; daily + weekly Actions runs all green).
 - 2026-06-09 — T9.2 finding: 5 sampled 2026 CVEs all carry DESCRIPTION/PUBLISHED/LAST_MODIFIED/REFERENCES. CVSS null on 2/5 (CVE-2026-46395, CVE-2026-8714) — verified against live NVD: both unscored upstream (status `Deferred` / `Awaiting Analysis`). Pipeline is faithful; CVSS is expected-null for unanalyzed NVD records. No P9.2 followup needed.
 - 2026-06-09 — T9.4 refinement: lastUpdate.txt NOT manually edited. It is auto-pipeline-owned (written each run; current as of today's 06:00 UTC run). A manual timestamp would misrepresent data freshness.
@@ -373,6 +406,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append on each shipped phase)
 
+- 2026-06-20 (P9.5 — planning): deployed-state review landed I22–I28 and inserted P9.5 ahead of P10. No code shipped at plan-landing time; I22 implementation begins immediately after.
 - 2026-06-09 (P9 — stabilize): synced to origin (52 data commits), auto-pipeline verified healthy, NVD field population verified on sampled CVEs, Playwright smoke suite added (5 tests, green against live site) + daily CI job, plan documents landed. No production code changes. P10 (MCP Phase B) unblocked.
 - 2026-05-08 (P0 — meta): initial master plan landed.
 
@@ -380,4 +414,17 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append per ISC as it passes)
 
-(none yet)
+- 2026-06-20 (P9.5 / I22 — T9.5.1, T9.5.2): MCP shard-passthrough implemented in `src/tip_mcp/tools.py` (+128 lines; helpers `_kev_detail`/`_ssvc_block`/`_cisa_cvss`/`_defend_semantics`/`_enrich_record_from_shard`; `_shard_rels` now emits d3fend+apt rels; entity path merges shard detail onto CVE entities). New tests `tests/tip_mcp/test_i22_passthrough.py` (5).
+  - ISC-9.5.1 PASS — live smoke on real `CVE-2023-44487`: `source=entity_index.json, enriched_from_shard=True`; `kev_detail.dueDate=2023-10-31`, `knownRansomwareCampaignUse=Unknown`; 44/44 D3FEND rels carry a `relationship` verb (e.g. D3-ABPI → "isolates").
+  - ISC-9.5.2 PASS — fixture CVE with non-null VULNRICHMENT returns `ssvc{exploit_status=active, automatable=no, technical_impact=total}` (44487 itself has null VULNRICHMENT upstream → block correctly omitted, no crash).
+  - ISC-9.5.3 PASS — `pytest tests/tip_mcp/` = 48 passed (5 new + 43 prior).
+  - ISC-9.5.4 PASS (Anti) — `git status` shows no change under `docs/` or `entity_index_generator.py`; MCP-only.
+  - ISC-9.5.5 PASS (Anti) — all 43 prior MCP tests (Phase A envelope, shard fallback, pivot) still green.
+  - Note: local mypy not installed in `.venv`; types written consistent with the module (Optional/dict annotations) — CI mypy will confirm. Changes left uncommitted for review. Unrelated pre-existing working-tree edit to repo `CLAUDE.md` (provenance-comment deletion) is NOT part of this work.
+- 2026-06-20 (P9.5 quick wins — T9.5.3/T9.5.4/T9.5.5): website rendering changes in `docs/js/` (no generator/data change). Verified on a locally-served copy of `docs/` via Playwright on CVE-2023-44487.
+  - ISC (I23) PASS — header now shows a `KEV` badge (title "remediation due 2023-10-31"); render-if-present triage badges added for ransomware-use / SSVC / CISA-CVSS-override (light up where the data is attached: ransomware via the kev_db fetch, SSVC via the shard path). References changed from a count to a clickable list — "References (173)" rendered with real https links. (`docs/js/results.js`)
+  - ISC (I25) PASS — bare-numeric `cwe`/`capec` rel ids normalized at the `getRelatedEntities` chokepoint; the graph node that rendered as bare "664" now renders/links as `CWE-664 — Improper Control of a Resource Through its Lifetime`; zero bare "664" in the page. (`docs/js/entity-system.js`)
+  - ISC (I26) PASS — `detectMode()` now probes `/health` only on localhost; on the deployed (non-localhost) host it returns early, eliminating the per-load console 404. (`docs/js/app.js`)
+  - ISC (I27) PASS (audit) — markdown description renderer confirmed safe (regex constrains href to `https?://`; no `innerHTML` anywhere in results.js). Added `isSafeHttpUrl()` guard on the new reference links as defense-in-depth. No vulnerability found.
+  - Operational note: during this work three tracked files (`CLAUDE.md`, `Plans/2026-04-29_cve2capec-ctibutler-integration.md`, the layer-2 PNG) were observed deleted from the working tree by an unattributed cause (HEAD unchanged; not produced by any edit/command in this session). Restored from HEAD via `git checkout`. Cause unknown — worth checking for a stray hook / sync / WSL glitch.
+  - Deferred this turn with rationale: I24 (schema-driven generator) stays post-P10 per the 2026-06-20 advisor decision (SPA-regression risk before the demo); I28 (worklist/triage) needs its own UX design pass before build. Both await the maintainer's go.

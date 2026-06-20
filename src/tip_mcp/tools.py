@@ -49,7 +49,119 @@ def _shard_rels(payload: dict) -> list[dict]:
         rels.append({"target_id": tech_id, "rel_type": "technique", "source": "shard"})
     for owasp in payload.get("OWASP", []) or []:
         rels.append({"target_id": owasp, "rel_type": "owasp", "source": "shard"})
+    for defend in payload.get("DEFEND", []) or []:
+        if not isinstance(defend, dict) or not defend.get("id"):
+            continue
+        rel = {"target_id": str(defend["id"]), "rel_type": "d3fend", "source": "shard"}
+        if defend.get("relationship") is not None:
+            rel["relationship"] = defend["relationship"]
+        if defend.get("name") is not None:
+            rel["name"] = defend["name"]
+        rels.append(rel)
+    for gid in payload.get("APT_GROUPS", []) or []:
+        if gid:
+            rels.append({"target_id": str(gid), "rel_type": "apt", "source": "shard"})
     return rels
+
+
+def _kev_detail(payload: dict) -> Optional[dict]:
+    """Extract the rich KEV detail block from a shard payload, or None.
+
+    Returns the CISA KEV fields (dates, ransomware use, required action,
+    vendor/product) only when the record is actually in KEV. The entity
+    record separately keeps the ``kev`` boolean; this is the detail behind it.
+    """
+    kev = payload.get("KEV")
+    if not isinstance(kev, dict) or not kev.get("inKEV"):
+        return None
+    out: dict = {}
+    for key in (
+        "dateAdded",
+        "dueDate",
+        "knownRansomwareCampaignUse",
+        "requiredAction",
+        "vendorProject",
+        "product",
+    ):
+        if kev.get(key) is not None:
+            out[key] = kev[key]
+    return out or None
+
+
+def _ssvc_block(payload: dict) -> Optional[dict]:
+    """Extract the CISA SSVC decision block from a shard payload, or None.
+
+    VULNRICHMENT is frequently null on the shard; callers must tolerate None.
+    """
+    vuln = payload.get("VULNRICHMENT")
+    if not isinstance(vuln, dict):
+        return None
+    out: dict = {}
+    for key in ("ssvcExploitStatus", "ssvcAutomatable", "ssvcTechnicalImpact"):
+        if vuln.get(key) is not None:
+            out[key] = vuln[key]
+    return out or None
+
+
+def _cisa_cvss(payload: dict) -> Optional[dict]:
+    """Extract the CISA CVSS override block from VULNRICHMENT, or None."""
+    vuln = payload.get("VULNRICHMENT")
+    if not isinstance(vuln, dict):
+        return None
+    cisa = vuln.get("cisaCVSS")
+    if isinstance(cisa, dict) and cisa:
+        return cisa
+    return None
+
+
+def _defend_semantics(payload: dict) -> dict:
+    """Map each D3FEND id to its {relationship, name} from shard DEFEND objects.
+
+    Used to enrich D3FEND relationships that come from the entity graph as bare
+    IDs, so the defensive *intent* (isolates / monitors / hardens / ...) is not
+    lost. Matching is by target_id, which sidesteps the entity-vs-shard rel_type
+    label difference (``defend`` vs ``d3fend``).
+    """
+    out: dict = {}
+    for defend in payload.get("DEFEND", []) or []:
+        if not isinstance(defend, dict) or not defend.get("id"):
+            continue
+        sem = {k: defend[k] for k in ("relationship", "name") if defend.get(k) is not None}
+        if sem:
+            out[str(defend["id"])] = sem
+    return out
+
+
+def _enrich_record_from_shard(record: dict, payload: dict) -> None:
+    """Merge rich shard intelligence onto a CVE record in place.
+
+    Adds kev_detail / ssvc / cisa_cvss / cvss_version / cvss_source blocks when
+    present, and decorates any D3FEND relationship (matched by target_id) with
+    its relationship verb + name. Idempotent: never overwrites a value already
+    on the record (uses setdefault semantics).
+    """
+    kev_detail = _kev_detail(payload)
+    if kev_detail and "kev_detail" not in record:
+        record["kev_detail"] = kev_detail
+    ssvc = _ssvc_block(payload)
+    if ssvc and "ssvc" not in record:
+        record["ssvc"] = ssvc
+    cisa = _cisa_cvss(payload)
+    if cisa and "cisa_cvss" not in record:
+        record["cisa_cvss"] = cisa
+    cvss = payload.get("CVSS")
+    if isinstance(cvss, dict):
+        if cvss.get("version") and "cvss_version" not in record:
+            record["cvss_version"] = cvss["version"]
+        if cvss.get("source") and "cvss_source" not in record:
+            record["cvss_source"] = cvss["source"]
+    sem = _defend_semantics(payload)
+    if sem:
+        for rel in record.get("rels", []):
+            tid = rel.get("target_id")
+            if tid in sem:
+                for key, value in sem[tid].items():
+                    rel.setdefault(key, value)
 
 
 def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
@@ -86,6 +198,7 @@ def _build_shard_record(cve_id: str, payload: dict, shard_name: str) -> dict:
     refs = payload.get("REFERENCES")
     if isinstance(refs, list) and refs:
         record["references"] = refs
+    _enrich_record_from_shard(record, payload)
     return record
 
 
@@ -133,7 +246,22 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         ):
             if field in entity:
                 record[field] = entity[field]
+        # I22: merge rich shard detail (KEV detail, SSVC, CISA CVSS override,
+        # CVSS version/source, D3FEND relationship semantics) onto CVE
+        # entities. Curated CVEs take this entity path and would otherwise
+        # never read the shard, so the detail behind the relationships and the
+        # kev boolean would stay invisible. The entity graph remains the
+        # authoritative source of WHICH entities relate; the shard only adds
+        # detail. A missing shard leaves the record unchanged.
+        enriched = False
+        if record.get("type") == "cve":
+            shard_hit = loader.find_cve_in_shards(entity_id)
+            if shard_hit is not None:
+                _enrich_record_from_shard(record, shard_hit[0])
+                enriched = True
         meta = {"source": "entity_index.json", "rel_count": len(rels_out)}
+        if enriched:
+            meta["enriched_from_shard"] = True
         return ok_response(record, meta=meta)
 
     # Shard fallback: only for syntactically valid CVE IDs.
