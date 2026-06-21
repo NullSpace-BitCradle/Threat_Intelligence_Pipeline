@@ -121,9 +121,12 @@ class CVEProcessor:
             # Adaptive rate limiting variables - use config values
             rate_limit_config = self.config.get('api.nvd.rate_limit', {})
             base_delay = rate_limit_config.get('base_delay', 0.5)
-            max_delay = rate_limit_config.get('max_delay', 30.0)
+            max_delay = rate_limit_config.get('max_delay', 60.0)
             backoff_multiplier = rate_limit_config.get('backoff_multiplier', 2.5)
-            max_retries = rate_limit_config.get('max_retries', 5)
+            # NVD periodically returns 503/read-timeouts during brownouts that can
+            # last minutes; 8 retries with capped exponential backoff gives the
+            # endpoint a multi-minute window to recover before the run fails.
+            max_retries = rate_limit_config.get('max_retries', 8)
             current_delay = base_delay
             consecutive_429s = 0
             successful_requests = 0
@@ -167,9 +170,13 @@ class CVEProcessor:
                         
                     except requests.exceptions.RequestException as e:
                         if attempt < max_retries - 1:
-                            self.logger.warning(f"Request failed: {e}, retrying in {retry_delay:.2f}s")
+                            self.logger.warning(
+                                f"Request failed ({e}); retrying in {retry_delay:.2f}s "
+                                f"(attempt {attempt + 1}/{max_retries})"
+                            )
                             time.sleep(retry_delay)
-                            retry_delay *= 2
+                            # Cap the backoff so deep retry chains stay bounded.
+                            retry_delay = min(retry_delay * 2, max_delay)
                         else:
                             raise
                 
