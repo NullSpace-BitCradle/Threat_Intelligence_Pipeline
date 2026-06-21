@@ -9,9 +9,9 @@
             "results_per_page": 2000,
             "rate_limit": {
                 "base_delay": 0.5,
-                "max_delay": 30.0,
+                "max_delay": 60.0,
                 "backoff_multiplier": 2.5,
-                "max_retries": 5
+                "max_retries": 8
             }
         },
         "d3fend": {

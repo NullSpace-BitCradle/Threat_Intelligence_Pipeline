@@ -151,7 +151,8 @@ class CVEProcessor:
                                 
                                 self.logger.warning(f"Rate limited (429), waiting {actual_delay:.2f}s before retry {attempt + 1}/{max_retries}")
                                 time.sleep(actual_delay)
-                                retry_delay *= backoff_multiplier
+                                # Cap the backoff so deep retry chains stay bounded.
+                                retry_delay = min(retry_delay * backoff_multiplier, max_delay)
                                 continue
                             else:
                                 self.logger.error("Rate limited, max retries exceeded")
