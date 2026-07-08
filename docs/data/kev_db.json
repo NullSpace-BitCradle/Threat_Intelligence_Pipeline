@@ -1,4 +1,40 @@
 {
+    "CVE-2026-48908": {
+        "inKEV": true,
+        "dateAdded": "2026-07-07",
+        "dueDate": "2026-07-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "JoomShaper",
+        "product": "SP Page Builder"
+    },
+    "CVE-2026-55255": {
+        "inKEV": true,
+        "dateAdded": "2026-07-07",
+        "dueDate": "2026-07-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Langflow",
+        "product": "Langflow"
+    },
+    "CVE-2026-56290": {
+        "inKEV": true,
+        "dateAdded": "2026-07-07",
+        "dueDate": "2026-07-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Joomlack",
+        "product": "Page Builder"
+    },
+    "CVE-2026-48282": {
+        "inKEV": true,
+        "dateAdded": "2026-07-07",
+        "dueDate": "2026-07-10",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Adobe",
+        "product": "ColdFusion"
+    },
     "CVE-2026-45659": {
         "inKEV": true,
         "dateAdded": "2026-07-01",
@@ -2694,7 +2730,7 @@
         "inKEV": true,
         "dateAdded": "2025-05-05",
         "dueDate": "2025-05-26",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Langflow",
         "product": "Langflow"
