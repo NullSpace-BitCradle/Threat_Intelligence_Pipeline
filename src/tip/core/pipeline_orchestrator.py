@@ -19,7 +19,7 @@ from tip.core.cve_processor import CVEProcessor
 # CVE retrieval is now handled by CVEProcessor
 from tip.utils.error_handler import (
     log_info, log_warning, log_error, log_critical, get_logger,
-    ErrorContext, ProcessingError
+    ErrorContext, ProcessingError, NVDUnavailableError
 )
 from tip.utils.error_recovery import with_recovery, create_data_context
 from tip.utils.performance_optimizer import (
@@ -68,6 +68,16 @@ class PipelineOrchestrator:
             if cve_results.get('success', False):
                 log_info("Step 3: Processing CVEs through pipeline...")
                 processing_results = self._process_cves()
+            elif cve_results.get('degraded'):
+                # NVD was unavailable — do NOT claim "no new CVEs" (the exact
+                # lie this hardening removes). Skip processing, preserve last-good.
+                log_warning(
+                    "Skipping CVE processing — NVD unavailable this run "
+                    "(degraded); last-good data preserved, will resume next run"
+                )
+                processing_results = {
+                    'success': False, 'degraded': True, 'message': 'NVD unavailable'
+                }
             else:
                 log_info("No new CVEs to process")
                 processing_results = {'success': True, 'message': 'No new CVEs'}
@@ -238,16 +248,41 @@ class PipelineOrchestrator:
                 'data': processed_cves
             }
             
+        except NVDUnavailableError as e:
+            # NVD was unreachable/too slow past the retry budget. This is a
+            # DEGRADED run, NOT "no new CVEs" — do NOT write/truncate the
+            # cve_output file; leave last-good data in place. The progress file
+            # (not cleaned up on failure) lets the next run resume.
+            log_warning(
+                "NVD unavailable — skipping CVE retrieval, last-good output "
+                f"preserved ({e.partial_count} CVEs seen this run, resume at "
+                f"index {e.last_index}): {e}"
+            )
+            self.results['cve_retrieval'] = {
+                'status': 'degraded',
+                'reason': 'nvd_unavailable',
+                'error': str(e),
+                'partial_count': e.partial_count,
+                'last_index': e.last_index,
+                'timestamp': datetime.now().isoformat()
+            }
+            return {
+                'success': False,
+                'degraded': True,
+                'reason': 'nvd_unavailable',
+                'error': str(e)
+            }
+
         except Exception as e:
             error_msg = f"CVE retrieval failed: {e}"
             log_error(error_msg)
-            
+
             self.results['cve_retrieval'] = {
                 'status': 'failed',
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }
-            
+
             return {
                 'success': False,
                 'error': str(e)
@@ -306,7 +341,11 @@ class PipelineOrchestrator:
         # Count successes and failures
         successful_steps = sum(1 for r in self.results.values() if r.get('status') == 'success')
         failed_steps = sum(1 for r in self.results.values() if r.get('status') == 'failed')
-        
+        # 'degraded' (e.g. NVD unavailable) is neither success nor failure — it
+        # must not silently roll up as a clean run. Counted distinctly so the
+        # exit code and summary surface the brownout.
+        degraded_steps = sum(1 for r in self.results.values() if r.get('status') == 'degraded')
+
         summary = {
             'pipeline_session': {
                 'start_time': self.start_time.isoformat(),
@@ -314,6 +353,7 @@ class PipelineOrchestrator:
                 'total_duration': total_duration,
                 'successful_steps': successful_steps,
                 'failed_steps': failed_steps,
+                'degraded_steps': degraded_steps,
                 'total_steps': len(self.results)
             },
             'results': self.results,
@@ -441,19 +481,28 @@ def main():
         print(f"Total Duration: {summary['pipeline_session']['total_duration']:.2f}s")
         print(f"Successful Steps: {summary['pipeline_session']['successful_steps']}")
         print(f"Failed Steps: {summary['pipeline_session']['failed_steps']}")
+        degraded_steps = summary['pipeline_session'].get('degraded_steps', 0)
+        print(f"Degraded Steps: {degraded_steps}")
         print(f"Total Steps: {summary['pipeline_session']['total_steps']}")
-        
+
         if summary['pipeline_session']['failed_steps'] > 0:
             print("\nFAILED STEPS:")
             for name, result in summary['results'].items():
                 if result.get('status') == 'failed':
                     print(f"  - {name}: {result.get('error', 'Unknown error')}")
-        
+
+        if degraded_steps > 0:
+            print("\nDEGRADED STEPS:")
+            for name, result in summary['results'].items():
+                if result.get('status') == 'degraded':
+                    print(f"  - {name}: {result.get('error', result.get('reason', 'degraded'))}")
+
         print(f"\nDetailed summary saved to: results/update_summary.json")
         print("="*60)
-        
-        # Exit with appropriate code
-        if summary['pipeline_session']['failed_steps'] > 0:
+
+        # Exit with appropriate code. A degraded run (e.g. NVD brownout) is NOT
+        # a clean run — exit non-zero so CI/monitors don't read it as success.
+        if summary['pipeline_session']['failed_steps'] > 0 or degraded_steps > 0:
             sys.exit(1)
         else:
             sys.exit(0)

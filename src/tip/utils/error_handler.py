@@ -104,6 +104,21 @@ class NetworkError(TIPException):
         super().__init__(message, ErrorCategory.NETWORK_ERROR, ErrorSeverity.HIGH, context)
         self.url = url
 
+class NVDUnavailableError(NetworkError):
+    """NVD upstream was unreachable/too slow and the retry budget was exhausted.
+
+    Raised (instead of silently returning an empty list) so callers can tell an
+    NVD brownout apart from a genuine "no new CVEs" result. ``partial_count`` is
+    how many CVEs were collected this run before giving up; ``last_index`` is the
+    pagination cursor (resume is handled by the progress file, not this object).
+    """
+    def __init__(self, message: str, url: Optional[str] = None,
+                 partial_count: int = 0, last_index: int = 0,
+                 context: Optional[ErrorContext] = None):
+        super().__init__(message, url=url, context=context)
+        self.partial_count = partial_count
+        self.last_index = last_index
+
 class ConfigurationError(TIPException):
     """Configuration-related errors"""
     def __init__(self, message: str, config_key: Optional[str] = None,

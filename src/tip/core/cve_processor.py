@@ -21,7 +21,7 @@ from tip.utils.performance_optimizer import (
 )
 from tip.utils.error_handler import (
     error_handler, log_operation, ProcessingError, DatabaseError,
-    get_logger
+    NVDUnavailableError, get_logger
 )
 from tip.utils.error_recovery import (
     with_recovery, with_retry, RetryConfig, RetryStrategy,
@@ -179,21 +179,47 @@ class CVEProcessor:
                             # Cap the backoff so deep retry chains stay bounded.
                             retry_delay = min(retry_delay * 2, max_delay)
                         else:
-                            raise
+                            # Retry budget exhausted against an unreachable/slow
+                            # NVD. Raise a typed error instead of letting an empty
+                            # return masquerade as "no new CVEs" downstream.
+                            raise NVDUnavailableError(
+                                f"NVD unreachable after {max_retries} attempts: {e}",
+                                url=base_url,
+                                partial_count=len(all_cves),
+                                last_index=start_index,
+                            ) from e
                 
                 if response.status_code == 429:
-                    # If we get too many consecutive 429s, increase base delay significantly
-                    if consecutive_429s >= 3:
-                        current_delay = min(current_delay * 2, max_delay)
-                        self.logger.warning(f"Too many consecutive 429s, increasing delay to {current_delay:.2f}s")
-                        consecutive_429s = 0
-                    
-                    self.logger.error("Rate limited, stopping CVE retrieval")
-                    break
+                    # Rate-limit retries exhausted mid-pagination. Raise rather
+                    # than break-and-return the partial page set as if the fetch
+                    # were complete (silent truncation). Resume picks up from the
+                    # progress file on the next run.
+                    self.logger.error(
+                        "NVD rate-limited (429) past retry budget at index "
+                        f"{start_index} ({len(all_cves)} collected this run)"
+                    )
+                    raise NVDUnavailableError(
+                        f"NVD rate-limited (429) past {max_retries} retries",
+                        url=base_url,
+                        partial_count=len(all_cves),
+                        last_index=start_index,
+                    )
                 
                 data = response.json()
+                if not isinstance(data, dict) or 'vulnerabilities' not in data:
+                    # A 200 that lacks the expected NVD envelope (an error or
+                    # maintenance page served with status 200 during a brownout)
+                    # is an outage, not a genuine empty result — fail loud rather
+                    # than letting a missing key read downstream as "no new CVEs".
+                    raise NVDUnavailableError(
+                        "NVD returned 200 without a 'vulnerabilities' field "
+                        "(malformed/maintenance response)",
+                        url=base_url,
+                        partial_count=len(all_cves),
+                        last_index=start_index,
+                    )
                 cves = data.get('vulnerabilities', [])
-                
+
                 if not cves:
                     break
                     
@@ -236,10 +262,19 @@ class CVEProcessor:
             
             return all_cves
             
+        except NVDUnavailableError:
+            # Already typed and logged at the failure point — propagate so the
+            # orchestrator records a degraded run instead of false success.
+            raise
         except Exception as e:
+            # Any other unexpected failure must surface too. Returning [] here is
+            # what made an outage read downstream as "no new CVEs" → success.
             self.logger.error(f"Failed to retrieve CVEs from NVD: {e}")
-            return []
-    
+            raise NVDUnavailableError(
+                f"Unexpected failure retrieving CVEs from NVD: {e}",
+                url=self.config.get('api.nvd.base_url'),
+            ) from e
+
     def process_nvd_cves(self, nvd_cves: List[Dict]) -> Dict[str, Any]:
         """Process NVD CVE data into our format"""
         processed_cves = {}

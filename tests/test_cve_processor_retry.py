@@ -13,6 +13,7 @@ import requests
 
 import tip.core.cve_processor as cve_mod
 from tip.core.cve_processor import CVEProcessor
+from tip.utils.error_handler import NVDUnavailableError
 
 
 class _FakeConfig:
@@ -101,19 +102,20 @@ def test_recovers_after_transient_failures(monkeypatch, captured_sleeps):
 def test_backoff_is_capped_at_max_delay(monkeypatch, captured_sleeps):
     """Persistent failures exhaust retries; every backoff stays <= max_delay.
 
-    Note the real contract: on exhaustion the method swallows the exception and
-    returns [] (logged as "Failed to retrieve CVEs from NVD"). That empty return
-    is what leaves results/new_cves.jsonl unwritten and surfaces downstream as
-    the misleading "Input file not found" — captured here so it can't regress.
+    Hardened contract (2026-06-22): on exhaustion the method RAISES
+    NVDUnavailableError instead of returning []. The old empty return made an
+    NVD outage read downstream as "no new CVEs" -> a falsely-successful run.
+    Raising lets the orchestrator record a distinct 'degraded' status and leave
+    last-good output untouched. The backoff-cap behavior is unchanged.
     """
     rate_limit = {"base_delay": 0.1, "max_delay": 0.5,
                   "backoff_multiplier": 2.0, "max_retries": 5}
     proc = _make_processor(rate_limit)
     _patch_get(monkeypatch, [requests.exceptions.ConnectionError("always down")])
 
-    result = proc.retrieve_cves_from_nvd()
+    with pytest.raises(NVDUnavailableError):
+        proc.retrieve_cves_from_nvd()
 
-    assert result == []  # swallowed, not raised
     # max_retries attempts -> max_retries - 1 backoff sleeps before giving up.
     assert len(captured_sleeps) == rate_limit["max_retries"] - 1
     assert max(captured_sleeps) <= rate_limit["max_delay"]
@@ -125,12 +127,63 @@ def test_default_retry_budget_is_hardened(monkeypatch, captured_sleeps):
     Exercises the hardcoded defaults directly: an empty rate_limit dict forces
     retrieve_cves_from_nvd to fall back to max_retries=8 (post-incident value).
     Reverting the default to 5 would drop this to 4 sleeps and fail the test.
+    On exhaustion it raises NVDUnavailableError (hardened contract).
     """
     proc = _make_processor({})  # empty -> function uses its hardcoded fallbacks
     _patch_get(monkeypatch, [requests.exceptions.ConnectionError("always down")])
 
+    with pytest.raises(NVDUnavailableError):
+        proc.retrieve_cves_from_nvd()
+
+    assert len(captured_sleeps) == 7  # max_retries(8) - 1
+    assert max(captured_sleeps) <= 60.0  # default max_delay
+
+
+def test_genuine_empty_page_returns_empty(monkeypatch, captured_sleeps):
+    """A clean 200 with an empty 'vulnerabilities' list is NOT a failure.
+
+    Pins the distinction the hardening exists to preserve: genuine-empty still
+    returns [] (success); only upstream-unavailability raises. No retries, no
+    sleeps, no exception.
+    """
+    rate_limit = {"base_delay": 0.1, "max_delay": 0.5,
+                  "backoff_multiplier": 2.0, "max_retries": 5}
+    proc = _make_processor(rate_limit)
+    _patch_get(monkeypatch, [_OkResponse()])
+
     result = proc.retrieve_cves_from_nvd()
 
     assert result == []
-    assert len(captured_sleeps) == 7  # max_retries(8) - 1
-    assert max(captured_sleeps) <= 60.0  # default max_delay
+    assert captured_sleeps == []  # no failure path taken
+
+
+class _MalformedOkResponse:
+    """A 200 whose body lacks the NVD 'vulnerabilities' envelope.
+
+    Mimics an error/maintenance page served with status 200 during a brownout.
+    """
+
+    status_code = 200
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"message": "Service Unavailable"}
+
+
+def test_200_without_envelope_raises(monkeypatch, captured_sleeps):
+    """A 200 missing 'vulnerabilities' is an outage, not genuine-empty -> raises.
+
+    Closes the residual silent-success hole: a missing key must not read as
+    "no new CVEs". No retry path (it's a 200), so no sleeps.
+    """
+    rate_limit = {"base_delay": 0.1, "max_delay": 0.5,
+                  "backoff_multiplier": 2.0, "max_retries": 5}
+    proc = _make_processor(rate_limit)
+    _patch_get(monkeypatch, [_MalformedOkResponse()])
+
+    with pytest.raises(NVDUnavailableError):
+        proc.retrieve_cves_from_nvd()
+
+    assert captured_sleeps == []  # 200 -> no backoff path taken
