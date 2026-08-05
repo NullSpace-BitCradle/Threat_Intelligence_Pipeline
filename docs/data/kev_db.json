@@ -1,4 +1,31 @@
 {
+    "CVE-2026-18556": {
+        "inKEV": true,
+        "dateAdded": "2026-08-04",
+        "dueDate": "2026-08-07",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "N-able",
+        "product": "N-central"
+    },
+    "CVE-2026-34486": {
+        "inKEV": true,
+        "dateAdded": "2026-08-04",
+        "dueDate": "2026-08-07",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Apache",
+        "product": "Tomcat"
+    },
+    "CVE-2026-9198": {
+        "inKEV": true,
+        "dateAdded": "2026-08-04",
+        "dueDate": "2026-08-07",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "IBM",
+        "product": "Langflow"
+    },
     "CVE-2026-18577": {
         "inKEV": true,
         "dateAdded": "2026-08-03",
@@ -1074,7 +1101,7 @@
         "inKEV": true,
         "dateAdded": "2026-03-09",
         "dueDate": "2026-03-12",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "SolarWinds",
         "product": "Web Help Desk"
