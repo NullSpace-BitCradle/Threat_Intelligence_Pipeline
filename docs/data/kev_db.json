@@ -1,4 +1,13 @@
 {
+    "CVE-2026-73570": {
+        "inKEV": true,
+        "dateAdded": "2026-08-21",
+        "dueDate": "2026-08-24",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Synacor",
+        "product": "Zimbra Collaboration Suite (ZCS)"
+    },
     "CVE-2026-72530": {
         "inKEV": true,
         "dateAdded": "2026-08-20",
@@ -2172,7 +2181,7 @@
         "inKEV": true,
         "dateAdded": "2025-10-06",
         "dueDate": "2025-10-27",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Microsoft",
         "product": "Windows"
@@ -10524,7 +10533,7 @@
         "inKEV": true,
         "dateAdded": "2022-03-15",
         "dueDate": "2022-04-05",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "SonicWall",
         "product": "SonicOS"
@@ -14016,7 +14025,7 @@
         "inKEV": true,
         "dateAdded": "2021-11-03",
         "dueDate": "2022-05-03",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Microsoft",
         "product": "MSCOMCTL.OCX"
