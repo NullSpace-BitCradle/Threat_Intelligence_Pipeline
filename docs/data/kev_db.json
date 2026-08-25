@@ -1,4 +1,13 @@
 {
+    "CVE-2026-21962": {
+        "inKEV": true,
+        "dateAdded": "2026-08-24",
+        "dueDate": "2026-08-27",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+        "vendorProject": "Oracle",
+        "product": "HTTP Server and Oracle Weblogic Server Proxy Plug-in"
+    },
     "CVE-2026-73570": {
         "inKEV": true,
         "dateAdded": "2026-08-21",
