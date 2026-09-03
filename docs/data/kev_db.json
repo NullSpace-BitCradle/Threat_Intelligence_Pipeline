@@ -1,4 +1,67 @@
 {
+    "CVE-2026-59822": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-16",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "BerriAI",
+        "product": "LiteLLM"
+    },
+    "CVE-2026-48710": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-16",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Kludex",
+        "product": "Starlette"
+    },
+    "CVE-2026-49869": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Kestra",
+        "product": "Kestra OSS"
+    },
+    "CVE-2026-82329": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "JFrog",
+        "product": "Artifactory"
+    },
+    "CVE-2026-9586": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Sangoma",
+        "product": "Switchvox"
+    },
+    "CVE-2026-83548": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "SonicWall",
+        "product": "SMA1000 Appliances"
+    },
+    "CVE-2026-83549": {
+        "inKEV": true,
+        "dateAdded": "2026-09-02",
+        "dueDate": "2026-09-05",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "SonicWall",
+        "product": "SMA1000 Appliances"
+    },
     "CVE-2026-82078": {
         "inKEV": true,
         "dateAdded": "2026-08-31",
