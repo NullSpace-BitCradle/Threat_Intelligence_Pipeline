@@ -1,4 +1,13 @@
 {
+    "CVE-2026-85046": {
+        "inKEV": true,
+        "dateAdded": "2026-09-04",
+        "dueDate": "2026-09-18",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Google",
+        "product": "Chromium V8"
+    },
     "CVE-2026-59822": {
         "inKEV": true,
         "dateAdded": "2026-09-02",
@@ -7833,7 +7842,7 @@
         "inKEV": true,
         "dateAdded": "2022-09-14",
         "dueDate": "2022-10-05",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Microsoft",
         "product": "Windows"
@@ -11442,7 +11451,7 @@
         "inKEV": true,
         "dateAdded": "2022-03-03",
         "dueDate": "2022-03-24",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "The impacted product is end-of-life and should be disconnected if still in use.",
         "vendorProject": "Adobe",
         "product": "Flash Player"
