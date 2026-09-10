@@ -1,4 +1,40 @@
 {
+    "CVE-2026-19490": {
+        "inKEV": true,
+        "dateAdded": "2026-09-09",
+        "dueDate": "2026-09-12",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Citrix",
+        "product": "NetScaler"
+    },
+    "CVE-2025-25249": {
+        "inKEV": true,
+        "dateAdded": "2026-09-09",
+        "dueDate": "2026-09-12",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Fortinet",
+        "product": "Multiple Products"
+    },
+    "CVE-2026-87491": {
+        "inKEV": true,
+        "dateAdded": "2026-09-09",
+        "dueDate": "2026-09-23",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Google",
+        "product": "Chromium V8"
+    },
+    "CVE-2026-20079": {
+        "inKEV": true,
+        "dateAdded": "2026-09-09",
+        "dueDate": "2026-09-12",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Cisco",
+        "product": "Secure Firewall Management Center (FMC) and Security Cloud Control (SCC) Firewall Management"
+    },
     "CVE-2026-75650": {
         "inKEV": true,
         "dateAdded": "2026-09-08",
@@ -7743,7 +7779,7 @@
         "inKEV": true,
         "dateAdded": "2022-10-20",
         "dueDate": "2022-11-10",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Synacor",
         "product": "Zimbra Collaboration Suite (ZCS)"
@@ -14061,7 +14097,7 @@
         "inKEV": true,
         "dateAdded": "2021-11-03",
         "dueDate": "2022-05-03",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Microsoft",
         "product": "Win32k"
@@ -14169,7 +14205,7 @@
         "inKEV": true,
         "dateAdded": "2021-11-03",
         "dueDate": "2022-05-03",
-        "knownRansomwareCampaignUse": "Unknown",
+        "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply updates per vendor instructions.",
         "vendorProject": "Microsoft",
         "product": "Win32k"
