@@ -13,6 +13,7 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
+from tip.utils.atomic_io import write_reference_db
 
 config = get_config()
 
@@ -40,7 +41,7 @@ class KEVProcessor:
             timeout = config.get('api.nvd.timeout', 60)
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-            raw_data = response.json()
+            raw_data: Dict[str, Any] = response.json()
             self.logger.info(
                 f"Downloaded KEV catalog: {raw_data.get('count', '?')} entries"
             )
@@ -91,11 +92,9 @@ class KEVProcessor:
             self.logger.error(f"Failed to load KEV database: {e}")
             return False
 
-    def _save(self, data: Dict[str, Any]):
-        """Save processed KEV database to disk"""
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+    def _save(self, data: Dict[str, Any]) -> None:
+        """Floor-check and atomically save the KEV database"""
+        write_reference_db(self.db_path, data, indent=2)
         self.logger.info(f"Saved {len(data)} KEV entries to {self.db_path}")
 
     def lookup(self, cve_id: str) -> Optional[Dict[str, Any]]:

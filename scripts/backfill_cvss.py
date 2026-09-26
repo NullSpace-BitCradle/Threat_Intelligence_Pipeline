@@ -24,6 +24,9 @@ from pathlib import Path
 import requests
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from tip.utils.atomic_io import atomic_write_bytes, deterministic_gzip, jsonl_bytes  # noqa: E402
 SHARD_DIR = REPO_ROOT / "docs" / "database"
 CHECKPOINT = Path(__file__).resolve().parent / ".cvss_backfill_checkpoint.json"
 NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -135,13 +138,10 @@ def apply_to_shards(found: dict, dry_run: bool) -> None:
         print(f"{shard.name}: +{updated} CVSS")
         if dry_run:
             continue
-        tmp = shard.with_suffix(".gz.tmp")
-        with gzip.open(tmp, "wt") as f:
-            for obj in lines:
-                # Default separators match the pipeline's shard format exactly,
-                # so untouched records produce zero git diff.
-                f.write(json.dumps(obj) + "\n")
-        tmp.replace(shard)
+        # Same writer as the pipeline: sorted records, deterministic gzip
+        # header, atomic replace.
+        records = sorted((next(iter(obj.items())) for obj in lines), key=lambda kv: kv[0])
+        atomic_write_bytes(shard, deterministic_gzip(jsonl_bytes(records)))
 
 
 def main() -> None:
