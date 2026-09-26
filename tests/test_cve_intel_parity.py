@@ -5,8 +5,13 @@ The historical bug was a hand-maintained field allowlist mirrored in three
 places (the generator emission and two spots in the MCP layer); a field added
 to one and forgotten in another vanished silently with no failing test. The
 fix is a single contract in ``tip_intel.cve_blocks`` consumed by both the
-generator (producer) and the MCP layer (consumer). This test fails the build
-if any contract field stops reaching either surface.
+generator (producer) and the MCP layer (consumer).
+
+The producer side calls the generator's real CVE record builder
+(``build_cve_entity_record``), not a mirror of it, so removing the
+generator's ``cve_blocks.enrich`` call fails this test. The consumer side
+covers both MCP paths: the shard fallback, and the entity-index path serving
+a generated record with no shards on disk.
 """
 
 from __future__ import annotations
@@ -14,7 +19,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tip_intel import cve_blocks
+from tip.core.entity_index_generator import build_cve_entity_record
 from tip_intel.cve_blocks import INTEL_FIELDS
 from tip_mcp.loader import IndexLoader
 from tip_mcp.tools import lookup_entity_impl
@@ -29,14 +34,13 @@ RICH_PAYLOAD = {
         "version": "3.1",
         "source": "cisa_vulnrichment",
     },
-    "CWE": ["CWE-400"],
+    "CWE": ["400", "CWE-770"],
     "CAPEC": [],
-    "TECHNIQUES": ["T1499"],
+    "TECHNIQUES": ["1499"],
     "OWASP": [],
     "DEFEND": [
         {"id": "D3-ABPI", "name": "Application-based Process Isolation", "relationship": "isolates"}
     ],
-    "APT_GROUPS": ["G0007"],
     "KEV": {
         "inKEV": True,
         "dateAdded": "2023-10-10",
@@ -56,16 +60,9 @@ RICH_PAYLOAD = {
 
 
 def _producer_record(payload: dict) -> dict:
-    """Mirror the generator's CVE emission: a base entity record, then the
-    shared enrich() — exactly the call entity_index_generator.py makes."""
-    record = {
-        "id": "CVE-2023-44487",
-        "type": "cve",
-        "name": "HTTP/2 rapid reset denial of service",
-        "phase": "vulnerability",
-    }
-    cve_blocks.enrich(record, payload)
-    return record
+    """The generator's own CVE record, built by the function
+    generate_entity_index calls for every curated CVE."""
+    return build_cve_entity_record("CVE-2023-44487", payload)
 
 
 def _consumer_record(tmp_path: Path, payload: dict) -> dict:
@@ -80,6 +77,24 @@ def _consumer_record(tmp_path: Path, payload: dict) -> dict:
     ld.load()
     resp = lookup_entity_impl(ld, "CVE-2023-44487")
     assert resp["ok"] is True, resp
+    assert resp["meta"]["source"] == "shard"
+    return resp["data"]
+
+
+def _consumer_entity_path_record(tmp_path: Path, payload: dict) -> dict:
+    """The MCP entity-index path serving the generator's record with no
+    shards on disk: every intel field must come from entity_index.json."""
+    record = dict(_producer_record(payload), rels={})
+    (tmp_path / "entity_index.json").write_text(
+        json.dumps({"entities": {"CVE-2023-44487": record}})
+    )
+    (tmp_path / "search_index.json").write_text("{}")
+    ld = IndexLoader(tmp_path, shards_dir=tmp_path / "no-shards")
+    ld.load()
+    resp = lookup_entity_impl(ld, "CVE-2023-44487")
+    assert resp["ok"] is True, resp
+    assert resp["meta"]["source"] == "entity_index.json"
+    assert "enriched_from_shard" not in resp["meta"]
     return resp["data"]
 
 
@@ -120,3 +135,11 @@ def test_values_match_across_seam(tmp_path: Path):
     cons = _consumer_record(tmp_path, RICH_PAYLOAD)
     for field in INTEL_FIELDS:
         assert prod[field] == cons[field], f"{field} differs across seam"
+
+
+def test_entity_path_serves_every_contract_field_without_shards(tmp_path: Path):
+    prod = _producer_record(RICH_PAYLOAD)
+    cons = _consumer_entity_path_record(tmp_path, RICH_PAYLOAD)
+    for field in INTEL_FIELDS:
+        assert field in cons, f"entity path dropped {field} with shards absent"
+        assert cons[field] == prod[field], f"{field} differs across seam"

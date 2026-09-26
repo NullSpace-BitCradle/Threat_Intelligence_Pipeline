@@ -1,3 +1,5 @@
 # Optional MCP server layer for TIP.
 # Install alongside core requirements.txt when exposing TIP as an MCP server.
-mcp>=1.12.0
+# Pinned exactly: src/tip_mcp/server.py uses the 2.x API (mcp.server.mcpserver.MCPServer),
+# which does not exist in 1.x, and 1.x's FastMCP import path raises on 2.x.
+mcp==2.2.0
