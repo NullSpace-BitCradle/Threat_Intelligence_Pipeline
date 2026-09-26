@@ -15,6 +15,9 @@ concurrency:
 
 jobs:
   pipeline:
+    # Publishes to main, so it only ever runs from main. A workflow_dispatch
+    # from any other ref is skipped instead of pushing that ref's tree to main.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 240
 
@@ -56,4 +59,10 @@ jobs:
           git fetch origin main
           # A conflicting rebase fails the run instead of force-pushing over main.
           git rebase origin/main
+          # Push only if the branch is exactly the new data commit on top of
+          # origin/main, so nothing but this run's data can reach main.
+          if [ "$(git rev-parse HEAD~1)" != "$(git rev-parse origin/main)" ]; then
+            echo "Refusing to push: HEAD is not one commit on top of origin/main." >&2
+            exit 1
+          fi
           git push origin HEAD:main

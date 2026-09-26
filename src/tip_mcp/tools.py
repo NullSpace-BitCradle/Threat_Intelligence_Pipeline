@@ -392,13 +392,23 @@ def search_threat_intel_impl(
     loader: IndexLoader,
     query: str,
     limit: int = 20,
-    types: Optional[list] = None,
+    types: Any = None,
 ) -> dict:
-    """Search the inverted index by query string, ranked by match count."""
+    """Search the inverted index by query string, ranked by match count.
+
+    ``types`` arrives from MCP clients unvalidated, so it is typed Any and
+    checked here: None or a list of type names.
+    """
     if not query or not isinstance(query, str):
         return error_response(ErrorCode.BAD_PARAM, "query must be a non-empty string")
     if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
         return error_response(ErrorCode.BAD_PARAM, "limit must be a positive integer")
+
+    if types is not None and not isinstance(types, list):
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"types must be a list of type names, got {type(types).__name__}",
+        )
 
     wanted: Optional[set[str]] = None
     if types:

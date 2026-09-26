@@ -18,7 +18,9 @@ import gzip
 import io
 import json
 import os
+import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Sequence, Tuple
 
@@ -83,11 +85,33 @@ def atomic_write_json(path: PathLike, obj: Any, **dump_kwargs: Any) -> None:
     atomic_write_text(path, json.dumps(obj, **dump_kwargs))
 
 
+def _backup(target: Path) -> Optional[Path]:
+    """Keep the current version of ``target`` at a sibling path, or return
+    None when there is none. A hard link costs no copy; copy2 is the fallback
+    for filesystems that refuse links."""
+    if not target.exists():
+        return None
+    backup = target.parent / f".{target.name}.{uuid.uuid4().hex}.bak"
+    try:
+        os.link(target, backup)
+    except OSError:
+        shutil.copy2(target, backup)
+    return backup
+
+
 def atomic_replace_many(items: Sequence[Tuple[PathLike, bytes]]) -> None:
     """Publish several files so a failure cannot leave a mix of old and new.
 
     Every temp file is written and fsynced before any target is replaced. A
-    failure while writing temps leaves every target untouched.
+    failure while writing temps leaves every target untouched. Before the
+    replace loop each existing target is kept as a sibling backup; if any
+    replace fails, every target already replaced is restored from its backup
+    (or removed, if it did not exist before), temps and backups are removed,
+    and the error is re-raised.
+
+    This covers an exception, not a hard kill between two replaces. The
+    publish-level guarantee also comes from the data workflows committing
+    only when the run exits 0, so a half-replaced set never reaches main.
     """
     temps: list[Tuple[Path, Path]] = []
     try:
@@ -98,8 +122,42 @@ def atomic_replace_many(items: Sequence[Tuple[PathLike, bytes]]) -> None:
         for tmp, _ in temps:
             tmp.unlink(missing_ok=True)
         raise
-    for tmp, target in temps:
-        os.replace(tmp, target)
+
+    backups: list[Optional[Path]] = []
+    try:
+        for _, target in temps:
+            backups.append(_backup(target))
+    except BaseException:
+        for tmp, _ in temps:
+            tmp.unlink(missing_ok=True)
+        for b in backups:
+            if b is not None:
+                b.unlink(missing_ok=True)
+        raise
+
+    done = 0
+    try:
+        for tmp, target in temps:
+            os.replace(tmp, target)
+            done += 1
+    except BaseException:
+        for i in range(done):
+            target = temps[i][1]
+            backup = backups[i]
+            if backup is not None:
+                os.replace(backup, target)
+            else:
+                target.unlink(missing_ok=True)
+        for tmp, _ in temps:
+            tmp.unlink(missing_ok=True)
+        for b in backups:
+            if b is not None:
+                b.unlink(missing_ok=True)
+        raise
+
+    for b in backups:
+        if b is not None:
+            b.unlink(missing_ok=True)
     for parent in {t.parent for _, t in temps}:
         _fsync_dir(parent)
 
