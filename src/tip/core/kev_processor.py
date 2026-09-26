@@ -41,7 +41,7 @@ class KEVProcessor:
             timeout = config.get('api.nvd.timeout', 60)
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-            raw_data = response.json()
+            raw_data: Dict[str, Any] = response.json()
             self.logger.info(
                 f"Downloaded KEV catalog: {raw_data.get('count', '?')} entries"
             )

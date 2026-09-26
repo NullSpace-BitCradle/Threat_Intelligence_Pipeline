@@ -8,7 +8,7 @@ import re
 import sys
 import time
 import requests
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, cast
 from pathlib import Path
 
 from tip.utils.config import get_config
@@ -392,7 +392,8 @@ class CVEProcessor:
         """Load CWE database"""
         try:
             with open(self.cwe_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load CWE database: {e}")
             return {}
@@ -401,7 +402,8 @@ class CVEProcessor:
         """Load CAPEC database"""
         try:
             with open(self.capec_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load CAPEC database: {e}")
             return {}
@@ -410,7 +412,8 @@ class CVEProcessor:
         """Load techniques database"""
         try:
             with open(self.techniques_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load techniques database: {e}")
             return {}
@@ -455,8 +458,8 @@ class CVEProcessor:
         cache_key = f"defend_{technique_id}"
         cached_result = self.cache.get(cache_key)
         if cached_result is not None:
-            return cached_result
-        
+            return cast(List[Dict[str, str]], cached_result)
+
         try:
             # Normalize technique ID
             attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
@@ -465,7 +468,7 @@ class CVEProcessor:
             if Path(defend_file).exists():
                 for entry in self.jsonl_manager.read_jsonl(defend_file):
                     if attack_id in entry:
-                        result = entry[attack_id].get('defensive_techniques', [])
+                        result: List[Dict[str, str]] = entry[attack_id].get('defensive_techniques', [])
                         self.cache.set(cache_key, result, ttl=3600)
                         return result
             

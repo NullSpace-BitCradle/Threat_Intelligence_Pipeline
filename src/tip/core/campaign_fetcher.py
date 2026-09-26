@@ -36,7 +36,8 @@ def _download_stix_bundle() -> Dict[str, Any]:
     try:
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
-        return response.json()
+        bundle: Dict[str, Any] = response.json()
+        return bundle
     except requests.exceptions.RequestException as e:
         raise NetworkError(f"Failed to download STIX bundle: {e}", url=url, context=context)
 

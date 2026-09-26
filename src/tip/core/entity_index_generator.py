@@ -87,7 +87,8 @@ def _load_json(path: Path) -> dict:
         print(f"  [SKIP] {path.name} not found")
         return {}
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        loaded: dict = json.load(f)
+        return loaded
 
 
 def _parse_capec_technique_ids(techniques_str: str) -> list[str]:
@@ -139,15 +140,15 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     # Track rels as separate dict-of-dict-of-sets for speed
     rels_map: dict[str, dict[str, set]] = defaultdict(lambda: defaultdict(set))
 
-    def ensure(eid: str, etype: str, name: str, phase: str):
+    def ensure(eid: str, etype: str, name: str, phase: str) -> None:
         if eid not in entities:
             entities[eid] = {"type": etype, "id": eid, "name": name, "phase": phase}
 
-    def link(id_a: str, rel_a: str, id_b: str, rel_b: str):
+    def link(id_a: str, rel_a: str, id_b: str, rel_b: str) -> None:
         rels_map[id_a][rel_a].add(id_b)
         rels_map[id_b][rel_b].add(id_a)
 
-    def link_one(eid: str, rel: str, target: str):
+    def link_one(eid: str, rel: str, target: str) -> None:
         rels_map[eid][rel].add(target)
 
     # ── 1. Load CWE database ──────────────────────────────────────
@@ -384,7 +385,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 return float(score)
         vr_cvss = _cvss_from_vulnrichment_db(cve_id)
         if vr_cvss is not None:
-            return vr_cvss["score"]
+            return float(vr_cvss["score"])
         return None
 
     for cve_id, cve_data in all_cve_data:
@@ -672,7 +673,7 @@ def write_outputs(
         print(f"  {path.name}: {len(data) / (1024 * 1024):.1f} MB")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate TIP entity and search indexes")
     parser.add_argument(
         "--base-dir",
@@ -693,7 +694,7 @@ def main():
     write_outputs(entity_index, search_index, args.base_dir, cve_ids_index, out_dir=args.out_dir)
 
     # Summary
-    type_counts = defaultdict(int)
+    type_counts: dict[str, int] = defaultdict(int)
     for e in entity_index["entities"].values():
         type_counts[e["type"]] += 1
 

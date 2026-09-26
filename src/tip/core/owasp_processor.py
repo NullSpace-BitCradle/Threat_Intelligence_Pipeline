@@ -156,7 +156,7 @@ class OWASPProcessor:
         # Save the mapping to file
         self._save_owasp_database()
     
-    def _save_owasp_database(self):
+    def _save_owasp_database(self) -> None:
         """Save OWASP database to file"""
         try:
             data = {
@@ -203,7 +203,7 @@ class OWASPProcessor:
         """Get all OWASP categories"""
         return self.owasp_categories
     
-    def update_owasp_mapping(self, cwe_id: str, owasp_categories: List[str]):
+    def update_owasp_mapping(self, cwe_id: str, owasp_categories: List[str]) -> None:
         """Update OWASP mapping for a specific CWE ID"""
         cwe_id = cwe_id.replace("CWE-", "") if cwe_id.startswith("CWE-") else cwe_id
         self.cwe_owasp_mapping[cwe_id] = owasp_categories

@@ -401,7 +401,7 @@ class PipelineOrchestrator:
         # clean; a degraded, partial or failed run leaves it where it was.
         if self._run_is_clean(summary):
             self._update_last_update_time()
-        elif summary['pipeline_session']['total_steps']:
+        elif len(self.results) > 0:
             log_warning("Run not fully successful; lastUpdate.txt left unchanged")
 
         return summary

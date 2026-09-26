@@ -42,7 +42,7 @@ class APTProcessor:
             timeout = config.get('api.nvd.timeout', 120)
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-            stix_data = response.json()
+            stix_data: Dict[str, Any] = response.json()
             obj_count = len(stix_data.get('objects', []))
             self.logger.info(f"Downloaded STIX bundle: {obj_count} objects")
             return stix_data
