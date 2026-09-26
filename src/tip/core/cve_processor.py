@@ -31,6 +31,12 @@ config.setup_logging()
 NVD_DELAY_KEYLESS = 6.0
 NVD_DELAY_KEYED = 0.6
 
+# A CVE whose enrichment throws is not written. The cve_processing step fails
+# when such failures exceed 1% of the CVEs processed or 50, whichever is
+# smaller.
+ENRICHMENT_FAILURE_RATE = 0.01
+ENRICHMENT_FAILURE_MAX = 50
+
 
 def nvd_request_delay(has_api_key: bool) -> float:
     """Seconds to wait between successful NVD page requests."""
@@ -39,7 +45,11 @@ def nvd_request_delay(has_api_key: bool) -> float:
 
 class CVEProcessor:
     """Unified CVE processing pipeline"""
-    
+
+    # Counts from the last process_cve_pipeline call: attempted, failed,
+    # failed_ids. None before the first call.
+    last_enrichment: Optional[Dict[str, Any]] = None
+
     def __init__(self):
         self.config = config
         self.cache = get_global_cache()
@@ -494,6 +504,7 @@ class CVEProcessor:
     def process_cve_pipeline(self, cve_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single CVE through the entire pipeline"""
         result: Dict[str, Dict[str, Any]] = {}
+        failed_ids: List[str] = []
 
         # Fields preserved verbatim from ingest (raw NVD data) through enrichment.
         PRESERVED_FIELDS = (
@@ -594,22 +605,27 @@ class CVEProcessor:
                         result[cve_id]["APT_GROUPS"] = apt_groups
 
             except Exception as e:
+                # Never publish a stripped record: a partial result would
+                # replace the complete one already in the shard. The CVE is
+                # left out, its previous record stays, and the failure is
+                # counted so process_file can fail the step.
                 self.logger.error(f"Error processing CVE {cve_id}: {e}")
-                # Return partial result while still preserving raw NVD fields
-                partial: Dict[str, Any] = {
-                    "CWE": expand_cwe_list({}, data.get('CWE', [])),
-                    "CAPEC": [],
-                    "TECHNIQUES": [],
-                    "DEFEND": [],
-                    "OWASP": []
-                }
-                for field in PRESERVED_FIELDS:
-                    if field in data:
-                        partial[field] = data[field]
-                result[cve_id] = partial
-        
+                result.pop(cve_id, None)
+                failed_ids.append(cve_id)
+
+        self.last_enrichment = {
+            "attempted": len(cve_data),
+            "failed": len(failed_ids),
+            "failed_ids": failed_ids,
+        }
         return result
     
+    @staticmethod
+    def enrichment_failures_exceed_threshold(failed: int, attempted: int) -> bool:
+        """True when failures exceed 1% of attempted CVEs or 50, whichever
+        is smaller. Above it the cve_processing step fails."""
+        return failed > min(attempted * ENRICHMENT_FAILURE_RATE, ENRICHMENT_FAILURE_MAX)
+
     def save_results(self, results: Dict[str, Any]) -> None:
         """Save results to JSONL file and update database"""
         # Save to main output file
@@ -661,7 +677,24 @@ class CVEProcessor:
         # Process through pipeline
         try:
             results = self.process_cve_pipeline(cve_data)
+            # Successful records are saved even when the run fails below:
+            # they are correct, failed CVEs keep their previous record, and
+            # the workflow publishes nothing unless the run exits 0.
             self.save_results(results)
+            stats = self.last_enrichment or {}
+            failed = int(stats.get("failed", 0))
+            attempted = int(stats.get("attempted", len(cve_data)))
+            if failed:
+                self.logger.warning(
+                    f"{failed} of {attempted} CVEs failed enrichment and were not "
+                    "written; their previous records are kept"
+                )
+            if self.enrichment_failures_exceed_threshold(failed, attempted):
+                self.logger.error(
+                    f"Enrichment failures ({failed} of {attempted}) exceed the "
+                    f"threshold of min(1%, {ENRICHMENT_FAILURE_MAX})"
+                )
+                return False
             self.logger.info(f"Successfully processed {len(results)} CVEs")
             return True
         except Exception as e:

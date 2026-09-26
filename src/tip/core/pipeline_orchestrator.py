@@ -327,11 +327,18 @@ class PipelineOrchestrator:
             success = self.cve_processor.process_file()
             duration = time.time() - start_time
             
-            self.results['cve_processing'] = {
+            step: Dict[str, Any] = {
                 'status': 'success' if success else 'failed',
                 'duration': duration,
                 'timestamp': datetime.now().isoformat()
             }
+            stats = getattr(self.cve_processor, 'last_enrichment', None)
+            if stats:
+                step['attempted'] = stats.get('attempted', 0)
+                step['enrichment_failed'] = stats.get('failed', 0)
+                # Capped so a mass failure cannot bloat the summary file.
+                step['enrichment_failed_ids'] = list(stats.get('failed_ids', []))[:100]
+            self.results['cve_processing'] = step
             
             if success:
                 log_info("CVE processing completed successfully")
