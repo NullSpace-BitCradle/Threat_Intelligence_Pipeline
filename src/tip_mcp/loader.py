@@ -10,7 +10,8 @@ line is held zlib-compressed, keyed by CVE ID, so later lookups in that year
 cost one small decompress plus one json.loads. Parsing a whole year into
 dicts would need over 1 GB for CVE-2026 (303 MB of decompressed JSONL); the
 compressed line cache holds that year in about 100 MB. An LRU over years
-bounds the total. A miss is short-circuited through cve_ids_index.json, so a
+bounds the total by year count and by compressed bytes (400 MB default); a
+year larger than the byte budget is streamed per lookup instead of cached. A miss is short-circuited through cve_ids_index.json, so a
 CVE ID the pipeline never ingested costs no shard scan at all.
 """
 
@@ -41,6 +42,8 @@ _CVE_ID_RE = re.compile(r"^CVE-(\d{4})-(\d{4,})$", re.IGNORECASE)
 _READ_ERRORS = (OSError, EOFError, UnicodeDecodeError, zlib.error, ValueError)
 
 DEFAULT_SHARD_CACHE_YEARS = 3
+# Budget for the compressed shard cache across all cached years.
+DEFAULT_SHARD_CACHE_BYTES = 400 * 1024 * 1024
 
 
 def _read_json(path: Path, label: str) -> Any:
@@ -61,6 +64,7 @@ class IndexLoader:
         data_dir: "Path | str",
         shards_dir: "Path | str | None" = None,
         shard_cache_years: int = DEFAULT_SHARD_CACHE_YEARS,
+        shard_cache_bytes: int = DEFAULT_SHARD_CACHE_BYTES,
     ) -> None:
         self.data_dir = Path(data_dir)
         # Shards live alongside the data dir by default (docs/database/
@@ -76,9 +80,14 @@ class IndexLoader:
         # year -> sorted CVE tail ints, from cve_ids_index.json. None when the
         # index is absent or malformed; lookups then fall back to scanning.
         self._cve_ids: Optional[dict[str, list[int]]] = None
+        self.shard_cache_bytes = max(1, int(shard_cache_bytes))
         # year -> (shard filename, {CVE-ID upper: zlib-compressed line},
-        # malformed line count); LRU order.
-        self._shard_cache: "OrderedDict[str, tuple[str, dict[str, bytes], int]]" = OrderedDict()
+        # malformed line count, compressed bytes); LRU order.
+        self._shard_cache: "OrderedDict[str, tuple[str, dict[str, bytes], int, int]]" = OrderedDict()
+        self._cache_bytes = 0
+        # Years whose compressed lines exceed the whole byte budget; they are
+        # streamed on every lookup instead of cached.
+        self._oversize_years: set[str] = set()
         # Number of shard files read from disk; tests use it to prove caching
         # and the miss short-circuit.
         self.shard_loads = 0
@@ -123,6 +132,8 @@ class IndexLoader:
         self._search_index = search
         self._cve_ids = self._load_cve_ids()
         self._shard_cache.clear()
+        self._cache_bytes = 0
+        self._oversize_years.clear()
 
     def _load_cve_ids(self) -> Optional[dict[str, list[int]]]:
         """Load the Layer 1 all-IDs index. Absent or malformed means None,
@@ -192,22 +203,41 @@ class IndexLoader:
             return plain_path
         return None
 
-    def _year_cache(self, year: str) -> Optional[tuple[str, dict[str, bytes], int]]:
-        """Return (shard filename, id to compressed line, malformed line
-        count) for a year, reading and caching the shard on first use. None
-        if the shard is absent. A line whose key cannot be parsed is counted
-        as malformed rather than skipped silently.
-        Raises ShardReadError if it exists but cannot be read; a partially
-        read year is never cached."""
+    @property
+    def cached_years(self) -> list[str]:
+        """Years currently held in the shard cache, least recently used first."""
+        return list(self._shard_cache)
+
+    @property
+    def shard_cache_used_bytes(self) -> int:
+        """Compressed bytes the shard cache holds now."""
+        return self._cache_bytes
+
+    def _year_lookup(self, year: str, canonical_id: str) -> Optional[tuple[str, Optional[bytes], int]]:
+        """Return (shard filename, compressed line for canonical_id or None,
+        malformed line count) for a year. None if the shard is absent.
+
+        The first read of a year caches every line zlib-compressed, keyed by
+        CVE ID. The cache is bounded by shard_cache_years and by
+        shard_cache_bytes: least recently used years are evicted until both
+        hold. A year whose compressed lines alone exceed the byte budget is
+        not cached; it is streamed on every lookup, keeping only the line
+        asked for. A line whose key cannot be parsed is counted as malformed
+        rather than skipped silently. Raises ShardReadError if the shard
+        exists but cannot be read; a partially read year is never cached.
+        """
         cached = self._shard_cache.get(year)
         if cached is not None:
             self._shard_cache.move_to_end(year)
-            return cached
+            return cached[0], cached[1].get(canonical_id), cached[2]
         shard_path = self._shard_path(year)
         if shard_path is None:
             return None
 
+        caching = year not in self._oversize_years
         lines: dict[str, bytes] = {}
+        size = 0
+        hit: Optional[bytes] = None
         corrupt = 0
         try:
             fh: IO[str]
@@ -220,26 +250,42 @@ class IndexLoader:
                     line = line.strip()
                     if not line:
                         continue
-                    keys = _line_keys(line)
+                    keys = [k.upper() for k in _line_keys(line)]
                     if not keys:
                         corrupt += 1
                         continue
-                    blob = b""
-                    for key in keys:
-                        if not blob:
-                            blob = zlib.compress(line.encode("utf-8"), 1)
-                        lines[key.upper()] = blob
+                    if caching:
+                        blob = zlib.compress(line.encode("utf-8"), 1)
+                        for key in keys:
+                            lines[key] = blob
+                        size += len(blob)
+                        if size > self.shard_cache_bytes:
+                            # Too big for the whole budget: stop caching and
+                            # keep scanning for the one line asked for.
+                            caching = False
+                            self._oversize_years.add(year)
+                            hit = lines.get(canonical_id)
+                            lines = {}
+                    elif canonical_id in keys:
+                        hit = zlib.compress(line.encode("utf-8"), 1)
         except _READ_ERRORS as exc:
             raise ShardReadError(
                 f"shard {shard_path.name} unreadable: {type(exc).__name__}: {exc}"
             ) from exc
 
-        entry = (shard_path.name, lines, corrupt)
-        self._shard_cache[year] = entry
         self.shard_loads += 1
-        while len(self._shard_cache) > self.shard_cache_years:
-            self._shard_cache.popitem(last=False)
-        return entry
+        if not caching:
+            return shard_path.name, hit, corrupt
+
+        self._shard_cache[year] = (shard_path.name, lines, corrupt, size)
+        self._cache_bytes += size
+        while len(self._shard_cache) > 1 and (
+            len(self._shard_cache) > self.shard_cache_years
+            or self._cache_bytes > self.shard_cache_bytes
+        ):
+            _, (_, _, _, evicted) = self._shard_cache.popitem(last=False)
+            self._cache_bytes -= evicted
+        return shard_path.name, lines.get(canonical_id), corrupt
 
     def find_cve_in_shards(self, cve_id: str) -> Optional[tuple[dict, str]]:
         """Look up a CVE ID in its per-year JSONL shard.
@@ -261,11 +307,10 @@ class IndexLoader:
         year = match.group(1)
         canonical_id = cve_id.strip().upper()
 
-        cached = self._year_cache(year)
-        if cached is None:
+        found = self._year_lookup(year, canonical_id)
+        if found is None:
             return None
-        shard_name, lines, corrupt = cached
-        blob = lines.get(canonical_id)
+        shard_name, blob, corrupt = found
         if blob is None:
             if corrupt:
                 # The CVE may be on one of the unparseable lines, so "not
