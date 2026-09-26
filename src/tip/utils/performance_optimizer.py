@@ -100,7 +100,7 @@ class PerformanceMonitor:
 # Global performance monitor
 performance_monitor = PerformanceMonitor()
 
-def performance_timer(operation_name: Optional[str] = None):
+def performance_timer(operation_name: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to time function execution"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -139,7 +139,7 @@ class AdvancedCache:
         ttl = entry.get('ttl', self.default_ttl)
         created_at = entry.get('created_at', 0)
         
-        return time.time() - created_at > ttl
+        return bool(time.time() - created_at > ttl)
     
     def _evict_lru(self):
         """Evict least recently used entries"""

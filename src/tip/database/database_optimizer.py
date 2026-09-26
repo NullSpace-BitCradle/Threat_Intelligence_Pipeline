@@ -43,7 +43,7 @@ class JSONLManager:
                     except json.JSONDecodeError:
                         continue
 
-    def save_jsonl_incremental(self, file_path: str, data: Dict[str, Any]):
+    def save_jsonl_incremental(self, file_path: str, data: Dict[str, Any]) -> None:
         """Save data incrementally to a gzipped JSONL file, updating existing entries"""
         existing = {}
         if os.path.exists(file_path) or os.path.exists(file_path + '.gz'):

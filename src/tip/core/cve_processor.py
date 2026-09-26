@@ -7,7 +7,7 @@ import json
 import re
 import sys
 import time
-import requests  # type: ignore
+import requests
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 

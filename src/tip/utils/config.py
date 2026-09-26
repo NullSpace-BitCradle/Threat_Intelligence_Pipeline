@@ -6,7 +6,7 @@ import sys
 import json
 import logging
 import logging.handlers
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class Config:
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
+                    config: Dict[str, Any] = json.load(f)
                 logger.info(f"Loaded configuration from {self.config_file}")
                 return config
             except Exception as e:
@@ -164,7 +164,7 @@ class Config:
         Returns:
             Full path to database file
         """
-        return self.get(f'database.{db_name}.file', f'resources/{db_name}_db.json')
+        return cast(str, self.get(f'database.{db_name}.file', f'resources/{db_name}_db.json'))
     
     def get_output_path(self, file_type: str) -> str:
         """
@@ -176,7 +176,7 @@ class Config:
         Returns:
             Full path to output file
         """
-        return self.get(f'files.{file_type}', f'results/{file_type}')
+        return cast(str, self.get(f'files.{file_type}', f'results/{file_type}'))
     
     def setup_logging(self) -> None:
         """Install the pipeline's console and file handlers on the root logger.

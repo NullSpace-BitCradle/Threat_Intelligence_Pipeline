@@ -2,11 +2,11 @@
 Validation utilities for Threat Intelligence Pipeline
 """
 import logging
-from typing import Dict, List, Any
+from typing import List, Any
 
 logger = logging.getLogger(__name__)
 
-def validate_cve_data(cve_data: Dict[str, Any]) -> bool:
+def validate_cve_data(cve_data: Any) -> bool:
     """
     Validate CVE data structure
     
@@ -41,42 +41,7 @@ def validate_cve_data(cve_data: Dict[str, Any]) -> bool:
     
     return True
 
-def validate_cwe_id(cwe_id: str) -> bool:
-    """
-    Validate CWE ID format
-    
-    Args:
-        cwe_id: CWE identifier
-        
-    Returns:
-        bool: True if valid format
-    """
-    if not isinstance(cwe_id, str):
-        return False
-    
-    # Only accept CWE-XXX format
-    if cwe_id.startswith('CWE-'):
-        return len(cwe_id) > 4 and cwe_id[4:].isdigit()
-    else:
-        return False
-
-def validate_capec_id(capec_id: str) -> bool:
-    """
-    Validate CAPEC ID format
-    
-    Args:
-        capec_id: CAPEC identifier
-        
-    Returns:
-        bool: True if valid format
-    """
-    if not isinstance(capec_id, str):
-        return False
-    
-    # CAPEC IDs are typically numeric strings
-    return capec_id.isdigit()
-
-def validate_technique_id(technique_id: str) -> bool:
+def validate_technique_id(technique_id: Any) -> bool:
     """
     Validate MITRE ATT&CK technique ID format
     
@@ -105,6 +70,7 @@ def validate_technique_id(technique_id: str) -> bool:
             return main_part.isdigit() and sub_part.isdigit()
         else:
             return technique_id.isdigit()
+
 
 def safe_parse_capec_techniques(techniques_string: str) -> List[str]:
     """
@@ -157,21 +123,4 @@ def validate_file_exists(file_path: str) -> bool:
         logger.error(f"File is not readable: {file_path}")
         return False
     
-    return True
-
-def validate_json_structure(data: Any, expected_type: type, context: str = "") -> bool:
-    """
-    Validate JSON data structure
-    
-    Args:
-        data: Data to validate
-        expected_type: Expected data type
-        context: Context for error messages
-        
-    Returns:
-        bool: True if valid
-    """
-    if not isinstance(data, expected_type):
-        logger.error(f"{context}: Expected {expected_type.__name__}, got {type(data).__name__}")
-        return False
     return True

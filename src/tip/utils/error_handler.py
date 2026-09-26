@@ -261,7 +261,7 @@ class ErrorHandler:
         else:
             return ErrorSeverity.LOW
     
-    def _log_error(self, error_record: ErrorRecord):
+    def _log_error(self, error_record: ErrorRecord) -> None:
         """Log error with appropriate level"""
         log_message = f"[{error_record.error_id}] {error_record.message}"
         
@@ -280,7 +280,7 @@ class ErrorHandler:
         else:
             self.logger.info(log_message, extra={'error_record': asdict(error_record)})
     
-    def _check_alerts(self, error_record: ErrorRecord):
+    def _check_alerts(self, error_record: ErrorRecord) -> None:
         """Check if error thresholds are exceeded and send alerts"""
         error_key = f"{error_record.category.value}_{error_record.severity.value}"
         count = self.error_counts.get(error_key, 0)
@@ -352,7 +352,7 @@ class JsonFormatter(logging.Formatter):
 
 def error_handler(operation: str, component: str, 
                  retry_count: int = 0, 
-                 reraise: bool = True):
+                 reraise: bool = True) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for error handling"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -376,7 +376,7 @@ def error_handler(operation: str, component: str,
         return wrapper
     return decorator
 
-def log_operation(operation: str, component: str):
+def log_operation(operation: str, component: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for operation logging"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -428,19 +428,19 @@ def get_logger(name: str = 'cve2capec') -> logging.Logger:
     """Get a logger instance"""
     return global_error_handler.logger.getChild(name)
 
-def log_info(message: str, **kwargs):
+def log_info(message: str, **kwargs: Any) -> None:
     """Log info message"""
     global_error_handler.logger.info(message, extra=kwargs)
 
-def log_warning(message: str, **kwargs):
+def log_warning(message: str, **kwargs: Any) -> None:
     """Log warning message"""
     global_error_handler.logger.warning(message, extra=kwargs)
 
-def log_error(message: str, **kwargs):
+def log_error(message: str, **kwargs: Any) -> None:
     """Log error message"""
     global_error_handler.logger.error(message, extra=kwargs)
 
-def log_critical(message: str, **kwargs):
+def log_critical(message: str, **kwargs: Any) -> None:
     """Log critical message"""
     global_error_handler.logger.critical(message, extra=kwargs)
 

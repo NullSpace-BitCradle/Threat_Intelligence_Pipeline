@@ -4,7 +4,7 @@ Unified database management system
 Combines all database update operations into a single, efficient manager
 """
 import os
-import requests  # type: ignore
+import requests
 import json
 import csv
 import time
@@ -16,7 +16,7 @@ from tip.utils.config import get_config
 from tip.utils.performance_optimizer import performance_timer
 from tip.utils.error_handler import (
     log_operation, NetworkError, FileOperationError,
-    get_logger
+    get_logger, create_api_context
 )
 from tip.utils.validation import validate_file_exists
 from tip.core.kev_processor import KEVProcessor
