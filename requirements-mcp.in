@@ -1,0 +1,4 @@
+# Optional MCP server layer (src/tip_mcp). Server targets the mcp 2.x API (MCPServer).
+# Compile with:
+#   uv pip compile requirements-mcp.in -o requirements-mcp.txt --generate-hashes -p 3.13 --exclude-newer <7 days ago>
+mcp==2.2.0
