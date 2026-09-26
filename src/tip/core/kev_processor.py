@@ -11,8 +11,7 @@ from typing import Dict, Any, Optional
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError, FileOperationError
-from tip.utils.error_recovery import with_recovery, create_api_context
+from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 
 config = get_config()
@@ -28,7 +27,6 @@ class KEVProcessor:
         self.db_path = config.get('database.kev.file', 'resources/kev_db.json')
 
     @performance_timer("download_kev")
-    @with_recovery("download_kev", recovery_strategy="api")
     def download(self) -> Dict[str, Any]:
         """Download KEV catalog from CISA"""
         url = config.get(

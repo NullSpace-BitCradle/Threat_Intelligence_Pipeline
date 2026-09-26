@@ -8,7 +8,7 @@ import gzip
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, List, Generator
+from typing import Dict, Any, Generator
 
 
 class JSONLManager:
@@ -43,7 +43,7 @@ class JSONLManager:
                     except json.JSONDecodeError:
                         continue
 
-    def save_jsonl_incremental(self, file_path: str, data: Dict[str, Any]):
+    def save_jsonl_incremental(self, file_path: str, data: Dict[str, Any]) -> None:
         """Save data incrementally to a gzipped JSONL file, updating existing entries"""
         existing = {}
         if os.path.exists(file_path) or os.path.exists(file_path + '.gz'):
@@ -65,21 +65,7 @@ class JSONLManager:
             os.remove(plain_path)
 
 
-class DatabaseOptimizer:
-    """Basic database optimization utilities"""
-
-    def __init__(self):
-        self.cache = {}
-
-    def get_cached(self, key: str) -> Any:
-        return self.cache.get(key)
-
-    def set_cached(self, key: str, value: Any):
-        self.cache[key] = value
-
-
 _jsonl_manager = None
-_db_optimizer = None
 
 
 def get_jsonl_manager() -> JSONLManager:
@@ -88,9 +74,3 @@ def get_jsonl_manager() -> JSONLManager:
         _jsonl_manager = JSONLManager()
     return _jsonl_manager
 
-
-def get_database_optimizer() -> DatabaseOptimizer:
-    global _db_optimizer
-    if _db_optimizer is None:
-        _db_optimizer = DatabaseOptimizer()
-    return _db_optimizer

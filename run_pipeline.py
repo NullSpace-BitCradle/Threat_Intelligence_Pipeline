@@ -11,12 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from tip.core.pipeline_orchestrator import PipelineOrchestrator
-from tip.core.database_manager import DatabaseManager
-from tip.core.cve_processor import CVEProcessor
-from tip.utils.error_handler import get_logger, log_info, log_critical
-from tip.monitoring.health_check import get_health_status, is_healthy
-from tip.monitoring.metrics import get_pipeline_metrics
-from tip.monitoring.request_tracker import get_request_summary
+from tip.utils.error_handler import log_info, log_critical
 
 def main():
     """Main entry point for Threat Intelligence Pipeline"""
@@ -32,10 +27,6 @@ Examples:
   tip --db-only               # Update databases only
   tip --status                # Show pipeline status
   tip --verbose               # Enable verbose logging
-  tip --health-check          # Run health check
-  tip --metrics               # Show metrics
-  tip --web-interface         # Start web interface
-  tip --web-interface --web-port 9000  # Start web interface on port 9000
         """
     )
     
@@ -51,50 +42,10 @@ Examples:
                        help='Show pipeline status')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose logging')
-    parser.add_argument('--web-interface', action='store_true',
-                       help='Start web interface instead of running pipeline')
-    parser.add_argument('--web-host', default='localhost',
-                       help='Host for web interface (default: localhost)')
-    parser.add_argument('--web-port', type=int, default=8080,
-                       help='Port for web interface (default: 8080)')
-    parser.add_argument('--health-check', action='store_true',
-                       help='Run health check and exit')
-    parser.add_argument('--metrics', action='store_true',
-                       help='Show metrics and exit')
     
     args = parser.parse_args()
     
     try:
-        # Handle special commands first
-        if args.health_check:
-            health_status = get_health_status()
-            print("Health Check Results:")
-            print("=" * 40)
-            print(f"Status: {health_status['status']}")
-            print(f"Uptime: {health_status['uptime']:.1f} seconds")
-            print(f"Version: {health_status['version']}")
-            
-            if health_status['status'] != 'healthy':
-                print("\nIssues found:")
-                for check_name, check_data in health_status['checks'].items():
-                    if check_data['status'] != 'healthy':
-                        print(f"  - {check_name}: {check_data['message']}")
-            
-            return 0 if health_status['status'] == 'healthy' else 1
-        
-        if args.metrics:
-            metrics = get_pipeline_metrics()
-            print("Pipeline Metrics:")
-            print("=" * 40)
-            for metric_name, metric in metrics.items():
-                print(f"{metric_name}: {metric}")
-            return 0
-        
-        if args.web_interface:
-            from tip.monitoring.web_interface import start_web_interface
-            start_web_interface(args.web_host, args.web_port)
-            return 0
-        
         # Create orchestrator
         orchestrator = PipelineOrchestrator()
         

@@ -7,13 +7,12 @@ technique usage, builds a reverse index (technique -> groups) for CVE enrichment
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError
-from tip.utils.error_recovery import with_recovery, create_api_context
+from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 
 config = get_config()
@@ -29,7 +28,6 @@ class APTProcessor:
         self.db_path = config.get('database.groups.file', 'resources/groups_db.json')
 
     @performance_timer("download_stix")
-    @with_recovery("download_stix", recovery_strategy="api")
     def download(self) -> Dict[str, Any]:
         """Download ATT&CK Enterprise STIX bundle"""
         url = config.get(

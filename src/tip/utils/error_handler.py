@@ -5,17 +5,14 @@ import logging
 import logging.handlers
 import json
 import traceback
-import sys
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Union, Callable
+from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
 from dataclasses import dataclass, asdict
-from pathlib import Path
 import threading
 from functools import wraps
 from tip.utils.config import get_config
-from tip.monitoring.request_tracker import get_current_request_id, log_with_request_context
 
 config = get_config()
 
@@ -156,34 +153,20 @@ class ErrorHandler:
         }
     
     def _setup_logger(self) -> logging.Logger:
-        """Setup structured logger with file rotation"""
+        """Setup the 'cve2capec' logger.
+
+        Console and logging.file output are owned by the root handlers that
+        Config.setup_logging installs; this logger propagates to them. It only
+        adds its own JSON handler, which writes a different file.
+        """
+        config.setup_logging()
+
         logger = logging.getLogger('cve2capec')
         logger.setLevel(getattr(logging, config.get('logging.level', 'INFO').upper()))
+        logger.propagate = True
         
         # Clear existing handlers
         logger.handlers.clear()
-        
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-        
-        # File handler with rotation
-        log_file = config.get('logging.file', 'logs/cve2capec.log')
-        if log_file:
-            os.makedirs(os.path.dirname(log_file), exist_ok=True)
-            
-            file_handler = logging.handlers.RotatingFileHandler(
-                log_file, maxBytes=10*1024*1024, backupCount=5
-            )
-            file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            logger.addHandler(file_handler)
         
         # JSON handler for structured logging
         json_log_file = config.get('logging.json_file', 'logs/cve2capec_errors.json')
@@ -231,22 +214,9 @@ class ErrorHandler:
             category = self._classify_error(error)
             severity = self._determine_severity(error)
         
-        # Generate unique error ID with request context
-        request_id = get_current_request_id()
         error_id = f"{category.value}_{int(datetime.now().timestamp())}"
-        if request_id:
-            error_id = f"{request_id}_{error_id}"
-        
-        # Enhance context with request information
-        if context:
-            context.additional_data = context.additional_data or {}
-            context.additional_data['request_id'] = request_id
-        else:
-            context = ErrorContext(
-                operation="unknown", 
-                component="unknown",
-                additional_data={'request_id': request_id}
-            )
+        if context is None:
+            context = ErrorContext(operation="unknown", component="unknown")
         
         return ErrorRecord(
             timestamp=datetime.now().isoformat(),
@@ -291,7 +261,7 @@ class ErrorHandler:
         else:
             return ErrorSeverity.LOW
     
-    def _log_error(self, error_record: ErrorRecord):
+    def _log_error(self, error_record: ErrorRecord) -> None:
         """Log error with appropriate level"""
         log_message = f"[{error_record.error_id}] {error_record.message}"
         
@@ -310,7 +280,7 @@ class ErrorHandler:
         else:
             self.logger.info(log_message, extra={'error_record': asdict(error_record)})
     
-    def _check_alerts(self, error_record: ErrorRecord):
+    def _check_alerts(self, error_record: ErrorRecord) -> None:
         """Check if error thresholds are exceeded and send alerts"""
         error_key = f"{error_record.category.value}_{error_record.severity.value}"
         count = self.error_counts.get(error_key, 0)
@@ -382,7 +352,7 @@ class JsonFormatter(logging.Formatter):
 
 def error_handler(operation: str, component: str, 
                  retry_count: int = 0, 
-                 reraise: bool = True):
+                 reraise: bool = True) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for error handling"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -406,7 +376,7 @@ def error_handler(operation: str, component: str,
         return wrapper
     return decorator
 
-def log_operation(operation: str, component: str):
+def log_operation(operation: str, component: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for operation logging"""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -428,6 +398,24 @@ def log_operation(operation: str, component: str):
         return wrapper
     return decorator
 
+def create_api_context(operation: str, url: Optional[str] = None) -> ErrorContext:
+    """Create error context for API operations"""
+    return ErrorContext(
+        operation=operation,
+        component="api",
+        additional_data={"url": url} if url else None
+    )
+
+def create_data_context(operation: str, cve_id: Optional[str] = None,
+                        cwe_id: Optional[str] = None) -> ErrorContext:
+    """Create error context for data processing operations"""
+    return ErrorContext(
+        operation=operation,
+        component="data_processing",
+        cve_id=cve_id,
+        cwe_id=cwe_id
+    )
+
 # Global error handler instance
 global_error_handler = ErrorHandler()
 
@@ -440,19 +428,19 @@ def get_logger(name: str = 'cve2capec') -> logging.Logger:
     """Get a logger instance"""
     return global_error_handler.logger.getChild(name)
 
-def log_info(message: str, **kwargs):
+def log_info(message: str, **kwargs: Any) -> None:
     """Log info message"""
     global_error_handler.logger.info(message, extra=kwargs)
 
-def log_warning(message: str, **kwargs):
+def log_warning(message: str, **kwargs: Any) -> None:
     """Log warning message"""
     global_error_handler.logger.warning(message, extra=kwargs)
 
-def log_error(message: str, **kwargs):
+def log_error(message: str, **kwargs: Any) -> None:
     """Log error message"""
     global_error_handler.logger.error(message, extra=kwargs)
 
-def log_critical(message: str, **kwargs):
+def log_critical(message: str, **kwargs: Any) -> None:
     """Log critical message"""
     global_error_handler.logger.critical(message, extra=kwargs)
 

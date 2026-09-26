@@ -2,13 +2,17 @@
 Configuration management for Threat Intelligence Pipeline
 """
 import os
+import sys
 import json
 import logging
-from typing import Dict, Any, Optional
+import logging.handlers
+from typing import Dict, Any, Optional, cast
 from pathlib import Path
-from tip.utils.config_validator import validate_config, ConfigValidator
 
 logger = logging.getLogger(__name__)
+
+# Marks root handlers owned by Config.setup_logging so a repeat call replaces them.
+_TIP_HANDLER_ATTR = '_tip_pipeline_handler'
 
 class Config:
     """Centralized configuration management"""
@@ -24,7 +28,7 @@ class Config:
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
+                    config: Dict[str, Any] = json.load(f)
                 logger.info(f"Loaded configuration from {self.config_file}")
                 return config
             except Exception as e:
@@ -135,28 +139,6 @@ class Config:
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
     
-    def validate(self) -> bool:
-        """
-        Validate configuration using JSON schema validation
-        
-        Returns:
-            True if configuration is valid
-        """
-        # Use the comprehensive validator
-        validator = ConfigValidator()
-        is_valid = validator.validate_config(self.config)
-        
-        if not is_valid:
-            logger.error("Configuration validation failed:")
-            for error in validator.get_errors():
-                logger.error(f"  - {error}")
-        
-        # Log warnings
-        for warning in validator.get_warnings():
-            logger.warning(f"Configuration warning: {warning}")
-        
-        return is_valid
-    
     def get_api_key(self, api_name: str) -> Optional[str]:
         """
         Get API key from environment variable
@@ -182,7 +164,7 @@ class Config:
         Returns:
             Full path to database file
         """
-        return self.get(f'database.{db_name}.file', f'resources/{db_name}_db.json')
+        return cast(str, self.get(f'database.{db_name}.file', f'resources/{db_name}_db.json'))
     
     def get_output_path(self, file_type: str) -> str:
         """
@@ -194,20 +176,44 @@ class Config:
         Returns:
             Full path to output file
         """
-        return self.get(f'files.{file_type}', f'results/{file_type}')
+        return cast(str, self.get(f'files.{file_type}', f'results/{file_type}'))
     
     def setup_logging(self) -> None:
-        """Setup logging based on configuration"""
-        level = getattr(logging, self.get('logging.level', 'INFO').upper())
-        format_str = self.get('logging.format', '%(asctime)s - %(levelname)s - %(message)s')
+        """Install the pipeline's console and file handlers on the root logger.
+
+        Root is the single owner of logging.file: every logger (the
+        'cve2capec' tree and plain module loggers) propagates here, so each
+        record is written once. Safe to call repeatedly: handlers installed by
+        an earlier call are replaced, never stacked.
+        """
+        root = logging.getLogger()
+        for handler in [h for h in root.handlers if getattr(h, _TIP_HANDLER_ATTR, False)]:
+            root.removeHandler(handler)
+            handler.close()
+
+        root.setLevel(getattr(logging, self.get('logging.level', 'INFO').upper()))
+
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+        setattr(console_handler, _TIP_HANDLER_ATTR, True)
+        root.addHandler(console_handler)
+
         log_file = self.get('logging.file')
-        
-        logging.basicConfig(
-            level=level,
-            format=format_str,
-            filename=log_file if log_file else None,
-            filemode='a' if log_file else 'w'
-        )
+        if log_file:
+            os.makedirs(os.path.dirname(log_file) or '.', exist_ok=True)
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_file,
+                maxBytes=self.get('logging.max_file_size', 10 * 1024 * 1024),
+                backupCount=self.get('logging.backup_count', 5),
+                encoding='utf-8',
+            )
+            file_handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+            ))
+            setattr(file_handler, _TIP_HANDLER_ATTR, True)
+            root.addHandler(file_handler)
 
 # Global configuration instance
 config = Config()
