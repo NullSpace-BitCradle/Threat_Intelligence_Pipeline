@@ -7,22 +7,18 @@ import os
 import requests  # type: ignore
 import json
 import csv
-import logging
 import time
 from zipfile import ZipFile
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from datetime import datetime
 
 from tip.utils.config import get_config
-from tip.database.database_optimizer import get_database_optimizer
-from tip.utils.performance_optimizer import performance_timer, get_performance_monitor
+from tip.utils.performance_optimizer import performance_timer
 from tip.utils.error_handler import (
-    log_operation, APIError, NetworkError, FileOperationError,
+    log_operation, NetworkError, FileOperationError,
     get_logger
 )
-from tip.utils.error_recovery import with_recovery, create_api_context
-from tip.utils.validation import validate_file_exists, logger
+from tip.utils.validation import validate_file_exists
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
@@ -77,7 +73,6 @@ class DatabaseManager:
         }
     
     @performance_timer("download_file")
-    @with_recovery("download_file", recovery_strategy="api")
     def _download_file(self, url: str, filename: str) -> bool:
         """Download a file with error handling"""
         context = create_api_context("download_database", url)

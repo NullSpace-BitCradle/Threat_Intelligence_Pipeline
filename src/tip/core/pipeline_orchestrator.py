@@ -3,14 +3,13 @@
 Simplified pipeline orchestrator
 Combines database updates and CVE processing into a streamlined workflow
 """
-import os
 import sys
 import json
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import argparse
 
 from tip.utils.config import get_config
@@ -19,14 +18,11 @@ from tip.core.cve_processor import CVEProcessor
 # CVE retrieval is now handled by CVEProcessor
 from tip.utils.error_handler import (
     log_info, log_warning, log_error, log_critical, get_logger,
-    ErrorContext, ProcessingError, NVDUnavailableError
+    ProcessingError, NVDUnavailableError, create_data_context
 )
-from tip.utils.error_recovery import with_recovery, create_data_context
 from tip.utils.performance_optimizer import (
-    performance_timer, get_performance_monitor, get_performance_summary
+    performance_timer, get_performance_summary
 )
-from tip.monitoring.health_check import get_health_status, is_healthy
-from tip.monitoring.metrics import get_pipeline_metrics, update_pipeline_status
 
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
@@ -147,7 +143,6 @@ class PipelineOrchestrator:
             log_warning(f"Error checking last update time: {e} - updates needed")
             return True
     
-    @with_recovery("database_updates", recovery_strategy="data")
     def _update_databases(self) -> Dict[str, Any]:
         """Update all databases"""
         log_info("Updating databases...")
@@ -191,7 +186,6 @@ class PipelineOrchestrator:
                                 processing_stage="database_update",
                                 context=create_data_context("database_update"))
     
-    @with_recovery("cve_retrieval", recovery_strategy="api")
     def _retrieve_cves(self) -> Dict[str, Any]:
         """Retrieve all CVEs from NVD"""
         log_info("Retrieving all CVEs from NVD...")
@@ -288,7 +282,6 @@ class PipelineOrchestrator:
                 'error': str(e)
             }
     
-    @with_recovery("cve_processing", recovery_strategy="data")
     def _process_cves(self) -> Dict[str, Any]:
         """Process CVEs through the pipeline"""
         log_info("Processing CVEs through pipeline...")
@@ -404,15 +397,12 @@ class PipelineOrchestrator:
     
     def get_pipeline_status(self) -> Dict[str, Any]:
         """Get current pipeline status"""
-        # Update pipeline status metrics
         pipeline_ready = self._is_pipeline_ready()
-        update_pipeline_status("pipeline_orchestrator", pipeline_ready)
-        
+
         return {
             'database_status': self.db_manager.get_database_status(),
             'last_update': self._get_last_update_time(),
-            'pipeline_ready': pipeline_ready,
-            'health_status': get_health_status()
+            'pipeline_ready': pipeline_ready
         }
     
     def _get_last_update_time(self) -> Optional[str]:

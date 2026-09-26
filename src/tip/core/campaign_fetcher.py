@@ -9,15 +9,13 @@ filters for campaign objects and their relationships.
 """
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError
-from tip.utils.error_recovery import with_recovery, create_api_context
+from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 
 config = get_config()
@@ -25,7 +23,6 @@ logger = get_logger('campaign_fetcher')
 
 
 @performance_timer("campaign_fetch")
-@with_recovery("campaign_fetch", recovery_strategy="api")
 def _download_stix_bundle() -> Dict[str, Any]:
     """Download ATT&CK Enterprise STIX bundle."""
     url = config.get(

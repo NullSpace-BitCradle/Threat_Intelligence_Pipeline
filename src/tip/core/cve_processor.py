@@ -8,36 +8,18 @@ import re
 import sys
 import time
 import requests  # type: ignore
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm  # type: ignore
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from tip.utils.config import get_config
-from tip.database.database_optimizer import get_database_optimizer, get_jsonl_manager
-from tip.utils.performance_optimizer import (
-    OptimizedThreadPool, performance_timer, get_performance_monitor,
-    BatchProcessor, get_global_cache, optimize_data_structures
-)
-from tip.utils.error_handler import (
-    error_handler, log_operation, ProcessingError, DatabaseError,
-    NVDUnavailableError, get_logger
-)
-from tip.utils.error_recovery import (
-    with_recovery, with_retry, RetryConfig, RetryStrategy,
-    create_data_context
-)
-from tip.utils.validation import (
-    validate_cve_data, validate_cwe_id, validate_capec_id,
-    safe_parse_capec_techniques, logger
-)
+from tip.database.database_optimizer import get_jsonl_manager
+from tip.utils.performance_optimizer import performance_timer, get_global_cache
+from tip.utils.error_handler import log_operation, NVDUnavailableError, get_logger
+from tip.utils.validation import validate_cve_data, safe_parse_capec_techniques
 from tip.core.owasp_processor import OWASPProcessor
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
-from tip.utils.rate_limiter import rate_limit, adaptive_rate_limit
-from tip.monitoring.metrics import track_api_metrics, track_cve_processing_metrics, record_error
-from tip.monitoring.request_tracker import track_request, get_current_request_id
 
 config = get_config()
 config.setup_logging()
@@ -77,8 +59,6 @@ class CVEProcessor:
         self.apt_processor = APTProcessor()
         self.apt_processor.load()
     
-    @track_api_metrics("nvd", "GET")
-    @track_request("retrieve_cves", "cve_processor")
     def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Retrieve CVEs from NVD API with progress tracking and resume capability"""
         try:
@@ -511,8 +491,6 @@ class CVEProcessor:
             return []
     
     @log_operation("process_cve_pipeline", "cve_processing")
-    @track_cve_processing_metrics("process_cve_pipeline")
-    @track_request("process_cve_pipeline", "cve_processor")
     def process_cve_pipeline(self, cve_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single CVE through the entire pipeline"""
         result = {}

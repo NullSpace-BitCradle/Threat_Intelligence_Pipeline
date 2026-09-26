@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError
+from tip.utils.error_handler import get_logger
 from tip.utils.performance_optimizer import performance_timer
 
 config = get_config()

@@ -3,8 +3,7 @@ Utility components for the Threat Intelligence Pipeline.
 
 This module contains:
 - Configuration management
-- Error handling
-- Rate limiting
+- Error handling and logging
 - Validation
-- Performance optimization
+- Performance timing and caching
 """
