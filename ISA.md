@@ -2,8 +2,8 @@
 task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
-phase: climbing
-progress: 63/66
+phase: complete
+progress: 66/66
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -59,9 +59,9 @@ Why: the whole PR is only worth merging if the gates that prove it keep proving 
 
 - [x] ISC-1: `pytest -q --ignore=tests/smoke` passes on the branch with at least 83 tests plus the new regression tests.
 - [x] ISC-2: `mypy` (as configured in pyproject, run the way CI runs it) exits 0 on the branch.
-- [ ] ISC-3: A PR from `fix/review-2026-09-26` to main exists and its CI checks are green.
-- [ ] ISC-4: Anti: no file under `docs/data/` or `docs/database/` is modified by this PR except through a regenerated, verified pipeline output described in Decisions.
-- [ ] ISC-5: Anti: no commit on the branch contains an em dash, en dash, or double hyphen in its message.
+- [x] ISC-3: A PR from `fix/review-2026-09-26` to main exists and its CI checks are green.
+- [x] ISC-4: Anti: no file under `docs/data/` or `docs/database/` is modified by this PR except through a regenerated, verified pipeline output described in Decisions.
+- [x] ISC-5: Anti: no commit on the branch contains an em dash, en dash, or double hyphen in its message.
 
 ### F1 · Fail-closed reference data
 Why: a failed upstream fetch must leave the last good file in place and turn the run red.
@@ -231,6 +231,9 @@ Why: the cross-vendor audit found fail-open paths inside records, not whole file
 
 ## Verification
 
+- ISC-3: PR #1 checks green (test, smoke-local, CodeQL actions + python)
+- ISC-4: git diff origin/main...HEAD on docs/data, docs/database: empty
+- ISC-5: branch commit messages scanned: 0 em/en dashes, 0 double hyphens
 - ISC-59: fba0b8d test_enrichment_failure.py
 - ISC-60: e17697f test_d3fend_fail_closed.py
 - ISC-61: 545c6f2 job if github.ref main + push guard; test_data_workflow_guards.py
