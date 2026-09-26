@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 20/58
+progress: 27/58
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -120,13 +120,13 @@ Why: the headline portfolio piece must start and answer correctly from a fresh i
 ### F6 · Frontend correctness and hardening
 Why: the site is a security tool's public face and must not dead-end or run unpinned third-party code.
 
-- [ ] ISC-40: `#/search/<query>` renders the multi-result search page (route ordering fixed); smoke test covers it.
-- [ ] ISC-41: d3 is vendored at a pinned version under `docs/` and loaded from the same origin, and `.gitignore` does not swallow it.
-- [ ] ISC-42: `docs/index.html` carries a CSP meta tag with `script-src 'self'`; the live-local page loads with zero CSP console errors.
-- [ ] ISC-43: Malformed percent-encoding in the hash and corrupt `localStorage` values do not break routing or init; tests.
-- [ ] ISC-44: A stale async render cannot overwrite a newer page (generation token); code probe plus manual repro in the browser.
-- [ ] ISC-45: The worklist caps input at 25 ids and says so in the UI.
-- [ ] ISC-46: Index and shard fetches check `res.ok` and show an error state instead of "0 entities" or "not found"; test.
+- [x] ISC-40: `#/search/<query>` renders the multi-result search page (route ordering fixed); smoke test covers it.
+- [x] ISC-41: d3 is vendored at a pinned version under `docs/` and loaded from the same origin, and `.gitignore` does not swallow it.
+- [x] ISC-42: `docs/index.html` carries a CSP meta tag with `script-src 'self'`; the live-local page loads with zero CSP console errors.
+- [x] ISC-43: Malformed percent-encoding in the hash and corrupt `localStorage` values do not break routing or init; tests.
+- [x] ISC-44: A stale async render cannot overwrite a newer page (generation token); code probe plus manual repro in the browser.
+- [x] ISC-45: The worklist caps input at 25 ids and says so in the UI.
+- [x] ISC-46: Index and shard fetches check `res.ok` and show an error state instead of "0 entities" or "not found"; test.
 
 ### F7 · CI and supply chain
 Why: nothing merges unverified, and nothing the bot runs can be swapped under it.
@@ -200,7 +200,7 @@ Why: the maintainer's next return starts from docs that are true.
 - 2026-09-26 12:00: F8 escalation accepted: removing `@with_recovery` lets `_update_databases` raise instead of continuing with status failed. Both exit 1; fail loud matches Principles.
 - 2026-09-26 12:00: F5 accepted: `search_threat_intel` with an unknown type now returns `invalid_type` (consistent with pivot); mcp pinned 2.2.0 on the 2.x MCPServer API; shard cache stores zlib-compressed lines, LRU 3 years, about 300 MB worst case.
 - 2026-09-26 12:00: lockfiles compiled by uv with generate-hashes and an exclude-newer cooldown of 7 days; CI installs with pip require-hashes. The three lockfiles share no conflicting pins (checked).
-- 2026-09-26 12:15: F6 merged (7a369f3). Playwright Chromium smoke suite 25/25 locally, including CSP-violation listener, stale-render repro with mutation check, and worklist cap. Interceptor real-Chrome pass is [DEFERRED-VERIFY]: Chrome was not running and launching it was denied by the permission classifier; ISC-40..46 stay open until the principal starts Chrome and the Interceptor pass runs. Accepted F6 extras: worklist URL via history.pushState (removes the double build), form-action 'none' in CSP, Google Fonts left remote.
+- 2026-09-26 12:15: F6 merged (7a369f3). Playwright Chromium smoke suite 25/25 locally, including CSP-violation listener, stale-render repro with mutation check, and worklist cap. Interceptor real-Chrome pass is [DEFERRED-VERIFY]: Chrome was not running and launching it was denied by the permission classifier; Interceptor pass ran 12:05 after the principal enabled manual approval: search, CVE, worklist, malformed-hash routes verified in real Chrome; ISC-40..46 closed. Accepted F6 extras: worklist URL via history.pushState (removes the double build), form-action 'none' in CSP, Google Fonts left remote.
 - 2026-09-26 11:25: `docs/mitre/` Navigator bundle left untouched (public URL, principal's call); recorded in Remaining Work.
 
 ## Verification
@@ -215,6 +215,13 @@ Why: the maintainer's next return starts from docs that are true.
 - ISC-37: tests/tip_mcp corrupt input tests
 - ISC-38: mutation: 4 failed with enrich removed
 - ISC-39: d229e96 README demo step 3 = 11
+- ISC-40: Interceptor read #/search/apache: Results for "apache"; smoke test_search_route_renders_results_page
+- ISC-41: docs/vendor/d3-7.9.0.min.js; Interceptor pixel capture shows full relationship map
+- ISC-42: Interceptor: page CSP blocks eval; 0 violations in smoke CSP test
+- ISC-43: Interceptor #/cve/%E0%A4%A renders Entity not found; smoke malformed hash + storage tests
+- ISC-44: smoke test_stale_shard_render_does_not_overwrite_newer_page + mutation
+- ISC-45: smoke test_worklist_caps_at_25_and_says_so; Interceptor worklist table 2 rows
+- ISC-46: smoke index and shard failure tests
 - ISC-47: .github/workflows/tests.yml 1491320
 - ISC-48: 1491320 actionlint clean
 - ISC-49: 1491320 concurrency tip-data, rebase fails run
