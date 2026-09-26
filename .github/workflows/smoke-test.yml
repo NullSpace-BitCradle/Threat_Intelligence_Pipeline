@@ -35,7 +35,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest playwright pytest-playwright
+          pip install --require-hashes -r requirements-dev.txt
           playwright install --with-deps chromium
 
       - name: Serve docs/ and run smoke tests against it
@@ -59,7 +59,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest playwright pytest-playwright
+          pip install --require-hashes -r requirements-dev.txt
           playwright install --with-deps chromium
 
       - name: Run smoke tests against deployed site

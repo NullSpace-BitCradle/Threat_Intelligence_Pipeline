@@ -27,7 +27,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-mcp.txt -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements.txt -r requirements-mcp.txt -r requirements-dev.txt
 
       - name: Unit tests
         env:

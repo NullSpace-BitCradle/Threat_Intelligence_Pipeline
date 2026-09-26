@@ -1,5 +1,6 @@
 [tool.mypy]
 python_version = "3.13"
+files = ["src"]
 # Packages live under src/ (tip, tip_intel, tip_mcp); resolve `from tip...` there.
 mypy_path = "src"
 explicit_package_bases = true
@@ -31,6 +32,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
