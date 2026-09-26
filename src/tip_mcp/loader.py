@@ -76,8 +76,9 @@ class IndexLoader:
         # year -> sorted CVE tail ints, from cve_ids_index.json. None when the
         # index is absent or malformed; lookups then fall back to scanning.
         self._cve_ids: Optional[dict[str, list[int]]] = None
-        # year -> (shard filename, {CVE-ID upper: zlib-compressed line}); LRU order.
-        self._shard_cache: "OrderedDict[str, tuple[str, dict[str, bytes]]]" = OrderedDict()
+        # year -> (shard filename, {CVE-ID upper: zlib-compressed line},
+        # malformed line count); LRU order.
+        self._shard_cache: "OrderedDict[str, tuple[str, dict[str, bytes], int]]" = OrderedDict()
         # Number of shard files read from disk; tests use it to prove caching
         # and the miss short-circuit.
         self.shard_loads = 0
@@ -191,9 +192,11 @@ class IndexLoader:
             return plain_path
         return None
 
-    def _year_cache(self, year: str) -> Optional[tuple[str, dict[str, bytes]]]:
-        """Return (shard filename, id to compressed line) for a year, reading
-        and caching the shard on first use. None if the shard is absent.
+    def _year_cache(self, year: str) -> Optional[tuple[str, dict[str, bytes], int]]:
+        """Return (shard filename, id to compressed line, malformed line
+        count) for a year, reading and caching the shard on first use. None
+        if the shard is absent. A line whose key cannot be parsed is counted
+        as malformed rather than skipped silently.
         Raises ShardReadError if it exists but cannot be read; a partially
         read year is never cached."""
         cached = self._shard_cache.get(year)
@@ -205,6 +208,7 @@ class IndexLoader:
             return None
 
         lines: dict[str, bytes] = {}
+        corrupt = 0
         try:
             fh: IO[str]
             if shard_path.suffix == ".gz":
@@ -216,8 +220,12 @@ class IndexLoader:
                     line = line.strip()
                     if not line:
                         continue
+                    keys = _line_keys(line)
+                    if not keys:
+                        corrupt += 1
+                        continue
                     blob = b""
-                    for key in _line_keys(line):
+                    for key in keys:
                         if not blob:
                             blob = zlib.compress(line.encode("utf-8"), 1)
                         lines[key.upper()] = blob
@@ -226,7 +234,7 @@ class IndexLoader:
                 f"shard {shard_path.name} unreadable: {type(exc).__name__}: {exc}"
             ) from exc
 
-        entry = (shard_path.name, lines)
+        entry = (shard_path.name, lines, corrupt)
         self._shard_cache[year] = entry
         self.shard_loads += 1
         while len(self._shard_cache) > self.shard_cache_years:
@@ -241,7 +249,9 @@ class IndexLoader:
         None without touching the shard when cve_ids_index.json says the ID
         was never ingested, when the shards directory or the year's shard is
         absent, or when the ID is malformed. Raises ShardReadError when the
-        shard exists but is corrupt.
+        shard exists but cannot be read, when the requested CVE's line is
+        malformed, or when the CVE is not found and the shard has malformed
+        lines (it may be on one of them).
         """
         match = _CVE_ID_RE.match(cve_id.strip())
         if not match:
@@ -254,27 +264,43 @@ class IndexLoader:
         cached = self._year_cache(year)
         if cached is None:
             return None
-        shard_name, lines = cached
+        shard_name, lines, corrupt = cached
         blob = lines.get(canonical_id)
         if blob is None:
+            if corrupt:
+                # The CVE may be on one of the unparseable lines, so "not
+                # found" would be a guess. Report the shard as corrupt.
+                raise ShardReadError(
+                    f"shard {shard_name} has {corrupt} malformed line(s); "
+                    f"{canonical_id} not found among the readable lines"
+                )
             return None
-        try:
-            record = json.loads(zlib.decompress(blob))
-        except (json.JSONDecodeError, zlib.error):
-            return None
-        if not isinstance(record, dict):
-            return None
+        return _parse_hit(blob, canonical_id, shard_name), shard_name
+
+
+def _parse_hit(blob: bytes, canonical_id: str, shard_name: str) -> dict:
+    """Decode the shard line keyed by canonical_id. A line that is keyed by
+    the CVE but does not decode to an object payload raises ShardReadError."""
+    try:
+        record = json.loads(zlib.decompress(blob))
+    except (json.JSONDecodeError, zlib.error) as exc:
+        raise ShardReadError(
+            f"shard {shard_name}: record for {canonical_id} is malformed: {exc}"
+        ) from exc
+    if isinstance(record, dict):
         for key, payload in record.items():
             if key.upper() == canonical_id and isinstance(payload, dict):
-                return payload, shard_name
-        return None
+                return payload
+    raise ShardReadError(
+        f"shard {shard_name}: record for {canonical_id} is not a JSON object"
+    )
 
 
 def _line_keys(line: str) -> list[str]:
     """CVE IDs a shard line is keyed by. Shards store one CVE per line as
     {"CVE-...": {...}}; read the key from the prefix without parsing the
     (often multi-KB) payload, falling back to a full parse. A malformed line
-    yields no keys and is skipped, matching the pre-cache scan."""
+    yields no keys; the caller counts it and marks the shard corrupt."""
     if line.startswith('{"'):
         end = line.find('"', 2)
         if end > 2 and line[end + 1 : end + 2] == ":":
