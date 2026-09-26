@@ -31,6 +31,11 @@ config.setup_logging()
 
 CAPEC_CSV_MEMBER = "1000.csv"
 
+# D3FEND per-technique requests: transient failures (connection, timeout, 429,
+# 5xx) are retried this many times in total before the update fails.
+D3FEND_ATTEMPTS = 3
+D3FEND_BACKOFF_SECONDS = 2.0
+
 class DatabaseManager:
     """Unified database management for all Threat Intelligence Pipeline databases"""
     
@@ -309,55 +314,66 @@ class DatabaseManager:
             
             # Process each technique to find D3FEND countermeasures
             processed_count = 0
-            error_count = 0
             
+            # Fail closed: a 404 means "no mapping for this technique"; any
+            # other outcome (timeout, connection error, 5xx, 429 after
+            # retries, bad JSON) raises, so update_database keeps the
+            # previous file instead of publishing a partial map.
             for technique_id in techniques_db.keys():
-                try:
-                    # Normalize technique ID format (e.g., "1059" -> "T1059")
-                    attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
-                    
-                    # Query D3FEND API (requires .json extension)
-                    url = f"{d3fend_base_url}{attack_id}.json"
-                    response = requests.get(url, timeout=timeout)
-                    
-                    if response.status_code == 200:
+                # Normalize technique ID format (e.g., "1059" -> "T1059")
+                attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
+
+                # Query D3FEND API (requires .json extension)
+                url = f"{d3fend_base_url}{attack_id}.json"
+                response = self._d3fend_get(url, timeout)
+
+                if response.status_code == 200:
+                    try:
                         d3fend_response = response.json()
-                        
-                        # Extract defensive techniques from the response
-                        defensive_techniques = self._extract_d3fend_techniques(d3fend_response)
-                        
-                        if defensive_techniques:
-                            defend_data[attack_id] = {
-                                'attack_technique': attack_id,
-                                'defensive_techniques': defensive_techniques
-                            }
-                            processed_count += 1
-                    
-                    elif response.status_code == 404:
-                        # No D3FEND data for this technique - this is expected for some
-                        pass
-                    else:
-                        self.logger.debug(f"D3FEND API returned {response.status_code} for {attack_id}")
-                    
-                    # Rate limiting - be respectful to the API
-                    time.sleep(0.1)
-                    
-                except requests.exceptions.RequestException as e:
-                    error_count += 1
-                    self.logger.debug(f"Error fetching D3FEND data for {technique_id}: {e}")
-                    continue
-                except Exception as e:
-                    error_count += 1
-                    self.logger.warning(f"Unexpected error processing {technique_id}: {e}")
-                    continue
-            
-            self.logger.info(f"D3FEND processing complete: {processed_count} techniques with countermeasures, {error_count} errors")
+                    except ValueError as e:
+                        raise RuntimeError(f"D3FEND returned invalid JSON for {attack_id}: {e}") from e
+
+                    defensive_techniques = self._extract_d3fend_techniques(d3fend_response)
+
+                    if defensive_techniques:
+                        defend_data[attack_id] = {
+                            'attack_technique': attack_id,
+                            'defensive_techniques': defensive_techniques
+                        }
+                        processed_count += 1
+
+                # Rate limiting - be respectful to the API
+                time.sleep(0.1)
+
+            self.logger.info(f"D3FEND processing complete: {processed_count} techniques with countermeasures")
             return defend_data
             
         except Exception as e:
             self.logger.error(f"Error processing D3FEND data: {e}")
             raise
     
+    def _d3fend_get(self, url: str, timeout: float) -> requests.Response:
+        """GET a D3FEND technique URL, returning only a 200 or 404 response.
+
+        Connection errors, timeouts, 429 and 5xx are retried with backoff up
+        to D3FEND_ATTEMPTS times, then raise. Any other status raises at once.
+        """
+        last_error = ""
+        for attempt in range(1, D3FEND_ATTEMPTS + 1):
+            try:
+                response = requests.get(url, timeout=timeout)
+            except requests.exceptions.RequestException as e:
+                last_error = f"{type(e).__name__}: {e}"
+            else:
+                if response.status_code in (200, 404):
+                    return response
+                if response.status_code != 429 and response.status_code < 500:
+                    raise RuntimeError(f"D3FEND returned HTTP {response.status_code} for {url}")
+                last_error = f"HTTP {response.status_code}"
+            if attempt < D3FEND_ATTEMPTS:
+                time.sleep(D3FEND_BACKOFF_SECONDS * attempt)
+        raise RuntimeError(f"D3FEND request failed after {D3FEND_ATTEMPTS} attempts for {url}: {last_error}")
+
     def _extract_d3fend_techniques(self, d3fend_response: Dict[str, Any]) -> List[Dict[str, str]]:
         """Extract defensive technique information from D3FEND API response"""
         defensive_techniques = []
