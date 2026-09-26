@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -83,3 +84,40 @@ def test_stdio_server_lists_tools_and_answers_lookup():
     assert [c["id"] for c in chain["data"]["cwes"]] == ["CWE-269"]
     assert defenses["ok"] is True and defenses["meta"]["count"] == 5
     assert kev["ok"] is True and kev["data"]["in_kev"] is True
+
+
+def _expand(value: str, env: dict) -> str:
+    """Expand ${VAR} and ${VAR:-default} the way Claude Code does for .mcp.json."""
+    return re.sub(
+        r"\$\{([A-Z_][A-Z0-9_]*)(?::-([^}]*))?\}",
+        lambda m: env.get(m.group(1)) or (m.group(2) or ""),
+        value,
+    )
+
+
+def test_repo_mcp_json_is_portable_and_launches_server():
+    config = json.loads((REPO / ".mcp.json").read_text())
+    server = config["mcpServers"]["tip-mcp"]
+    assert server["type"] == "stdio"
+    for value in [server["command"], *server["args"], *server["env"].values()]:
+        assert not os.path.isabs(value), value
+        assert "/home/" not in value and ":\\" not in value, value
+
+    # Claude Code runs a project .mcp.json server with the project root as
+    # its working directory. Point TIP_PYTHON at this interpreter (it has
+    # mcp installed) and launch exactly what the config says.
+    env = {**os.environ, "TIP_PYTHON": sys.executable}
+    command = _expand(server["command"], env)
+    env.update(server["env"])
+    env["TIP_DATA_DIR"] = str(FIXTURES)
+    env["TIP_SHARDS_DIR"] = str(FIXTURES / "database")
+
+    async def listed() -> set:
+        params = mcp.StdioServerParameters(
+            command=command, args=server["args"], cwd=str(REPO), env=env
+        )
+        with anyio.fail_after(60):
+            async with mcp.Client(params) as client:
+                return {t.name for t in (await client.list_tools()).tools}
+
+    assert len(anyio.run(listed)) == 6
