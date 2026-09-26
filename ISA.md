@@ -300,7 +300,7 @@ Why: the cross-vendor audit found fail-open paths inside records, not whole file
 
 ## Remaining Work
 
-- [ ] Re-enable `Run CVE Pipeline` after the PR merges and vulnrichment_db.json is confirmed non-empty. Waits on principal merge.
+- [x] Re-enable `Run CVE Pipeline`: PR #1 merged as 74ed3a5 on principal's go, main CI green, vulnrichment_db.json 2567 entries, workflow re-enabled 2026-09-26 13:40.
 - [ ] Decide the fate of `docs/mitre/` (Navigator 5.1.0 on Angular 17, EOL). Principal's call.
 - [ ] Decide APT linkage: technique-overlap APT_GROUPS would tag 60% of all CVEs. Needs a tighter signal (campaign or explicit attribution) before it means anything.
 - [ ] Branch protection on main requiring the new CI checks. Repo settings change, principal's call.
