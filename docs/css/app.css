@@ -795,3 +795,12 @@
 .worklist-table tr.clickable { cursor: pointer; }
 .worklist-table tr.clickable:hover td { background: var(--bg-card); }
 .worklist-table tr.not-found td { color: var(--text-muted); font-style: italic; }
+
+/* ===== F6: CSP-safe classes (replace inline style attributes) ===== */
+.tray-anchor { position: relative; }
+
+.result-message { padding: 40px; text-align: center; color: var(--text-muted); }
+.result-error { color: var(--severity-critical); }
+
+.stats-error { color: var(--severity-critical); }
+.worklist-status.worklist-status-error { color: var(--severity-critical); }

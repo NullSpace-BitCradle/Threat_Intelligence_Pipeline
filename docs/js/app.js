@@ -17,10 +17,42 @@ function showPage(pageId) {
     }
 }
 
+// ── Safe helpers ───────────────────────────────────────────────
+
+// decodeURIComponent throws URIError on malformed percent-encoding such as
+// "#/cve/%E0%A4%A". Fall back to the raw text so routing never throws.
+function safeDecode(s) {
+    try {
+        return decodeURIComponent(s);
+    } catch (e) {
+        return s;
+    }
+}
+
+// Browser storage can throw (blocked storage, private mode, quota) and can
+// hold values written by an older or hostile page. Every access goes here.
+function storageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (e) {
+        return null;
+    }
+}
+
+function storageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (e) {
+        // Storage unavailable; the in-memory state still works for this visit.
+    }
+}
+
 // ── Router ─────────────────────────────────────────────────────
 
 function handleRoute() {
     var hash = window.location.hash;
+    // Any navigation invalidates in-flight async renders (see results.js).
+    var gen = nextRenderGeneration();
 
     if (!hash || hash === '#/' || hash === '#') {
         showPage('page-landing');
@@ -31,26 +63,27 @@ function handleRoute() {
     // Route: #/list  or  #/list/<comma-separated-ids>  (worklist / triage)
     var listMatch = hash.match(/^#\/list(?:\/(.+))?$/);
     if (listMatch) {
-        var listIds = listMatch[1] ? decodeURIComponent(listMatch[1]) : '';
-        showWorklistPage(listIds);
+        var listIds = listMatch[1] ? safeDecode(listMatch[1]) : '';
+        showWorklistPage(listIds, gen);
+        return;
+    }
+
+    // Route: #/search/<query>  (must be tested before the generic
+    // #/<type>/<id> route, which would otherwise swallow it)
+    var searchMatch = hash.match(/^#\/search\/(.+)$/);
+    if (searchMatch) {
+        var query = safeDecode(searchMatch[1]);
+        showSearchResultsPage(query);
         return;
     }
 
     // Route: #/<type>/<id>
     var match = hash.match(/^#\/(\w+)\/(.+)$/);
     if (match) {
-        var id = decodeURIComponent(match[2]);
+        var id = safeDecode(match[2]);
         showPage('page-results');
         document.getElementById('results-search').value = id;
-        renderResultPage(id);
-        return;
-    }
-
-    // Route: #/search/<query>
-    var searchMatch = hash.match(/^#\/search\/(.+)$/);
-    if (searchMatch) {
-        var query = decodeURIComponent(searchMatch[1]);
-        showSearchResultsPage(query);
+        renderResultPage(id, gen);
         return;
     }
 
@@ -288,6 +321,16 @@ function showSearchResultsPage(query) {
     title.textContent = 'Results for "' + query + '"';
     body.appendChild(title);
 
+    var indexErr = getIndexLoadError();
+    if (indexErr) {
+        var errEl = document.createElement('div');
+        errEl.className = 'result-message result-error';
+        errEl.setAttribute('role', 'alert');
+        errEl.textContent = 'Could not load the entity index, so search is unavailable. Reload to retry. (' + indexErr + ')';
+        body.appendChild(errEl);
+        return;
+    }
+
     var grouped = searchEntities(query);
     var types = Object.keys(grouped);
 
@@ -365,6 +408,14 @@ async function initLanding() {
 
     // Stats bar
     var statsBar = document.getElementById('stats-bar');
+    var indexErr = getIndexLoadError();
+    if (indexErr) {
+        var errSpan = document.createElement('span');
+        errSpan.className = 'stats-error';
+        errSpan.setAttribute('role', 'alert');
+        errSpan.textContent = 'Could not load the entity index. Search and entity pages are unavailable; reload to retry. (' + indexErr + ')';
+        statsBar.appendChild(errSpan);
+    }
     var entityCount = getEntityCount();
     var aptEntities = getEntitiesByType('apt_group');
     var techEntities = getEntitiesByType('technique');
@@ -375,7 +426,7 @@ async function initLanding() {
         { value: techEntities.length, label: 'ATT&CK techniques' }
     ];
 
-    for (var s = 0; s < stats.length; s++) {
+    for (var s = 0; s < stats.length && !indexErr; s++) {
         var span = document.createElement('span');
         var strong = document.createElement('strong');
         strong.textContent = stats[s].value.toLocaleString();
@@ -429,14 +480,16 @@ async function initLanding() {
 // ── Theme Toggle ───────────────────────────────────────────────
 
 function setupTheme() {
-    var saved = localStorage.getItem('tip-theme');
-    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    var saved = storageGet('tip-theme');
+    if (saved === 'dark' || saved === 'light') {
+        document.documentElement.setAttribute('data-theme', saved);
+    }
 
     function toggleTheme() {
         var current = document.documentElement.getAttribute('data-theme');
         var next = current === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('tip-theme', next);
+        storageSet('tip-theme', next);
         updateThemeIcons(next);
     }
 
@@ -457,7 +510,21 @@ function setupTheme() {
 
 // ── Investigation Tray ─────────────────────────────────────────
 
-var pinnedEntities = JSON.parse(localStorage.getItem('tip-pinned') || '[]');
+// Only accept a JSON array of strings; anything else (corrupt JSON, an
+// object, numbers) is discarded rather than allowed to break init.
+function loadPinnedEntities() {
+    var raw = storageGet('tip-pinned');
+    if (!raw) return [];
+    try {
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(function(x) { return typeof x === 'string' && x.length > 0 && x.length < 200; });
+    } catch (e) {
+        return [];
+    }
+}
+
+var pinnedEntities = loadPinnedEntities();
 
 function setupInvestigation() {
     var pinBtn = document.getElementById('btn-pin');
@@ -468,14 +535,14 @@ function setupInvestigation() {
         var hash = window.location.hash;
         var match = hash.match(/^#\/(\w+)\/(.+)$/);
         if (!match) return;
-        var id = decodeURIComponent(match[2]);
+        var id = safeDecode(match[2]);
         var idx = pinnedEntities.indexOf(id);
         if (idx >= 0) {
             pinnedEntities.splice(idx, 1);
         } else {
             pinnedEntities.push(id);
         }
-        localStorage.setItem('tip-pinned', JSON.stringify(pinnedEntities));
+        storageSet('tip-pinned', JSON.stringify(pinnedEntities));
         updatePinCount();
     });
 
@@ -535,7 +602,7 @@ function renderInvestigationTray() {
                 e.stopPropagation();
                 var idx = pinnedEntities.indexOf(entityId);
                 if (idx >= 0) pinnedEntities.splice(idx, 1);
-                localStorage.setItem('tip-pinned', JSON.stringify(pinnedEntities));
+                storageSet('tip-pinned', JSON.stringify(pinnedEntities));
                 updatePinCount();
                 renderInvestigationTray();
             });

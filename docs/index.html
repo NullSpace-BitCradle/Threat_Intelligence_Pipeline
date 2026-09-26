@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threat Intelligence Pipeline (TIP)</title>
     <link rel="stylesheet" href="css/theme.css">
@@ -44,7 +45,7 @@
         </div>
         <div class="top-bar-actions">
             <button class="icon-btn" id="btn-pin" title="Pin to investigation">&#128204;</button>
-            <div style="position:relative;">
+            <div class="tray-anchor">
                 <button class="icon-btn" id="btn-investigation" title="Investigation tray">
                     <span id="pin-count">0</span>
                 </button>
@@ -89,7 +90,7 @@
     <div class="worklist-page">
         <div class="worklist-controls">
             <textarea id="worklist-input" class="worklist-input"
-                placeholder="Paste IDs — CVE-2023-44487, T1499, CWE-79, APT29 (comma, space, or newline separated)"></textarea>
+                placeholder="Paste up to 25 IDs: CVE-2023-44487, T1499, CWE-79, APT29 (comma, space, or newline separated)"></textarea>
             <div class="worklist-actions">
                 <button id="worklist-build" class="worklist-build-btn">Build worklist</button>
                 <label class="worklist-toggle"><input type="checkbox" id="worklist-kev-only"> KEV only</label>
@@ -100,7 +101,7 @@
     </div>
 </div>
 
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="vendor/d3-7.9.0.min.js"></script>
 <script src="js/entity-system.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/results.js"></script>
