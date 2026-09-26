@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 27/58
+progress: 54/58
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -57,8 +57,8 @@ The pipeline tells the truth about itself. A bad upstream day produces a red CI 
 ### F0 · Cross-cutting
 Why: the whole PR is only worth merging if the gates that prove it keep proving it after merge.
 
-- [ ] ISC-1: `pytest -q --ignore=tests/smoke` passes on the branch with at least 83 tests plus the new regression tests.
-- [ ] ISC-2: `mypy` (as configured in pyproject, run the way CI runs it) exits 0 on the branch.
+- [x] ISC-1: `pytest -q --ignore=tests/smoke` passes on the branch with at least 83 tests plus the new regression tests.
+- [x] ISC-2: `mypy` (as configured in pyproject, run the way CI runs it) exits 0 on the branch.
 - [ ] ISC-3: A PR from `fix/review-2026-09-26` to main exists and its CI checks are green.
 - [ ] ISC-4: Anti: no file under `docs/data/` or `docs/database/` is modified by this PR except through a regenerated, verified pipeline output described in Decisions.
 - [ ] ISC-5: Anti: no commit on the branch contains an em dash, en dash, or double hyphen in its message.
@@ -66,42 +66,42 @@ Why: the whole PR is only worth merging if the gates that prove it keep proving 
 ### F1 · Fail-closed reference data
 Why: a failed upstream fetch must leave the last good file in place and turn the run red.
 
-- [ ] ISC-6: `_update_vulnrichment_database` returns failure (not the empty dict) when `VulnrichmentProcessor.update()` returns False; a unit test simulating a GitHub API error asserts the on-disk DB is unchanged.
-- [ ] ISC-7: Vulnrichment incremental update detects a truncated compare (300-file cap or missing commits) and falls back to a full resync instead of advancing state past unprocessed files; unit test with a 300-file compare fixture.
-- [ ] ISC-8: Vulnrichment per-file fetch failures during incremental update prevent advancing `last_commit_sha`; unit test.
-- [ ] ISC-9: Every reference DB writer (CWE, CAPEC, techniques, D3FEND, KEV, vulnrichment, groups, OWASP, campaigns) refuses to overwrite when the new record count is below a floor relative to the existing file; one parametrized test covers all writers.
-- [ ] ISC-10: The CWE archive is fetched over https.
-- [ ] ISC-11: The CWE zip is extracted to a temp directory, not the repo root, and only the expected XML member is read.
+- [x] ISC-6: `_update_vulnrichment_database` returns failure (not the empty dict) when `VulnrichmentProcessor.update()` returns False; a unit test simulating a GitHub API error asserts the on-disk DB is unchanged.
+- [x] ISC-7: Vulnrichment incremental update detects a truncated compare (300-file cap or missing commits) and falls back to a full resync instead of advancing state past unprocessed files; unit test with a 300-file compare fixture.
+- [x] ISC-8: Vulnrichment per-file fetch failures during incremental update prevent advancing `last_commit_sha`; unit test.
+- [x] ISC-9: Every reference DB writer (CWE, CAPEC, techniques, D3FEND, KEV, vulnrichment, groups, OWASP, campaigns) refuses to overwrite when the new record count is below a floor relative to the existing file; one parametrized test covers all writers.
+- [x] ISC-10: The CWE archive is fetched over https.
+- [x] ISC-11: The CWE zip is extracted to a temp directory, not the repo root, and only the expected XML member is read.
 
 ### F2 · Honest exit codes
 Why: CI is the only watcher, so the process exit code is the alarm.
 
-- [ ] ISC-12: `run_pipeline.py --force` exits non-zero when any step is `degraded`; test drives `run_pipeline.main()` with a stubbed orchestrator returning `degraded_steps: 1`.
-- [ ] ISC-13: `run_pipeline.py --db-only` exits non-zero when any reference DB update is `partial` or failed; test.
-- [ ] ISC-14: Entity index generation failure is a failed step (non-zero exit), not a warning; test raises inside the generator and asserts exit 1.
-- [ ] ISC-15: `lastUpdate.txt` advances only on a fully successful run; test.
+- [x] ISC-12: `run_pipeline.py --force` exits non-zero when any step is `degraded`; test drives `run_pipeline.main()` with a stubbed orchestrator returning `degraded_steps: 1`.
+- [x] ISC-13: `run_pipeline.py --db-only` exits non-zero when any reference DB update is `partial` or failed; test.
+- [x] ISC-14: Entity index generation failure is a failed step (non-zero exit), not a warning; test raises inside the generator and asserts exit 1.
+- [x] ISC-15: `lastUpdate.txt` advances only on a fully successful run; test.
 
 ### F3 · Atomic, lossless shard and index writes
 Why: a kill or exception mid-write must never leave a truncated or partial published file.
 
-- [ ] ISC-16: Every writer of a published file (shards, entity/search/cve_ids index, all reference DBs) writes to a temp file in the same directory and `os.replace`s it; `rg` shows no direct `open(... 'w')`/`gzip.open(... 'wt')` on a published path.
-- [ ] ISC-17: An exception raised mid-write leaves the previous file byte-identical; test.
-- [ ] ISC-18: A malformed line in an existing shard fails the save loudly instead of being silently dropped on rewrite; test.
-- [ ] ISC-19: A truncated gzip shard produces a clear error naming the file, not an unhandled EOFError deep in a later step; test.
-- [ ] ISC-20: The three index files are written so a failure cannot publish a mix of old and new (all temp files written first, then replaced); test.
+- [x] ISC-16: Every writer of a published file (shards, entity/search/cve_ids index, all reference DBs) writes to a temp file in the same directory and `os.replace`s it; `rg` shows no direct `open(... 'w')`/`gzip.open(... 'wt')` on a published path.
+- [x] ISC-17: An exception raised mid-write leaves the previous file byte-identical; test.
+- [x] ISC-18: A malformed line in an existing shard fails the save loudly instead of being silently dropped on rewrite; test.
+- [x] ISC-19: A truncated gzip shard produces a clear error naming the file, not an unhandled EOFError deep in a later step; test.
+- [x] ISC-20: The three index files are written so a failure cannot publish a mix of old and new (all temp files written first, then replaced); test.
 
 ### F4 · Correlation correctness
 Why: every relationship the site or MCP shows must point at an entity that exists.
 
-- [ ] ISC-21: CVE CWE lists (including parent expansion) are normalized to `CWE-<n>` at ingestion; unit test on the mixed `['74','CWE-79']` shape.
-- [ ] ISC-22: The generator normalizes CWE and technique ids when linking, so existing shards also produce resolvable rels; unit test.
-- [ ] ISC-23: Parent-CWE expansion uses one definition shared by the processor and generator (full ChildOf chain or one level, decided and recorded in Decisions); test.
-- [ ] ISC-24: The generator drops (and counts in meta) any rel whose target entity does not exist; a test asserts zero dangling targets in a generated fixture index.
-- [ ] ISC-25: Regenerating the entity index from the current on-disk shards and DBs yields zero dangling rel targets (probe script over the output).
-- [ ] ISC-26: Layer 2 (curated CVE) inclusion no longer depends on vulnrichment_db membership alone, so a vulnrichment wipe or full resync cannot shrink or explode the index; regenerated `entity_index.json` includes every KEV CVE and stays at or under 20 MB.
-- [ ] ISC-27: The NVD crawl uses `totalResults` to decide completion; a short page before `totalResults` is reached is retried or fails, never treated as end of corpus; test.
-- [ ] ISC-28: NVD request pacing honors the documented limits (6 s between requests keyless, 0.6 s keyed) via one small helper; test asserts the computed delay per mode.
-- [ ] ISC-29: A resumed NVD fetch does not report a full refresh for a partial one: the resumed run keeps previously fetched items or is marked partial; test.
+- [x] ISC-21: CVE CWE lists (including parent expansion) are normalized to `CWE-<n>` at ingestion; unit test on the mixed `['74','CWE-79']` shape.
+- [x] ISC-22: The generator normalizes CWE and technique ids when linking, so existing shards also produce resolvable rels; unit test.
+- [x] ISC-23: Parent-CWE expansion uses one definition shared by the processor and generator (full ChildOf chain or one level, decided and recorded in Decisions); test.
+- [x] ISC-24: The generator drops (and counts in meta) any rel whose target entity does not exist; a test asserts zero dangling targets in a generated fixture index.
+- [x] ISC-25: Regenerating the entity index from the current on-disk shards and DBs yields zero dangling rel targets (probe script over the output).
+- [x] ISC-26: Layer 2 (curated CVE) inclusion no longer depends on vulnrichment_db membership alone, so a vulnrichment wipe or full resync cannot shrink or explode the index; regenerated `entity_index.json` includes every KEV CVE and stays at or under 20 MB.
+- [x] ISC-27: The NVD crawl uses `totalResults` to decide completion; a short page before `totalResults` is reached is retried or fails, never treated as end of corpus; test.
+- [x] ISC-28: NVD request pacing honors the documented limits (6 s between requests keyless, 0.6 s keyed) via one small helper; test asserts the computed delay per mode.
+- [x] ISC-29: A resumed NVD fetch does not report a full refresh for a partial one: the resumed run keeps previously fetched items or is marked partial; test.
 
 ### F5 · MCP server works on the resolved SDK
 Why: the headline portfolio piece must start and answer correctly from a fresh install.
@@ -148,7 +148,7 @@ Why: code that nothing calls still costs reading time, mypy errors, and exposure
 ### F9 · Stop repo growth
 Why: an unchanged shard must not add a new blob to history every week.
 
-- [ ] ISC-56: Shards are written with deterministic gzip (fixed mtime, no filename header) and sorted record order, so re-writing identical content yields byte-identical files; test.
+- [x] ISC-56: Shards are written with deterministic gzip (fixed mtime, no filename header) and sorted record order, so re-writing identical content yields byte-identical files; test.
 - [x] ISC-57: The daily run commits nothing when no data changed (`lastUpdate.txt` alone does not produce a commit); workflow logic probe.
 
 ### F10 · Docs match disk
@@ -201,10 +201,41 @@ Why: the maintainer's next return starts from docs that are true.
 - 2026-09-26 12:00: F5 accepted: `search_threat_intel` with an unknown type now returns `invalid_type` (consistent with pivot); mcp pinned 2.2.0 on the 2.x MCPServer API; shard cache stores zlib-compressed lines, LRU 3 years, about 300 MB worst case.
 - 2026-09-26 12:00: lockfiles compiled by uv with generate-hashes and an exclude-newer cooldown of 7 days; CI installs with pip require-hashes. The three lockfiles share no conflicting pins (checked).
 - 2026-09-26 12:15: F6 merged (7a369f3). Playwright Chromium smoke suite 25/25 locally, including CSP-violation listener, stale-render repro with mutation check, and worklist cap. Interceptor real-Chrome pass is [DEFERRED-VERIFY]: Chrome was not running and launching it was denied by the permission classifier; Interceptor pass ran 12:05 after the principal enabled manual approval: search, CVE, worklist, malformed-hash routes verified in real Chrome; ISC-40..46 closed. Accepted F6 extras: worklist URL via history.pushState (removes the double build), form-action 'none' in CSP, Google Fonts left remote.
+- 2026-09-26 12:40: core merged (3e11ab4). Consequence of the Layer 2 rule, surfaced to the principal: curated CVEs drop from 2,971 to 1,726 (every KEV CVE; SSVC active adds none beyond KEV today). The ~1,245 CVEs that qualified only by vulnrichment membership stay reachable through the all-CVE shard fallback on the site and in the MCP.
+- 2026-09-26 12:40: APT_GROUPS is never populated (processor passes technique ids without the T prefix). Not fixed: repairing the lookup would mark 235,807 of 395,617 CVEs APT-linked through technique overlap, which is noise and would breach the 20 MB budget. The APT clause in Layer 2 is inert. Moved to Remaining Work.
+- 2026-09-26 12:40: write floor also refuses a 0-record write when no file exists yet (stricter than recorded). Accepted: there is no legitimate empty reference DB; D3FEND-disabled skips the write instead.
+- 2026-09-26 12:40: the first weekly run after merge rewrites every shard once (normalized ids, deterministic gzip), adding one last ~135 MB to history; unchanged shards are byte-identical after that.
 - 2026-09-26 11:25: `docs/mitre/` Navigator bundle left untouched (public URL, principal's call); recorded in Remaining Work.
 
 ## Verification
 
+- ISC-1: 236 passed at 3e11ab4
+- ISC-2: mypy: no issues in 27 source files at 3e11ab4
+- ISC-6: 536b805 test: API error leaves DB and state byte-identical
+- ISC-7: 536b805 compare >=300 files falls back to resync (mocked)
+- ISC-8: 536b805 per-file failure keeps last_commit_sha
+- ISC-9: 536b805 write_reference_db parametrized 12 writers x 4 sizes
+- ISC-10: 536b805 config.json:29 https
+- ISC-11: 536b805 zips read in memory, rg no extractall
+- ISC-12: 536b805 exit_code_for shared; degraded exits 1
+- ISC-13: 536b805 db-only partial exits 1
+- ISC-14: 536b805 generator failure is a failed step
+- ISC-15: 536b805 lastUpdate only on clean run
+- ISC-16: 536b805 rg residue only non-published paths
+- ISC-17: 536b805 fsync failure leaves old bytes
+- ISC-18: 536b805 ShardCorruptError on malformed line
+- ISC-19: 536b805 truncated gzip names file
+- ISC-20: 536b805 all temps before any replace
+- ISC-21: da74e5c id_normalize test on mixed CWE list
+- ISC-22: da74e5c generator normalizes ids
+- ISC-23: da74e5c processor output == expand_cwe_list
+- ISC-24: da74e5c meta.dropped_dangling_rels
+- ISC-25: regen probe at 3e11ab4: 0 dangling
+- ISC-26: regen probe at 3e11ab4: 7.55 MB, 0 of 1726 KEV missing
+- ISC-27: da74e5c totalResults completion tests
+- ISC-28: da74e5c nvd_request_delay 6.0 / 0.6
+- ISC-29: da74e5c resumed fetch recorded partial
+- ISC-56: 536b805 deterministic gzip, identical bytes across clocks
 - ISC-30: d229e96 fresh venv import; test_stdio_smoke
 - ISC-31: tests/tip_mcp/test_stdio_smoke.py
 - ISC-32: probe pivot T1499 d3fend=11
@@ -237,4 +268,5 @@ Why: the maintainer's next return starts from docs that are true.
 
 - [ ] Re-enable `Run CVE Pipeline` after the PR merges and vulnrichment_db.json is confirmed non-empty. Waits on principal merge.
 - [ ] Decide the fate of `docs/mitre/` (Navigator 5.1.0 on Angular 17, EOL). Principal's call.
+- [ ] Decide APT linkage: technique-overlap APT_GROUPS would tag 60% of all CVEs. Needs a tighter signal (campaign or explicit attribution) before it means anything.
 - [ ] Branch protection on main requiring the new CI checks. Repo settings change, principal's call.
