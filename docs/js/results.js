@@ -3,7 +3,31 @@
  * Uses safe DOM methods throughout (textContent, createElement). No innerHTML.
  */
 
-async function renderResultPage(entityId) {
+// ── Render generation token ────────────────────────────────────
+// Every navigation bumps the generation. An async renderer captures the
+// value on entry and re-checks it after each await; if the user has moved
+// on, the stale render drops its result instead of overwriting the page.
+let renderGeneration = 0;
+
+function nextRenderGeneration() {
+    renderGeneration += 1;
+    return renderGeneration;
+}
+
+function isCurrentRender(gen) {
+    return gen === renderGeneration;
+}
+
+function renderMessage(main, text, isError) {
+    var msg = document.createElement('div');
+    msg.className = isError ? 'result-message result-error' : 'result-message';
+    if (isError) msg.setAttribute('role', 'alert');
+    msg.textContent = text;
+    main.appendChild(msg);
+}
+
+async function renderResultPage(entityId, gen) {
+    if (gen === undefined) gen = nextRenderGeneration();
     const entity = getEntity(entityId);
     const main = document.getElementById('result-main');
     const graphPanel = document.getElementById('result-graph');
@@ -13,20 +37,23 @@ async function renderResultPage(entityId) {
         // entity_index but the ID is a CVE pattern, fetch the shard on
         // demand and render a minimal detail page.
         if (/^CVE-\d{4}-\d+$/i.test(entityId)) {
-            await renderCveFromShard(main, graphPanel, entityId.toUpperCase());
+            await renderCveFromShard(main, graphPanel, entityId.toUpperCase(), gen);
             return;
         }
         main.textContent = '';
-        var msg = document.createElement('div');
-        Object.assign(msg.style, { padding: '40px', textAlign: 'center', color: 'var(--text-muted)' });
-        msg.textContent = 'Entity not found: ' + entityId;
-        main.appendChild(msg);
         graphPanel.textContent = '';
+        var indexErr = getIndexLoadError();
+        if (indexErr) {
+            renderMessage(main, 'Could not load the entity index, so ' + entityId + ' cannot be looked up. Reload to retry. (' + indexErr + ')', true);
+        } else {
+            renderMessage(main, 'Entity not found: ' + entityId, false);
+        }
         return;
     }
 
     const related = getRelatedEntities(entityId);
     const detail = await fetchEntityDetail(entityId);
+    if (!isCurrentRender(gen)) return;
 
     main.textContent = '';
     renderEntityHeader(main, entity, related, detail);
@@ -39,26 +66,29 @@ async function renderResultPage(entityId) {
 // curated entity_index. Shows description, CVSS, dates, references, and
 // the CWE/CAPEC/Technique relationship lists, marked with a "from shard"
 // provenance badge so users know they are looking at raw data.
-async function renderCveFromShard(main, graphPanel, cveId) {
+async function renderCveFromShard(main, graphPanel, cveId, gen) {
+    if (gen === undefined) gen = nextRenderGeneration();
     main.textContent = '';
     graphPanel.textContent = '';
 
     // Loading indicator
-    var loading = document.createElement('div');
-    Object.assign(loading.style, {
-        padding: '40px', textAlign: 'center', color: 'var(--text-muted)'
-    });
-    loading.textContent = 'Loading ' + cveId + ' from shard...';
-    main.appendChild(loading);
+    renderMessage(main, 'Loading ' + cveId + ' from shard...', false);
 
-    var payload = await fetchCveFromShard(cveId);
+    var payload;
+    try {
+        payload = await fetchCveFromShard(cveId);
+    } catch (err) {
+        if (!isCurrentRender(gen)) return;
+        main.textContent = '';
+        var reason = (err && err.message) ? err.message : String(err);
+        renderMessage(main, 'Could not load ' + cveId + ': ' + reason + ' Reload to retry.', true);
+        return;
+    }
+    if (!isCurrentRender(gen)) return;
     main.textContent = '';
 
     if (!payload) {
-        var notFound = document.createElement('div');
-        Object.assign(notFound.style, { padding: '40px', textAlign: 'center', color: 'var(--text-muted)' });
-        notFound.textContent = cveId + ' not found in any CVE shard.';
-        main.appendChild(notFound);
+        renderMessage(main, cveId + ' not found in any CVE shard.', false);
         return;
     }
 

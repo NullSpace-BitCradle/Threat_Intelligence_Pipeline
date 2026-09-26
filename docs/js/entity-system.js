@@ -7,6 +7,9 @@
 let entityIndex = null;
 let searchIndex = null;
 let indicesLoading = false;
+// Set to a short reason string when the entity/search index fails to load,
+// so the UI can show an error state instead of "0 entities" or "not found".
+let indexLoadError = null;
 
 // Layer 1: all-CVE-IDs index (lazily loaded; ~1.8 MB)
 let cveIdsIndex = null;
@@ -38,15 +41,29 @@ async function loadIndices() {
             fetch('data/entity_index.json'),
             fetch('data/search_index.json')
         ]);
-        entityIndex = await eiRes.json();
-        searchIndex = await siRes.json();
+        if (!eiRes.ok) throw new Error('entity_index.json HTTP ' + eiRes.status);
+        if (!siRes.ok) throw new Error('search_index.json HTTP ' + siRes.status);
+        const ei = await eiRes.json();
+        const si = await siRes.json();
+        if (!ei || typeof ei !== 'object' || !ei.entities || typeof ei.entities !== 'object') {
+            throw new Error('entity_index.json has no entities map');
+        }
+        if (!si || typeof si !== 'object') throw new Error('search_index.json is not an object');
+        entityIndex = ei;
+        searchIndex = si;
+        indexLoadError = null;
     } catch (e) {
         console.error('Failed to load entity indices:', e);
         entityIndex = null;
         searchIndex = null;
+        indexLoadError = (e && e.message) ? e.message : String(e);
     } finally {
         indicesLoading = false;
     }
+}
+
+function getIndexLoadError() {
+    return indexLoadError;
 }
 
 // Lazy-load the Layer 1 all-IDs index. Called only when the user types
@@ -181,25 +198,43 @@ function countAllCves(query) {
 
 const _CVE_FULL_RE = /^cve-(\d{4})-\d+$/i;
 
+// Raised when a shard could not be loaded for a reason other than "there is
+// no shard for that year" (network failure, HTTP error, no gzip support).
+// Callers show an error state for this instead of "not found".
+class ShardLoadError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ShardLoadError';
+    }
+}
+
 // Fetch and parse the per-year CVE shard. Caches the parsed Map for reuse.
 // Uses native DecompressionStream (Chrome 80+, Firefox 113+, Safari 16.4+).
-// Returns Map<cve_id, payload> or null on error.
+// Returns Map<cve_id, payload>, or null when the year has no shard (HTTP 404).
+// Throws ShardLoadError for every other failure; failures are not cached.
 async function fetchShardForYear(year) {
     if (shardCache.has(year)) return shardCache.get(year);
     if (shardLoading.has(year)) return shardLoading.get(year);
 
     if (typeof DecompressionStream === 'undefined') {
-        console.error('DecompressionStream unavailable; cannot fetch shard');
-        return null;
+        throw new ShardLoadError('This browser cannot decompress CVE shards (no DecompressionStream support).');
     }
 
     const promise = (async function() {
         try {
             const url = 'database/CVE-' + year + '.jsonl.gz';
-            const response = await fetch(url);
-            if (!response.ok) {
-                console.warn('Shard not found:', url, response.status);
+            let response;
+            try {
+                response = await fetch(url);
+            } catch (netErr) {
+                throw new ShardLoadError('Network error loading the ' + year + ' CVE shard.');
+            }
+            if (response.status === 404) {
+                console.warn('Shard not found:', url);
                 return null;
+            }
+            if (!response.ok) {
+                throw new ShardLoadError('The ' + year + ' CVE shard returned HTTP ' + response.status + '.');
             }
             const ds = new DecompressionStream('gzip');
             const decompressed = response.body.pipeThrough(ds);
@@ -223,7 +258,8 @@ async function fetchShardForYear(year) {
             return cves;
         } catch (err) {
             console.error('Shard fetch failed for year', year, err);
-            return null;
+            if (err instanceof ShardLoadError) throw err;
+            throw new ShardLoadError('Could not read the ' + year + ' CVE shard.');
         } finally {
             shardLoading.delete(year);
         }
@@ -233,7 +269,8 @@ async function fetchShardForYear(year) {
 }
 
 // Look up a single CVE in the shard for its year. Returns the payload dict
-// (DESCRIPTION, CWE, CAPEC, TECHNIQUES, OWASP, CVSS, ...) or null.
+// (DESCRIPTION, CWE, CAPEC, TECHNIQUES, OWASP, CVSS, ...) or null when the
+// CVE is not in any shard. Throws ShardLoadError when the shard failed to load.
 async function fetchCveFromShard(cveId) {
     if (!cveId) return null;
     const m = cveId.match(_CVE_FULL_RE);
@@ -338,6 +375,7 @@ async function fetchEntityDetail(entityId) {
     if (!entity) return null;
 
     var detail = {};
+    var failed = false;
 
     try {
         if (entity.type === 'cwe') {
@@ -382,9 +420,11 @@ async function fetchEntityDetail(entityId) {
         }
     } catch (e) {
         console.log('Could not fetch detail for ' + entityId + ':', e.message);
+        failed = true;
     }
 
-    detailCache[entityId] = detail;
+    // Do not cache a failed fetch, so a later visit can retry.
+    if (!failed) detailCache[entityId] = detail;
     return detail;
 }
 
