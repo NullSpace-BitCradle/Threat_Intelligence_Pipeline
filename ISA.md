@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 0/58
+progress: 20/58
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -106,16 +106,16 @@ Why: every relationship the site or MCP shows must point at an entity that exist
 ### F5 · MCP server works on the resolved SDK
 Why: the headline portfolio piece must start and answer correctly from a fresh install.
 
-- [ ] ISC-30: `requirements-mcp.txt` pins an mcp version the server imports cleanly, and `python -c "from tip_mcp import server"` succeeds in a fresh venv from the pinned file.
-- [ ] ISC-31: A stdio smoke test starts the server, lists tools, and calls `lookup_entity` successfully.
-- [ ] ISC-32: `pivot_from_entity` and `search_threat_intel` accept the graph's type names (`defend`, `apt_group`) and map the legacy aliases (`d3fend`, `apt`); `pivot_from_entity("T1499","d3fend")` returns more than zero hits on real data.
-- [ ] ISC-33: The shard path emits the same rel type vocabulary as the entity path; test.
-- [ ] ISC-34: Entity ids are normalized (strip, uppercase for CVE/CWE/CAPEC/T-ids) before lookup, so `" cve-2023-44487 "` returns the same record as `"CVE-2023-44487"`; test.
-- [ ] ISC-35: The entity path returns `kev_detail`, `ssvc`, `cisa_cvss` from `entity_index.json` when shards are absent; test with a missing shards dir.
-- [ ] ISC-36: Shard lookups are cached per year and a miss is short-circuited via `cve_ids_index.json`; a repeat lookup of a CVE in the 2026 shard completes in under 0.2 s after first load (timed probe on real data).
-- [ ] ISC-37: Truncated gzip, bad UTF-8, and wrong-shaped index files return the documented `{ok:false}` envelope instead of raising; tests.
-- [ ] ISC-38: The parity test calls the real generator code path for the producer side, so deleting the generator's `cve_blocks.enrich` call makes it fail (verified by a temporary mutation).
-- [ ] ISC-39: `src/tip_mcp/README.md` matches the current tool vocabulary, counts, and shard fallback; the demo step 3 command returns results.
+- [x] ISC-30: `requirements-mcp.txt` pins an mcp version the server imports cleanly, and `python -c "from tip_mcp import server"` succeeds in a fresh venv from the pinned file.
+- [x] ISC-31: A stdio smoke test starts the server, lists tools, and calls `lookup_entity` successfully.
+- [x] ISC-32: `pivot_from_entity` and `search_threat_intel` accept the graph's type names (`defend`, `apt_group`) and map the legacy aliases (`d3fend`, `apt`); `pivot_from_entity("T1499","d3fend")` returns more than zero hits on real data.
+- [x] ISC-33: The shard path emits the same rel type vocabulary as the entity path; test.
+- [x] ISC-34: Entity ids are normalized (strip, uppercase for CVE/CWE/CAPEC/T-ids) before lookup, so `" cve-2023-44487 "` returns the same record as `"CVE-2023-44487"`; test.
+- [x] ISC-35: The entity path returns `kev_detail`, `ssvc`, `cisa_cvss` from `entity_index.json` when shards are absent; test with a missing shards dir.
+- [x] ISC-36: Shard lookups are cached per year and a miss is short-circuited via `cve_ids_index.json`; a repeat lookup of a CVE in the 2026 shard completes in under 0.2 s after first load (timed probe on real data).
+- [x] ISC-37: Truncated gzip, bad UTF-8, and wrong-shaped index files return the documented `{ok:false}` envelope instead of raising; tests.
+- [x] ISC-38: The parity test calls the real generator code path for the producer side, so deleting the generator's `cve_blocks.enrich` call makes it fail (verified by a temporary mutation).
+- [x] ISC-39: `src/tip_mcp/README.md` matches the current tool vocabulary, counts, and shard fallback; the demo step 3 command returns results.
 
 ### F6 · Frontend correctness and hardening
 Why: the site is a security tool's public face and must not dead-end or run unpinned third-party code.
@@ -131,25 +131,25 @@ Why: the site is a security tool's public face and must not dead-end or run unpi
 ### F7 · CI and supply chain
 Why: nothing merges unverified, and nothing the bot runs can be swapped under it.
 
-- [ ] ISC-47: A CI workflow runs the unit suite and mypy on push and pull_request.
-- [ ] ISC-48: Every workflow pins actions to full commit SHAs and declares least-privilege `permissions:`.
-- [ ] ISC-49: Data workflows share a `concurrency:` group, set `timeout-minutes`, and never force-push: a rebase conflict fails the run.
-- [ ] ISC-50: Runtime requirements are pinned `==` from a tested resolution, with dev/test deps split into a separate file that the data workflows do not install.
-- [ ] ISC-51: `requirements.txt` lists no package that nothing imports (probe: rg per package).
-- [ ] ISC-52: A `.github/dependabot.yml` proposes updates for pip and github-actions.
+- [x] ISC-47: A CI workflow runs the unit suite and mypy on push and pull_request.
+- [x] ISC-48: Every workflow pins actions to full commit SHAs and declares least-privilege `permissions:`.
+- [x] ISC-49: Data workflows share a `concurrency:` group, set `timeout-minutes`, and never force-push: a rebase conflict fails the run.
+- [x] ISC-50: Runtime requirements are pinned `==` from a tested resolution, with dev/test deps split into a separate file that the data workflows do not install.
+- [x] ISC-51: `requirements.txt` lists no package that nothing imports (probe: rg per package).
+- [x] ISC-52: A `.github/dependabot.yml` proposes updates for pip and github-actions.
 
 ### F8 · Dead code removal
 Why: code that nothing calls still costs reading time, mypy errors, and exposure.
 
-- [ ] ISC-53: `web_interface.py`, `rate_limiter.py`, `error_recovery.py`, `config_validator.py` schema, `request_tracker.py`, `metrics.py`, `health_check.py` and the dead half of `performance_optimizer.py` are removed or reduced, with every call site updated; `rg` shows no importer left.
-- [ ] ISC-54: `run_pipeline.py --help` and `--db-only` still work after removal (the CLI surface drops only the removed flags, documented in README).
-- [ ] ISC-55: Logging writes each line once (single file handler); test.
+- [x] ISC-53: `web_interface.py`, `rate_limiter.py`, `error_recovery.py`, `config_validator.py` schema, `request_tracker.py`, `metrics.py`, `health_check.py` and the dead half of `performance_optimizer.py` are removed or reduced, with every call site updated; `rg` shows no importer left.
+- [x] ISC-54: `run_pipeline.py --help` and `--db-only` still work after removal (the CLI surface drops only the removed flags, documented in README).
+- [x] ISC-55: Logging writes each line once (single file handler); test.
 
 ### F9 · Stop repo growth
 Why: an unchanged shard must not add a new blob to history every week.
 
 - [ ] ISC-56: Shards are written with deterministic gzip (fixed mtime, no filename header) and sorted record order, so re-writing identical content yields byte-identical files; test.
-- [ ] ISC-57: The daily run commits nothing when no data changed (`lastUpdate.txt` alone does not produce a commit); workflow logic probe.
+- [x] ISC-57: The daily run commits nothing when no data changed (`lastUpdate.txt` alone does not produce a commit); workflow logic probe.
 
 ### F10 · Docs match disk
 Why: the maintainer's next return starts from docs that are true.
@@ -197,9 +197,33 @@ Why: the maintainer's next return starts from docs that are true.
 - 2026-09-26 11:40: reference DB write floor (ISC-9): refuse to replace an existing non-empty DB when the new count is under 50% of the existing count. Growth is always allowed, so a vulnrichment full resync passes.
 - 2026-09-26 11:40: regenerated data is a probe, never a commit. Agents regenerate to scratch paths; nothing under docs/data or docs/database is staged. The pipeline republishes on its next run.
 - 2026-09-26 11:40: execution waves by file ownership. Wave 1 parallel: F8 dead code, F5 MCP, F6 frontend. Wave 2 after F8 merges: F1+F2+F3+F4+F9 core as one agent (shared files), F7 CI. Wave 3: F10 docs, full suite, Forge audit, PR. `lastUpdate.txt` has no SPA consumer (rg over docs/js), so ISC-57 is safe.
+- 2026-09-26 12:00: F8 escalation accepted: removing `@with_recovery` lets `_update_databases` raise instead of continuing with status failed. Both exit 1; fail loud matches Principles.
+- 2026-09-26 12:00: F5 accepted: `search_threat_intel` with an unknown type now returns `invalid_type` (consistent with pivot); mcp pinned 2.2.0 on the 2.x MCPServer API; shard cache stores zlib-compressed lines, LRU 3 years, about 300 MB worst case.
+- 2026-09-26 12:00: lockfiles compiled by uv with generate-hashes and an exclude-newer cooldown of 7 days; CI installs with pip require-hashes. The three lockfiles share no conflicting pins (checked).
 - 2026-09-26 11:25: `docs/mitre/` Navigator bundle left untouched (public URL, principal's call); recorded in Remaining Work.
 
 ## Verification
+
+- ISC-30: d229e96 fresh venv import; test_stdio_smoke
+- ISC-31: tests/tip_mcp/test_stdio_smoke.py
+- ISC-32: probe pivot T1499 d3fend=11
+- ISC-33: test_shard_path_uses_graph_vocabulary
+- ISC-34: probe normalized equal True
+- ISC-35: parity test entity path no shards
+- ISC-36: probe repeat 0.0000s after 2.30s cold
+- ISC-37: tests/tip_mcp corrupt input tests
+- ISC-38: mutation: 4 failed with enrich removed
+- ISC-39: d229e96 README demo step 3 = 11
+- ISC-47: .github/workflows/tests.yml 1491320
+- ISC-48: 1491320 actionlint clean
+- ISC-49: 1491320 concurrency tip-data, rebase fails run
+- ISC-50: f045d30 797dc3d hashed lockfiles, ci-sim install ok
+- ISC-51: f045d30 only requests remains
+- ISC-52: 1491320 .github/dependabot.yml
+- ISC-53: ee172a2 monitoring removed, rg no importers
+- ISC-54: tests/test_cli_surface.py
+- ISC-55: tests/test_logging_single_handler.py
+- ISC-57: 1491320 commit step diffs docs/data docs/database only
 
 ## Remaining Work
 
