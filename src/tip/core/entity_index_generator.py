@@ -7,7 +7,6 @@ Reads all pipeline data files and produces:
 """
 
 import argparse
-import gzip
 import json
 import re
 from collections import defaultdict
@@ -17,6 +16,12 @@ from pathlib import Path
 from tip_intel import cve_blocks
 from tip.utils.atomic_io import atomic_replace_many
 from tip.database.database_optimizer import JSONLManager
+from tip.core.id_normalize import (
+    cwe_capecs_with_ancestors,
+    normalize_capec_id,
+    normalize_cwe_id,
+    normalize_technique_id,
+)
 
 _jsonl = JSONLManager()
 
@@ -100,6 +105,22 @@ def _tokenize_name(name: str) -> list[str]:
     return [w for w in words if len(w) >= 3]
 
 
+def _is_layer2(cve_id: str, cve_data: dict, kev_db: dict, vulnrich_db: dict) -> bool:
+    """Layer 2 (curated CVE) rule: in KEV, APT-linked, or SSVC exploitation active.
+
+    Plain vulnrichment membership no longer qualifies: a full resync restores
+    ~136k entries and would balloon entity_index.json, and a wipe would shrink
+    it (ISA Decisions 2026-09-26 11:40). SSVC comes from the shard
+    VULNRICHMENT block, falling back to vulnrichment_db.json.
+    """
+    if cve_id in kev_db or cve_data.get("APT_GROUPS"):
+        return True
+    for source in (cve_data.get("VULNRICHMENT"), vulnrich_db.get(cve_id)):
+        if isinstance(source, dict) and str(source.get("ssvcExploitStatus", "")).lower() == "active":
+            return True
+    return False
+
+
 def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     """
     Generate entity_index and search_index from all pipeline data.
@@ -133,40 +154,24 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     print("Loading CWE database...")
     cwe_db = _load_json(data_dir / "cwe_db.json")
 
-    # Build CWE parent chain for CAPEC inheritance
+    # CAPEC inheritance walks the full ChildOf chain (shared definition in
+    # tip.core.id_normalize; a CVE's own CWE list only gains one level).
     cwe_parent_capecs: dict[str, set[str]] = {}
-
-    def _resolve_cwe_capecs(cwe_num: str, visited: set | None = None) -> set[str]:
-        """Walk CWE parent chain to collect all CAPEC mappings."""
-        if cwe_num in cwe_parent_capecs:
-            return cwe_parent_capecs[cwe_num]
-        if visited is None:
-            visited = set()
-        if cwe_num in visited:
-            return set()
-        visited.add(cwe_num)
-
-        cwe_entry = cwe_db.get(cwe_num, {})
-        capecs = set(cwe_entry.get("RelatedAttackPatterns", []))
-        for parent_num in cwe_entry.get("ChildOf", []):
-            capecs |= _resolve_cwe_capecs(parent_num, visited)
-        cwe_parent_capecs[cwe_num] = capecs
-        return capecs
-
-    # Pre-resolve all CWEs
     for cwe_num in cwe_db:
-        _resolve_cwe_capecs(cwe_num)
+        cwe_capecs_with_ancestors(cwe_db, cwe_num, cwe_parent_capecs)
 
     inherited_count = sum(1 for n, c in cwe_parent_capecs.items()
                          if c and not cwe_db.get(n, {}).get("RelatedAttackPatterns"))
 
     for cwe_num, cwe_data in cwe_db.items():
-        cwe_id = f"CWE-{cwe_num}"
+        cwe_id = normalize_cwe_id(cwe_num) or f"CWE-{cwe_num}"
         name = cwe_data.get("name") or cwe_data.get("Name") or ""
         ensure(cwe_id, "cwe", name if name else cwe_id, "weakness")
 
-        for capec_num in _resolve_cwe_capecs(cwe_num):
-            link_one(cwe_id, "capec", f"CAPEC-{capec_num}")
+        for capec_num in cwe_parent_capecs.get(cwe_num, set()):
+            capec_ref = normalize_capec_id(capec_num)
+            if capec_ref:
+                link_one(cwe_id, "capec", capec_ref)
 
     print(f"  Loaded {len(cwe_db)} CWEs ({inherited_count} inherited CAPECs from parents)")
 
@@ -179,8 +184,9 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         ensure(capec_id, "capec", name if name else capec_id, "attack_pattern")
 
         for tid in _parse_capec_technique_ids(capec_data.get("techniques", "")):
-            technique_id = f"T{tid}" if not tid.startswith("T") else tid
-            link_one(capec_id, "technique", technique_id)
+            technique_ref = normalize_technique_id(tid)
+            if technique_ref:
+                link_one(capec_id, "technique", technique_ref)
 
     print(f"  Loaded {len(capec_db)} CAPECs")
 
@@ -209,7 +215,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 if not line:
                     continue
                 record = json.loads(line)
-                for attack_tech_id, mapping in record.items():
+                for raw_tech_id, mapping in record.items():
+                    attack_tech_id = normalize_technique_id(raw_tech_id) or raw_tech_id
                     for dt in mapping.get("defensive_techniques", []):
                         defend_id = dt["id"]
                         defend_name = dt.get("name", defend_id)
@@ -240,7 +247,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         group_aliases[group_id] = aliases
 
         for tech_id in group_data.get("techniques", []):
-            link(group_id, "technique", tech_id, "apt_group")
+            link(group_id, "technique", normalize_technique_id(tech_id) or tech_id, "apt_group")
 
     print(f"  Loaded {len(groups)} APT groups")
 
@@ -263,7 +270,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             link(campaign_id, "apt_group", group_id, "campaign")
 
         for tech_id in campaign_data.get("techniques", []):
-            link(campaign_id, "technique", tech_id, "campaign")
+            link(campaign_id, "technique", normalize_technique_id(tech_id) or tech_id, "campaign")
 
     print(f"  Loaded {len(campaigns_db)} campaigns")
 
@@ -302,6 +309,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     # frontend search bar can find any ingested CVE even when the CVE is
     # not in the curated entity_index. Tail integers keep the file small.
     all_cve_data: list[tuple[str, dict]] = []
+    shard_cve_ids: set[str] = set()
     cve_ids_by_year: dict[str, list[int]] = defaultdict(list)
     total_cve_ids = 0
     for cve_file in cve_files:
@@ -309,25 +317,30 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         # Strict reader: a malformed line or truncated gzip raises
         # ShardCorruptError naming the shard, instead of a bare EOFError.
         for record in _jsonl.read_jsonl(str(cve_file)):
-                for cve_id, cve_data in record.items():
-                    # Layer 1: every ingested CVE goes into the all-IDs index,
-                    # regardless of CWE coverage.
-                    parts = cve_id.split("-")
-                    if len(parts) == 3 and parts[0] == "CVE":
-                        try:
-                            year = parts[1]
-                            tail = int(parts[2])
-                            cve_ids_by_year[year].append(tail)
-                            total_cve_ids += 1
-                        except ValueError:
-                            pass
-                    cwes = cve_data.get("CWE", [])
-                    if not cwes:
+            for cve_id, cve_data in record.items():
+                # Layer 1: every ingested CVE goes into the all-IDs index,
+                # regardless of CWE coverage.
+                parts = cve_id.split("-")
+                if len(parts) == 3 and parts[0] == "CVE":
+                    try:
+                        year = parts[1]
+                        tail = int(parts[2])
+                        cve_ids_by_year[year].append(tail)
+                        total_cve_ids += 1
+                    except ValueError:
+                        pass
+                shard_cve_ids.add(cve_id)
+                # Layer 2 gate (authoritative; see _is_layer2). A curated CVE
+                # is kept even without CWE data so every KEV CVE is indexed.
+                if not _is_layer2(cve_id, cve_data, kev_db, vulnrich_db):
+                    if not cve_data.get("CWE"):
                         cve_skipped += 1
-                        continue
-                    all_cve_data.append((cve_id, cve_data))
+                    else:
+                        cve_filtered += 1
+                    continue
+                all_cve_data.append((cve_id, cve_data))
 
-    print(f"  Found {len(all_cve_data)} CVEs with CWE data, filtering...")
+    print(f"  Found {len(all_cve_data)} Layer 2 CVEs (KEV, APT-linked or SSVC active)")
 
     # "Interesting" CVE inclusion policy: indexed if ANY of these hold.
     # The browser loads entity_index.json in full, so we balance coverage
@@ -431,14 +444,23 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
 
         cve_count += 1
 
-        for cwe_ref in cve_data.get("CWE", []):
-            link(cve_id, "cwe", cwe_ref, "cve")
+        # Shards written before ingest-time normalization carry bare parent
+        # CWE numbers (["74","CWE-79"]) and bare technique ids; normalize
+        # here so existing shards also produce resolvable rels (ISC-22).
+        for cwe_raw in cve_data.get("CWE", []):
+            cwe_ref = normalize_cwe_id(cwe_raw)
+            if cwe_ref:
+                link(cve_id, "cwe", cwe_ref, "cve")
 
-        for capec_num in cve_data.get("CAPEC", []):
-            link(cve_id, "capec", f"CAPEC-{capec_num}", "cve")
+        for capec_raw in cve_data.get("CAPEC", []):
+            capec_ref = normalize_capec_id(capec_raw)
+            if capec_ref:
+                link(cve_id, "capec", capec_ref, "cve")
 
-        for tech_num in cve_data.get("TECHNIQUES", []):
-            tech_id = f"T{tech_num}" if not tech_num.startswith("T") else tech_num
+        for tech_raw in cve_data.get("TECHNIQUES", []):
+            tech_id = normalize_technique_id(tech_raw)
+            if not tech_id:
+                continue
             link(cve_id, "technique", tech_id, "cve")
             for gid in technique_to_groups.get(tech_id, []):
                 link(cve_id, "apt_group", gid, "cve")
@@ -462,7 +484,17 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         if is_kev:
             kev_cves.add(cve_id)
 
-    print(f"  Indexed {cve_count} interesting CVEs (filtered {cve_filtered}, skipped {cve_skipped} no CWE)")
+    # KEV CVEs that no shard carries yet (added to KEV after the last NVD
+    # sync) still get a minimal entity so every KEV CVE resolves.
+    kev_only = sorted(k for k in kev_db if k not in shard_cve_ids and k not in entities)
+    for cve_id in kev_only:
+        ensure(cve_id, "cve", cve_id, "vulnerability")
+        cve_blocks.enrich(entities[cve_id], {"KEV": kev_db[cve_id]})
+        kev_cves.add(cve_id)
+        cve_count += 1
+
+    print(f"  Indexed {cve_count} interesting CVEs ({len(kev_only)} KEV-only without a shard record; "
+          f"filtered {cve_filtered}, skipped {cve_skipped} no CWE)")
 
     # ── 9. Create OWASP entities ──────────────────────────────────
     print("Creating OWASP entities...")
@@ -476,14 +508,22 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
 
     # ── 10. Convert rels_map sets to new shape {ids, source, tier} ──
     print("Finalizing relationships with provenance...")
+    # A rel whose target entity does not exist is dropped and counted: a link
+    # that resolves to nothing is a bug, not a styling issue (ISC-24).
+    dropped_dangling: dict[str, int] = defaultdict(int)
     for eid, entity in entities.items():
         etype = entity["type"]
         rels = {}
         for rel_type, targets in sorted(rels_map.get(eid, {}).items()):
+            live = sorted(t for t in targets if t in entities)
+            if len(live) != len(targets):
+                dropped_dangling[rel_type] += len(targets) - len(live)
+            if not live:
+                continue
             prov_key = (etype, rel_type)
             prov = REL_PROVENANCE.get(prov_key, {'source': 'Unknown', 'tier': 'derived'})
             rels[rel_type] = {
-                "ids": sorted(targets),
+                "ids": live,
                 "source": prov["source"],
                 "tier": prov["tier"],
             }
@@ -497,6 +537,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             entity["kev"] = True
 
     # ── 11. Build search terms (for search index only, not stored in entities) ─
+    print(f"  Dropped {sum(dropped_dangling.values())} dangling rel targets {dict(dropped_dangling)}")
+
     print("Building search terms...")
     entity_terms: dict[str, set[str]] = {}
     for entity_id, entity in entities.items():
@@ -572,6 +614,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             "generated": datetime.now(timezone.utc).isoformat(),
             "entity_count": len(entities),
             "version": "1.5",
+            # Additive: rel targets dropped because no such entity exists.
+            "dropped_dangling_rels": sum(dropped_dangling.values()),
         },
         "entities": entities,
     }
