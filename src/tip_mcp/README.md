@@ -5,15 +5,20 @@ and per-year CVE shards to Claude agents over stdio.
 
 ## Status
 
-Phase A. Three read-only tools over the pre-built entity graph, with a shard
-fallback that serves any ingested CVE. Phase B tools (`build_attack_chain`,
-`get_defenses`, `kev_status`) are roadmap item P10.
+Phase B (P10). Six read-only tools over the pre-built entity graph, the CISA
+KEV catalog, and a shard fallback that serves any ingested CVE. A recorded
+session of all of them on real data is in [DEMO.md](DEMO.md).
 
 ## Tools
 
-- `lookup_entity(entity_id)` returns one entity record and its relationships
-- `pivot_from_entity(entity_id, target_type?)` returns related entities, optionally filtered by type
-- `search_threat_intel(query, limit?, types?)` returns ranked hits from the inverted index
+| Tool | What it returns | Example prompt |
+|---|---|---|
+| `lookup_entity(entity_id)` | One entity record and its relationships | "What is CVE-2023-44487?" |
+| `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
+| `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
+| `build_attack_chain(technique_id, limit?)` | CAPECs, CWEs, CVEs (KEV first, then CVSS), and D3FEND defenses behind a technique, each with provenance | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
+| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for exactly one technique or CVE, with mapping source, the technique each was reached through, and the relationship verb when known | "How do I defend against CVE-2023-44487?" |
+| `kev_status(cve_id)` | KEV membership, date added, due date, ransomware use, required action, vendor, product, and SSVC when known | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
 Every tool returns an envelope: `{ok: true, data, meta}` or
 `{ok: false, error: {code, message, hint?}}`. Error codes: `not_found`,
@@ -28,6 +33,29 @@ Types use the entity graph's names: `cve`, `cwe`, `capec`, `technique`,
 KEV. The legacy names `d3fend` (for `defend`) and `apt` (for `apt_group`) are
 accepted on input; output always uses the graph names, on both the entity
 path and the shard path.
+
+### Phase B tool notes
+
+- **`build_attack_chain`** walks technique <- CAPEC <- CWE -> CVE. The entity
+  index stores the first two edges in one direction only (a CAPEC names its
+  techniques, a CWE names its CAPECs), so the server builds a reverse
+  adjacency map once, on first use, instead of changing the generator. Every
+  element carries the `source` and `tier` of the edge it was reached by, so a
+  derived link never reads as authoritative. Each list is capped at `limit`
+  (default 50); `meta.totals` holds the uncapped counts and `meta.truncated`
+  says whether anything was cut. A technique with no CAPEC link (T1498, T1190
+  and T1059 on current data) returns empty chain lists, its D3FEND defenses,
+  and a `meta.note` saying why the chain is empty.
+- **`get_defenses`** takes exactly one of `technique_id` or `cve_id`
+  (`bad_param` otherwise). For a CVE, each defense lists the ATT&CK
+  techniques it was reached through in `via_techniques`, `direct: true` when
+  the CVE's own D3FEND links include it, and the D3FEND relationship verb
+  (isolates, monitors, hardens, ...) from the CVE's shard when present.
+- **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
+  CISA catalog, so a KEV CVE outside the curated graph still reports
+  `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
+  KEV fields. SSVC comes from the entity record, else the shard, else null.
+  If `kev_db.json` is missing, the graph's flag is used and `meta.note` says so.
 
 ### IDs
 
@@ -50,7 +78,7 @@ pip install -r requirements-mcp.txt
 on mcp 1.x.
 
 You also need TIP's pre-built indexes in `docs/data/` (`entity_index.json`,
-`search_index.json`, and optionally `cve_ids_index.json`) and the year shards
+`search_index.json`, and optionally `cve_ids_index.json` and `kev_db.json`) and the year shards
 in `docs/database/CVE-YYYY.jsonl.gz`. If they are not present, run the TIP
 pipeline first; see the top-level project README.
 
@@ -67,16 +95,18 @@ text content and as `structuredContent`.
 
 ## Claude Code / Claude Desktop configuration
 
-Add an entry to your Claude Code `.mcp.json` (or the equivalent Claude Desktop
-config):
+The repo ships a project-scoped [`.mcp.json`](../../.mcp.json) that registers
+the server as `tip-mcp`. Claude Code launches project servers from the project
+root, so the relative `PYTHONPATH=src` resolves inside your clone and no
+absolute path is needed:
 
 ```json
 {
   "mcpServers": {
-    "tip": {
-      "command": "python",
+    "tip-mcp": {
+      "type": "stdio",
+      "command": "${TIP_PYTHON:-python3}",
       "args": ["-m", "tip_mcp.server"],
-      "cwd": "/absolute/path/to/Threat_Intelligence_Pipeline",
       "env": {
         "PYTHONPATH": "src"
       }
@@ -85,25 +115,37 @@ config):
 }
 ```
 
+Open the clone in Claude Code from a shell where `python3` has
+`requirements-mcp.txt` installed (an activated virtualenv works), or set
+`TIP_PYTHON` to that interpreter. Approve the `tip-mcp` server when Claude
+Code asks. For Claude Desktop, which has no project root, copy the entry into
+its config and give an absolute `cwd`.
+
 Optionally set `TIP_DATA_DIR` to override the default `docs/data/` location
 and `TIP_SHARDS_DIR` to override the default `docs/database/` shard location,
 which is useful if you share TIP data across multiple checkouts.
 
-## Demo prompt
+## Demo
 
 Once configured, try a prompt like:
 
 > I'm looking at CVE-2023-44487 (HTTP/2 Rapid Reset). Use the TIP tools to walk
-> me through the attack chain and what defends against it. Cite entity IDs.
+> me through the attack chain and what defends against it, and tell me how
+> urgent the patch is. Cite entity IDs.
 
-Expected tool sequence (results from the 2026-09-20 data):
+[DEMO.md](DEMO.md) is the recorded tool sequence on this repo's data:
 
 1. `lookup_entity("CVE-2023-44487")` returns the KEV record with `kev_detail` and 83 relationships
 2. `pivot_from_entity("CVE-2023-44487", "technique")` returns 9 ATT&CK techniques, including T1499
-3. `pivot_from_entity("T1499", "defend")` returns 11 D3FEND defenses (`"d3fend"` works too)
+3. `build_attack_chain("T1499")` returns 3 CAPECs, 52 CWEs, the CVEs behind them ranked KEV first, and 11 D3FEND defenses
+4. `get_defenses(cve_id="CVE-2023-44487")` returns 44 D3FEND defenses, each naming its technique and relationship verb
+5. `kev_status("CVE-2023-44487")` returns in KEV since 2023-10-10, due 2023-10-31
 
-The agent produces a grounded narrative with real TIP entity citations instead
-of hallucinated MITRE IDs.
+`scripts/mcp_demo.py` produced it: a real MCP client session over stdio (the
+mcp SDK client, as the smoke test uses). Run it to regenerate the file, or
+with `--check` to confirm the committed transcript still matches the data.
+The demo anchor is T1499 (Endpoint Denial of Service), the technique
+CVE-2023-44487 maps to; T1498 has no CAPEC link in TIP data.
 
 ## Data coverage
 
@@ -140,6 +182,13 @@ over stdio and is skipped when `mcp` is absent:
 ```bash
 cd Threat_Intelligence_Pipeline
 PYTHONPATH=src pytest tests/tip_mcp/ tests/test_cve_intel_parity.py -v
+```
+
+Coverage on `src/tip_mcp` is above 90% (measured with pytest-cov, which is not
+in the lockfiles; install it locally to reproduce):
+
+```bash
+pytest tests/tip_mcp --cov=src/tip_mcp --cov-fail-under=90
 ```
 
 ## Design notes

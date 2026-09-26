@@ -24,9 +24,9 @@ As of 2026-09-26:
 - 1,726 CISA KEV entries tracked with daily refresh
 - Fail-closed by design: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
 - Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
-- MCP server Phase A live (3 of 6 planned tools) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
+- MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
 - Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / CISA-override badges and clickable references on CVE pages
-- 236 unit tests plus 25 Playwright smoke tests passing; mypy is clean across all 27 source files
+- 348 unit tests plus 25 Playwright smoke tests passing; mypy is clean across all 27 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -145,15 +145,18 @@ The two data workflows auto-commit results back to the repo, share one `concurre
 
 Expose TIP's threat intelligence graph to Claude agents via the Model Context Protocol (MCP). Claude agents can ground threat reasoning in TIP's real data instead of hallucinating CVE IDs or MITRE relationships.
 
-**Status:** Phase A (v1 MVP) shipped 2026-04-23. Three read-only tools, plus a JSONL shard fallback added 2026-04-24:
+**Status:** Phase B (P10) shipped 2026-09-26: six read-only tools, a JSONL shard fallback so any ingested CVE is queryable by ID, and a recorded end-to-end demo in [src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md).
 
-- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 395,617 ingested CVEs is queryable by ID.
-- `pivot_from_entity(entity_id, target_type?)`: returns entities related by type. Same shard fallback as `lookup_entity`, so pivoting from any ingested CVE works even if it is not in the enriched graph.
-- `search_threat_intel(query, limit?, types?)`: returns ranked hits from the inverted index
+| Tool | What it returns | Example prompt |
+|---|---|---|
+| `lookup_entity(entity_id)` | One entity record and its relationships; any of the 395,617 ingested CVEs via the shard fallback | "What is CVE-2023-44487?" |
+| `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type, with the same shard fallback | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
+| `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
+| `build_attack_chain(technique_id, limit?)` | The CAPECs, CWEs, and CVEs (KEV first, then CVSS) behind a technique, plus its D3FEND defenses, each with provenance; an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
+| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for one technique or CVE, with mapping source, the technique each was reached through, and the relationship verb | "How do I defend against CVE-2023-44487?" |
+| `kev_status(cve_id)` | CISA KEV membership, dates, ransomware use, required action, vendor, product, and SSVC when known | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
-CVE lookups carry the full intelligence the pipeline stores in the shards — KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics — projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
-
-Phase B (`build_attack_chain`, `get_defenses`, `kev_status`) is the next development block; see the [Roadmap](#roadmap).
+CVE lookups carry the full intelligence the pipeline stores in the shards: KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics, projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
 
 ### Install
 
@@ -161,7 +164,7 @@ Phase B (`build_attack_chain`, `get_defenses`, `kev_status`) is the next develop
 pip install -r requirements-mcp.txt
 ```
 
-Requires TIP's pre-built indexes at `docs/data/entity_index.json` and `docs/data/search_index.json`. Run the pipeline first if they are missing.
+Requires TIP's pre-built indexes at `docs/data/entity_index.json` and `docs/data/search_index.json` (plus `docs/data/kev_db.json` for `kev_status`). Run the pipeline first if they are missing.
 
 ### Run
 
@@ -173,30 +176,17 @@ The server speaks MCP over stdio. It loads both indexes into memory, then waits 
 
 ### Claude Code / Claude Desktop configuration
 
-Add an entry to your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "tip": {
-      "command": "python",
-      "args": ["-m", "tip_mcp.server"],
-      "cwd": "/absolute/path/to/Threat_Intelligence_Pipeline",
-      "env": {
-        "PYTHONPATH": "src"
-      }
-    }
-  }
-}
-```
+The repo root carries a project-scoped [`.mcp.json`](.mcp.json) that registers the server as `tip-mcp` with relative paths only. Open the clone in Claude Code from a shell where `python3` has `requirements-mcp.txt` installed (or set `TIP_PYTHON` to that interpreter) and approve the server when asked. For Claude Desktop, copy the entry into its config with an absolute `cwd`.
 
 Optionally set `TIP_DATA_DIR` in `env` to override the default `docs/data/` location. Set `TIP_SHARDS_DIR` to override the default `docs/database/` shard location used by the shard fallback.
 
-### Demo prompt
+### Demo
 
 Once the client is configured:
 
-> Use the tip threat intel tools. Look up CVE-2023-44487 and walk me through the attack chain and defenses. Cite entity IDs.
+> Use the tip threat intel tools. Look up CVE-2023-44487, walk me through the attack chain and defenses, and tell me how urgent the patch is. Cite entity IDs.
+
+[src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md) is that walkthrough recorded as a real MCP client session over stdio on this repo's data (lookup, pivot to T1499, `build_attack_chain`, `get_defenses`, `kev_status`). `python scripts/mcp_demo.py` regenerates it; add `--check` to verify the committed copy still matches.
 
 See [src/tip_mcp/README.md](src/tip_mcp/README.md) for full install and tool details.
 
@@ -263,7 +253,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 236 unit tests across pipeline processors, the MCP layer, and the shared intelligence contract (cross-seam parity), plus 25 Playwright smoke tests; mypy is clean across all 27 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 348 unit tests across pipeline processors, the MCP layer, and the shared intelligence contract (cross-seam parity), plus 25 Playwright smoke tests; mypy is clean across all 27 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 
@@ -286,18 +276,18 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | Always-latest MITRE sources | 2026-06-11 | ATT&CK STIX de-pinned (was frozen at v16.1); techniques refreshed to v19.1; dead XLSX config removed; CodeQL alerts at zero |
 | Enrichment direction decided | 2026-06-11 | CVE2CAPEC adoption rejected (P11 closed); enrichment stays in-house; CWE-gap closure tracked as I21 |
 | P9.5 surface-gap closure | 2026-06-20 | MCP now passes full KEV/SSVC/CVSS/D3FEND detail (I22); schema-driven shared contract `tip_intel.cve_blocks` with cross-seam parity test (I24); web triage badges + clickable references (I23); worklist/triage mode (I28); graph node-label and `/health` 404 fixes (I25/I26) |
+| P10 MCP Phase B | 2026-09-26 | `build_attack_chain`, `get_defenses`, `kev_status` complete the six-tool MCP surface; project `.mcp.json`; recorded CVE-2023-44487 demo in `src/tip_mcp/DEMO.md` |
 
 ### Next
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P10 | MCP Phase B: `build_attack_chain`, `get_defenses`, `kev_status` | Completes the six-tool MCP surface, plus an end-to-end demo capture |
+| P13 | Visual polish, extended exports, worklist follow-ups | Multi-entity worklist MVP shipped 2026-06-20; remaining: graph legend/zoom, worklist filters + CSV export, ATT&CK Navigator export |
 
 ### Later
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P13 | Visual polish, extended exports, worklist follow-ups | Multi-entity worklist MVP shipped 2026-06-20; remaining: graph legend/zoom, worklist filters + CSV export, ATT&CK Navigator export |
 | P14 | Pipeline observability and hardening | Run summaries, failure alerting, data-quality checks |
 | P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 (CWE-assignment gap closure) slotted #2 |
 
