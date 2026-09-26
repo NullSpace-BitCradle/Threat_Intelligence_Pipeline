@@ -13,6 +13,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 from tip_intel import cve_blocks
 
@@ -94,6 +95,62 @@ def _tokenize_name(name: str) -> list[str]:
         return []
     words = re.split(r"[\s\-_/,.:;()\[\]]+", name.lower())
     return [w for w in words if len(w) >= 3]
+
+
+def build_cve_entity_record(
+    cve_id: str,
+    cve_data: dict,
+    cvss_fallback: Callable[[str], dict | None] | None = None,
+) -> dict:
+    """Build one CVE entity record (without rels) from its shard payload.
+
+    Pure: the result depends only on the arguments. ``cvss_fallback(cve_id)``
+    supplies {score, vector, severity} when the shard has no NVD CVSS (the
+    generator passes its CISA vulnrichment lookup). The UI and MCP consumers
+    render score, severity, dates, and description from these fields without
+    loading the JSONL shards.
+    """
+    cve_desc = cve_data.get("DESCRIPTION", "")
+    # Short display name: first sentence (trimmed) or the CVE ID as fallback.
+    # The full description is carried on the entity record itself so we
+    # do not silently truncate intelligence data anywhere.
+    if cve_desc:
+        first_sentence = cve_desc.split(". ", 1)[0].strip()
+        cve_name = first_sentence if first_sentence else cve_id
+    else:
+        cve_name = cve_id
+    record: dict = {"type": "cve", "id": cve_id, "name": cve_name, "phase": "vulnerability"}
+    if cve_desc:
+        record["description"] = cve_desc
+    cvss = cve_data.get("CVSS")
+    if (not isinstance(cvss, dict) or cvss.get("score") is None) and cvss_fallback is not None:
+        # Fall back to the CISA vulnrichment CVSS when NVD CVSS was not
+        # captured during ingest (legacy shards from before the
+        # process_nvd_cves fix).
+        cvss = cvss_fallback(cve_id)
+    if isinstance(cvss, dict):
+        if cvss.get("score") is not None:
+            record["cvss_score"] = cvss.get("score")
+        if cvss.get("severity"):
+            record["severity"] = cvss.get("severity")
+        if cvss.get("vector"):
+            record["cvss_vector"] = cvss.get("vector")
+    if cve_data.get("PUBLISHED"):
+        record["published"] = cve_data["PUBLISHED"]
+    if cve_data.get("LAST_MODIFIED"):
+        record["last_modified"] = cve_data["LAST_MODIFIED"]
+    refs = cve_data.get("REFERENCES")
+    if isinstance(refs, list) and refs:
+        record["references"] = refs
+
+    # Attach the shared CVE intelligence blocks (full KEV detail, SSVC,
+    # CISA CVSS override, CVSS version/source) from the same shard payload.
+    # One contract, shared with the MCP layer (tip_intel.cve_blocks), so a
+    # new field reaches both surfaces without editing three allowlists.
+    # rels are finalized later, so D3FEND-semantics decoration is a no-op
+    # here by design.
+    cve_blocks.enrich(record, cve_data)
+    return record
 
 
 def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
@@ -383,51 +440,15 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             cve_filtered += 1
             continue
 
-        cve_desc = cve_data.get("DESCRIPTION", "")
-        # Short display name: first sentence (trimmed) or the CVE ID as fallback.
-        # The full description is carried on the entity record itself so we
-        # do not silently truncate intelligence data anywhere.
-        if cve_desc:
-            first_sentence = cve_desc.split(". ", 1)[0].strip()
-            cve_name = first_sentence if first_sentence else cve_id
-        else:
-            cve_name = cve_id
-        ensure(cve_id, "cve", cve_name, "vulnerability")
-
-        # Attach enriched metadata directly on the entity record so the UI
-        # and MCP consumers can render score, severity, dates, and description
-        # without loading the JSONL shards.
+        # Record fields (name, description, CVSS, dates, references, and the
+        # shared tip_intel blocks) come from build_cve_entity_record, the
+        # same function the cross-seam parity test drives.
+        record = build_cve_entity_record(cve_id, cve_data, _cvss_from_vulnrichment_db)
+        ensure(cve_id, "cve", record["name"], "vulnerability")
         cve_entity = entities[cve_id]
-        if cve_desc:
-            cve_entity["description"] = cve_desc
-        cvss = cve_data.get("CVSS")
-        if not isinstance(cvss, dict) or cvss.get("score") is None:
-            # Fall back to the CISA vulnrichment CVSS when NVD CVSS was not
-            # captured during ingest (legacy shards from before the
-            # process_nvd_cves fix).
-            cvss = _cvss_from_vulnrichment_db(cve_id)
-        if isinstance(cvss, dict):
-            if cvss.get("score") is not None:
-                cve_entity["cvss_score"] = cvss.get("score")
-            if cvss.get("severity"):
-                cve_entity["severity"] = cvss.get("severity")
-            if cvss.get("vector"):
-                cve_entity["cvss_vector"] = cvss.get("vector")
-        if cve_data.get("PUBLISHED"):
-            cve_entity["published"] = cve_data["PUBLISHED"]
-        if cve_data.get("LAST_MODIFIED"):
-            cve_entity["last_modified"] = cve_data["LAST_MODIFIED"]
-        refs = cve_data.get("REFERENCES")
-        if isinstance(refs, list) and refs:
-            cve_entity["references"] = refs
-
-        # Attach the shared CVE intelligence blocks (full KEV detail, SSVC,
-        # CISA CVSS override, CVSS version/source) from the same shard payload.
-        # One contract, shared with the MCP layer (tip_intel.cve_blocks), so a
-        # new field reaches both surfaces without editing three allowlists.
-        # Additive: existing fields above are untouched. rels are finalized
-        # later, so D3FEND-semantics decoration is a no-op here by design.
-        cve_blocks.enrich(cve_entity, cve_data)
+        for field, value in record.items():
+            if field not in ("type", "id", "name", "phase"):
+                cve_entity[field] = value
 
         cve_count += 1
 
