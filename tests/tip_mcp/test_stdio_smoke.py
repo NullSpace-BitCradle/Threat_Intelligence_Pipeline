@@ -1,6 +1,6 @@
 """ISC-31: stdio smoke test. Launches `python -m tip_mcp.server` as a real
 subprocess on the fixture index, lists its tools over MCP stdio, and calls
-lookup_entity. Skipped when the mcp package is not installed (the rest of the
+lookup_entity, pivot_from_entity, and the three Phase B tools. Skipped when the mcp package is not installed (the rest of the
 tip_mcp suite runs without it)."""
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-async def _session() -> tuple[list, dict, dict]:
+async def _session() -> tuple[list, dict, dict, dict, dict, dict]:
     params = mcp.StdioServerParameters(
         command=sys.executable,
         args=["-m", "tip_mcp.server"],
@@ -39,15 +39,32 @@ async def _session() -> tuple[list, dict, dict]:
             pivot = await client.call_tool(
                 "pivot_from_entity", {"entity_id": "T1548", "target_type": "d3fend"}
             )
+            chain = await client.call_tool("build_attack_chain", {"technique_id": "T1548"})
+            defenses = await client.call_tool("get_defenses", {"cve_id": "CVE-2002-0367"})
+            kev = await client.call_tool("kev_status", {"cve_id": "CVE-2002-0367"})
     tools = [(t.name, t.input_schema) for t in listed.tools]
-    return tools, json.loads(entity.content[0].text), pivot.structured_content
+    return (
+        tools,
+        json.loads(entity.content[0].text),
+        pivot.structured_content,
+        chain.structured_content,
+        defenses.structured_content,
+        kev.structured_content,
+    )
 
 
 def test_stdio_server_lists_tools_and_answers_lookup():
-    tools, entity, pivot = anyio.run(_session)
+    tools, entity, pivot, chain, defenses, kev = anyio.run(_session)
 
     by_name = dict(tools)
-    assert set(by_name) == {"lookup_entity", "pivot_from_entity", "search_threat_intel"}
+    assert set(by_name) == {
+        "lookup_entity",
+        "pivot_from_entity",
+        "search_threat_intel",
+        "build_attack_chain",
+        "get_defenses",
+        "kev_status",
+    }
     assert by_name["lookup_entity"]["required"] == ["entity_id"]
     assert set(by_name["search_threat_intel"]["properties"]) == {"query", "limit", "types"}
 
@@ -57,3 +74,12 @@ def test_stdio_server_lists_tools_and_answers_lookup():
 
     assert pivot["ok"] is True
     assert pivot["meta"]["count"] == 5
+
+    assert set(by_name["build_attack_chain"]["properties"]) == {"technique_id", "limit"}
+    assert by_name["kev_status"]["required"] == ["cve_id"]
+    assert "required" not in by_name["get_defenses"] or not by_name["get_defenses"]["required"]
+
+    assert chain["ok"] is True
+    assert [c["id"] for c in chain["data"]["cwes"]] == ["CWE-269"]
+    assert defenses["ok"] is True and defenses["meta"]["count"] == 5
+    assert kev["ok"] is True and kev["data"]["in_kev"] is True
