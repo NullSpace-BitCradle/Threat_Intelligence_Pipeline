@@ -562,7 +562,7 @@ def _rels_to(loader: IndexLoader, eid: str, rel_type: str, back_rel: str) -> dic
 
 
 def _bare(ref: str) -> str:
-    """'CWE-226' -> '226', 'CAPEC-125' -> '125' (cwe_db.json uses bare numbers)."""
+    """Strip the prefix from a CWE or CAPEC id; cwe_db.json uses bare numbers."""
     return ref.split("-", 1)[1] if "-" in ref else ref
 
 
