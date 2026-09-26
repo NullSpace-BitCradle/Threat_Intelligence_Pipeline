@@ -18,6 +18,8 @@ class ErrorCode(str, Enum):
     INVALID_TYPE = "invalid_type"
     INDEX_NOT_LOADED = "index_not_loaded"
     BAD_PARAM = "bad_param"
+    # A CVE year shard exists but is unreadable (truncated gzip, bad UTF-8).
+    DATA_CORRUPT = "data_corrupt"
 
 
 def ok_response(data: Any, meta: Optional[dict] = None) -> dict:

@@ -43,5 +43,5 @@ def test_error_response_accepts_string_code():
 
 
 def test_error_code_enum_membership():
-    expected = {"not_found", "invalid_type", "index_not_loaded", "bad_param"}
+    expected = {"not_found", "invalid_type", "index_not_loaded", "bad_param", "data_corrupt"}
     assert {e.value for e in ErrorCode} == expected
