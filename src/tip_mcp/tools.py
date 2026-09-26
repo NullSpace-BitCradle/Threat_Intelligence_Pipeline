@@ -352,6 +352,10 @@ def pivot_from_entity_impl(
                         "type": ttype,
                         "name": target.get("name"),
                         "rel_type": rel_type,
+                        # Provenance of the link itself (additive), so a
+                        # derived mapping never reads as a stated fact.
+                        "source": rel_body.get("source"),
+                        "tier": rel_body.get("tier"),
                     }
                 )
         return ok_response(hits, meta={"source": "entity_index.json", "count": len(hits)})
@@ -379,7 +383,18 @@ def pivot_from_entity_impl(
                     name = rel.get("name") or tid
                 if want is not None and not _type_matches(want, ttype, rtype, target):
                     continue
-                hits.append({"id": tid, "type": ttype, "name": name, "rel_type": rtype})
+                hits.append(
+                    {
+                        "id": tid,
+                        "type": ttype,
+                        "name": name,
+                        "rel_type": rtype,
+                        # Shard enrichment lists are pipeline output, not a
+                        # source's own statement, so they are derived.
+                        "source": "Pipeline (shard enrichment)",
+                        "tier": "derived",
+                    }
+                )
             return ok_response(
                 hits,
                 meta={"source": "shard", "shard": shard_name, "count": len(hits)},
@@ -464,3 +479,515 @@ def search_threat_intel_impl(
             "query_tokens": tokens,
         },
     )
+
+
+# Phase B tools: build_attack_chain, get_defenses, kev_status. Each is a thin
+# projection of the entity graph (plus kev_db.json and the shards); none
+# carries a mapping of its own.
+
+DEFAULT_CHAIN_LIMIT = 50
+_NUM_SPLIT_RE = re.compile(r"(\d+)")
+
+
+def _id_key(value: str) -> list:
+    """Natural sort key so numbered ids order numerically, not lexically."""
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p) for p in _NUM_SPLIT_RE.split(value)]
+
+
+def _bad_limit(limit: Any) -> Optional[dict]:
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        return error_response(ErrorCode.BAD_PARAM, "limit must be a positive integer")
+    return None
+
+
+def _resolve_typed(loader: IndexLoader, raw_id: Any, want_type: str, arg: str) -> "tuple[Optional[str], Optional[dict]]":
+    """Resolve raw_id to a graph key of want_type. Returns (key, None) or
+    (None, error envelope) for a bad, unknown, or wrongly typed id."""
+    if not isinstance(raw_id, str) or not raw_id.strip():
+        return None, error_response(ErrorCode.BAD_PARAM, f"{arg} must be a non-empty string")
+    entity_id = normalize_entity_id(raw_id)
+    key = loader.resolve_entity_key(entity_id)
+    if key is None:
+        return None, error_response(
+            ErrorCode.NOT_FOUND,
+            f"{want_type} {entity_id!r} not in entity graph",
+            hint="Use search_threat_intel to find the id first.",
+        )
+    ttype = loader.entities[key].get("type")
+    if ttype != want_type:
+        return None, error_response(
+            ErrorCode.INVALID_TYPE,
+            f"{entity_id!r} is a {ttype}, not a {want_type}",
+            hint=f"{arg} takes an ATT&CK technique id." if want_type == "technique" else None,
+        )
+    return key, None
+
+
+def _name(loader: IndexLoader, eid: str) -> Any:
+    ent = loader.entities.get(eid)
+    return ent.get("name") if ent else None
+
+
+def _capped(items: list, limit: int) -> list:
+    return items[:limit]
+
+
+# Provenance tiers, strongest first. An element composed of several hops is
+# only as strong as its weakest hop; an unknown tier ranks below derived.
+TIER_RANK = {"authoritative": 3, "official": 2, "derived": 1}
+INHERITED_SOURCE = "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)"
+UNVERIFIED_SOURCE = "TIP graph (CWE to CAPEC hop unverified: cwe_db.json unavailable)"
+SHARD_TECHNIQUE_SOURCE = "shard (pipeline CAPEC→Technique enrichment)"
+SHARD_DEFEND_SOURCE = "shard (pipeline Technique→D3FEND enrichment)"
+
+Hop = tuple[Any, Any]  # (source, tier)
+
+
+def _weakest(hops: list[Hop]) -> Hop:
+    """The (source, tier) of the weakest hop; the first one wins a tie."""
+    return min(hops, key=lambda h: TIER_RANK.get(h[1], 0) if isinstance(h[1], str) else 0)
+
+
+def _kev_listed(entry: Optional[dict]) -> bool:
+    """Whether a kev_db.json entry means "in the catalog". The catalog is
+    membership, so an entry without inKEV counts as listed."""
+    return entry is not None and bool(entry.get("inKEV", True))
+
+
+def _kev_flag(loader: IndexLoader, cve_id: str, ent: Optional[dict]) -> bool:
+    """KEV membership from kev_db.json when it is available, else the graph."""
+    kev_db = loader.kev_db
+    if kev_db is not None:
+        return _kev_listed(kev_db.get(cve_id.upper()))
+    return bool((ent or {}).get("kev"))
+
+
+def _rels_to(loader: IndexLoader, eid: str, rel_type: str, back_rel: str) -> dict[str, Hop]:
+    """Targets of eid's rel_type rels plus rel_type entities whose back_rel
+    rels name eid, as target id -> weakest (source, tier) over both
+    directions."""
+    out: dict[str, Hop] = {}
+    body = ((loader.entities.get(eid) or {}).get("rels") or {}).get(rel_type) or {}
+    for tid in body.get("ids", []) or []:
+        out[str(tid)] = (body.get("source"), body.get("tier"))
+    for src_id, rtype, source, tier in loader.reverse_adjacency.get(eid, {}).get(rel_type, []):
+        if rtype == back_rel:
+            out[src_id] = _weakest([out[src_id], (source, tier)]) if src_id in out else (source, tier)
+    return out
+
+
+def _bare(ref: str) -> str:
+    """Strip the prefix from a CWE or CAPEC id; cwe_db.json uses bare numbers."""
+    return ref.split("-", 1)[1] if "-" in ref else ref
+
+
+def build_attack_chain_impl(
+    loader: IndexLoader, technique_id: str, limit: int = DEFAULT_CHAIN_LIMIT
+) -> dict:
+    """The CVEs the graph links to a technique, each explained by the CWE and
+    CAPEC path that connects it, plus the technique's D3FEND defenses.
+
+    The CVE set is exactly the technique's own cve rels. The CAPECs are those
+    whose capec -> technique rel names the technique (the graph stores that
+    edge on the CAPEC, so the loader's reverse adjacency finds it). For each
+    CVE, via_cwes are its CWEs that link to one of those CAPECs and
+    via_capecs the CAPECs reached; a CVE with no such CWE still appears, with
+    empty via lists. cwes lists only the CWEs some returned CVE goes through.
+
+    Every element carries the source and tier of its weakest hop. A CWE to
+    CAPEC hop not in the CWE's own RelatedAttackPatterns (cwe_db.json) was
+    inherited from a ChildOf ancestor by the generator: the CWE is flagged
+    inherited and its tier is derived. CVEs are ordered KEV first, then CVSS
+    descending, then id. Each list is capped at `limit`; meta.totals carries
+    the uncapped counts.
+    """
+    bad = _bad_limit(limit)
+    if bad is not None:
+        return bad
+    if not isinstance(technique_id, str) or not technique_id.strip():
+        return error_response(ErrorCode.BAD_PARAM, "technique_id must be a non-empty string")
+    not_loaded = _ensure_loaded(loader)
+    if not_loaded is not None:
+        return not_loaded
+    key, err = _resolve_typed(loader, technique_id, "technique", "technique_id")
+    if err is not None or key is None:
+        return err or error_response(ErrorCode.NOT_FOUND, "technique not found")
+    tech = loader.entities[key]
+    related = loader.cwe_related_capecs
+
+    # CAPECs whose capec -> technique rel names this technique.
+    capecs: dict[str, dict] = {}
+    for src_id, rel_type, source, tier in loader.reverse_adjacency.get(key, {}).get("capec", []):
+        if rel_type == "technique" and src_id not in capecs:
+            capecs[src_id] = {"id": src_id, "name": _name(loader, src_id), "source": source, "tier": tier}
+
+    cwe_cache: dict[str, Optional[dict]] = {}
+
+    def cwe_entry(cwe_id: str) -> Optional[dict]:
+        """The chain element for a CWE, or None when it reaches no chain CAPEC."""
+        if cwe_id in cwe_cache:
+            return cwe_cache[cwe_id]
+        links = _rels_to(loader, cwe_id, "capec", "cwe")
+        hits = sorted((c for c in links if c in capecs), key=_id_key)
+        entry: Optional[dict] = None
+        if hits:
+            inherited: Optional[bool]
+            if related is None:
+                inherited, inherited_capecs = None, []
+                hops: list[Hop] = [(UNVERIFIED_SOURCE, "derived")]
+            else:
+                own = related.get(_bare(cwe_id), frozenset())
+                inherited_capecs = [c for c in hits if _bare(c) not in own]
+                inherited = bool(inherited_capecs)
+                hops = [(INHERITED_SOURCE, "derived")] if inherited else []
+            hops += [links[c] for c in hits]
+            hops += [(capecs[c]["source"], capecs[c]["tier"]) for c in hits]
+            source, tier = _weakest(hops)
+            entry = {
+                "id": cwe_id,
+                "name": _name(loader, cwe_id),
+                "via_capecs": hits,
+                "inherited": inherited,
+                "inherited_capecs": inherited_capecs,
+                "source": source,
+                "tier": tier,
+            }
+        cwe_cache[cwe_id] = entry
+        return entry
+
+    tbody = (tech.get("rels") or {}).get("cve") or {}
+    tech_cve_hop: Hop = (tbody.get("source"), tbody.get("tier"))
+    own_cves = list(dict.fromkeys(str(c) for c in tbody.get("ids", []) or []))
+
+    cves: list[dict] = []
+    cwes: dict[str, dict] = {}
+    for cve_id in own_cves:
+        ent = loader.entities.get(cve_id) or {}
+        via_cwes: list[str] = []
+        via_capecs: set[str] = set()
+        hops = [tech_cve_hop]
+        cve_cwes = _rels_to(loader, cve_id, "cwe", "cve")
+        for cwe_id in sorted(cve_cwes, key=_id_key):
+            ce = cwe_entry(cwe_id)
+            if ce is None:
+                continue
+            via_cwes.append(cwe_id)
+            via_capecs.update(ce["via_capecs"])
+            cwes[cwe_id] = ce
+            hops += [cve_cwes[cwe_id], (ce["source"], ce["tier"])]
+        source, tier = _weakest(hops)
+        cves.append(
+            {
+                "id": cve_id,
+                "name": ent.get("name"),
+                "kev": _kev_flag(loader, cve_id, ent),
+                "cvss_score": ent.get("cvss_score"),
+                "severity": ent.get("severity"),
+                "via_cwes": via_cwes,
+                "via_capecs": sorted(via_capecs, key=_id_key),
+                "source": source,
+                "tier": tier,
+            }
+        )
+
+    defenses = [
+        {"id": did, "name": _name(loader, did), "source": source, "tier": tier}
+        for did, source, tier in _technique_defenses(loader, key)
+    ]
+
+    capec_list = sorted(capecs.values(), key=lambda c: _id_key(c["id"]))
+    cwe_list = sorted(cwes.values(), key=lambda c: _id_key(c["id"]))
+    cve_list = sorted(
+        cves,
+        key=lambda c: (
+            not c["kev"],
+            c["cvss_score"] is None,
+            -(c["cvss_score"] or 0),
+            _id_key(c["id"]),
+        ),
+    )
+    defense_list = sorted(defenses, key=lambda d: _id_key(d["id"]))
+    unexplained = sum(1 for c in cve_list if not c["via_cwes"])
+    totals = {
+        "capecs": len(capec_list),
+        "cwes": len(cwe_list),
+        "cves": len(cve_list),
+        "defenses": len(defense_list),
+    }
+    meta: dict = {
+        "source": "entity_index.json",
+        "walk": (
+            "cves: the technique's own cve rels; each explained by cve -> cwe -> "
+            "capec -> technique; defenses: technique -> defend"
+        ),
+        "totals": totals,
+        "cves_without_path": unexplained,
+        "limit": limit,
+        "truncated": any(n > limit for n in totals.values()),
+    }
+    if related is None:
+        meta["cwe_db_note"] = (
+            "cwe_db.json unavailable, so CWE to CAPEC hops cannot be checked against "
+            "each CWE's own RelatedAttackPatterns; they are marked unverified and derived."
+        )
+    if not capec_list:
+        note = (
+            f"No CAPEC pattern maps to {key} in the TIP graph, so no weakness path can "
+            "be derived from it."
+        )
+        if cve_list:
+            note += f" Its {len(cve_list)} linked CVEs are listed without a CAPEC or CWE path."
+        meta["note"] = note + " Defenses come from the technique's own D3FEND mappings."
+    elif not cve_list:
+        meta["note"] = f"No CVE in the TIP graph is linked to {key}."
+    elif not cwe_list:
+        meta["note"] = (
+            f"CAPEC patterns map to {key}, but no CWE on its linked CVEs reaches those "
+            "patterns, so its CVEs are listed with no CWE path."
+        )
+    elif unexplained:
+        meta["note"] = (
+            f"{unexplained} of the {len(cve_list)} CVEs linked to {key} have no CWE path "
+            "to its CAPEC patterns; their via lists are empty."
+        )
+    data = {
+        "technique": {"id": key, "name": tech.get("name")},
+        "capecs": _capped(capec_list, limit),
+        "cwes": _capped(cwe_list, limit),
+        "cves": _capped(cve_list, limit),
+        "defenses": _capped(defense_list, limit),
+    }
+    return ok_response(data, meta=meta)
+
+
+def _defend_verbs(payload: dict) -> dict:
+    """D3FEND relationship verbs from a shard payload, keyed by D3FEND id and
+    by fragment name (graphs have used both as the entity id)."""
+    out = dict(cve_blocks.defend_semantics(payload))
+    for defend in payload.get("DEFEND", []) or []:
+        if isinstance(defend, dict) and defend.get("d3fend_fragment") and defend.get("id"):
+            sem = out.get(str(defend["id"]))
+            if sem:
+                out.setdefault(str(defend["d3fend_fragment"]), sem)
+    return out
+
+
+def _technique_defenses(loader: IndexLoader, tech_id: str) -> list[tuple[str, Any, Any]]:
+    """(defend id, source, tier) for a technique over forward and reverse
+    edges, keeping the weaker provenance when both directions exist."""
+    links = _rels_to(loader, tech_id, "defend", "technique")
+    return [(did, hop[0], hop[1]) for did, hop in links.items()]
+
+
+def get_defenses_impl(
+    loader: IndexLoader,
+    technique_id: Any = None,
+    cve_id: Any = None,
+) -> dict:
+    """D3FEND defenses for exactly one of technique_id or cve_id.
+
+    For a technique: its D3FEND mappings with their own provenance. For a
+    CVE: the defenses of each ATT&CK technique the CVE maps to, each naming
+    the techniques it was reached through (via_techniques), plus any defense
+    only on the CVE's own defend rels (via_techniques empty). A CVE-side
+    defense carries the weakest tier of CVE -> technique and technique ->
+    D3FEND (and of the CVE's own rel to it), and mapping_source names that
+    composed path. The D3FEND relationship verb is added when the CVE's
+    shard carries one.
+        Arguments arrive from MCP clients unvalidated, hence Any: a non-string is
+    bad_param.
+    """
+    for arg in (technique_id, cve_id):
+        if arg is not None and not isinstance(arg, str):
+            return error_response(ErrorCode.BAD_PARAM, "technique_id and cve_id must be strings")
+    given = [a for a in (technique_id, cve_id) if a is not None and a.strip()]
+    if len(given) != 1:
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            "pass exactly one of technique_id or cve_id",
+        )
+    not_loaded = _ensure_loaded(loader)
+    if not_loaded is not None:
+        return not_loaded
+
+    if technique_id is not None and technique_id.strip():
+        key, err = _resolve_typed(loader, technique_id, "technique", "technique_id")
+        if err is not None or key is None:
+            return err or error_response(ErrorCode.NOT_FOUND, "technique not found")
+        defs = [
+            {
+                "id": did,
+                "name": _name(loader, did),
+                "mapping_source": source,
+                "tier": tier,
+                "via_techniques": [key],
+            }
+            for did, source, tier in _technique_defenses(loader, key)
+        ]
+        defs.sort(key=lambda d: _id_key(d["id"]))
+        return ok_response(
+            defs,
+            meta={"source": "entity_index.json", "query": {"technique_id": key}, "count": len(defs)},
+        )
+
+    if not isinstance(cve_id, str) or not _CVE_ID_RE.match(cve_id.strip()):
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"cve_id {cve_id!r} is not a valid CVE id",
+            hint="Expected CVE-YYYY-NNNN.",
+        )
+    cid = normalize_entity_id(cve_id)
+    meta: dict = {"query": {"cve_id": cid}}
+
+    # (technique id, source, tier) of each CVE -> technique hop, and
+    # (defend id, source, tier) of the CVE's own defend rels.
+    techniques: list[tuple[str, Any, Any]] = []
+    own: list[tuple[str, Any, Any]] = []
+    payload: Optional[dict] = None
+    key = loader.resolve_entity_key(cid)
+    if key is not None:
+        cid = key
+        rels = loader.entities[key].get("rels") or {}
+        tbody = rels.get("technique") or {}
+        techniques = [(str(t), tbody.get("source"), tbody.get("tier")) for t in tbody.get("ids", []) or []]
+        dbody = rels.get("defend") or {}
+        own = [(str(d), dbody.get("source"), dbody.get("tier")) for d in dbody.get("ids", []) or []]
+        meta["source"] = "entity_index.json"
+    try:
+        shard_hit = loader.find_cve_in_shards(cid)
+    except ShardReadError as exc:
+        if key is None:
+            return _shard_error(exc)
+        shard_hit = None
+        meta["shard_error"] = str(exc)
+    if shard_hit is not None:
+        payload = shard_hit[0]
+        if key is None:
+            meta["source"] = "shard"
+            meta["shard"] = shard_hit[1]
+            for rel in _shard_rels(payload):
+                if rel["rel_type"] == "technique":
+                    techniques.append((rel["target_id"], SHARD_TECHNIQUE_SOURCE, "derived"))
+                elif rel["rel_type"] == "defend":
+                    own.append((rel["target_id"], SHARD_DEFEND_SOURCE, "derived"))
+    if key is None and shard_hit is None:
+        return _not_found(loader, cid)
+
+    verbs = _defend_verbs(payload) if payload else {}
+    out: dict[str, dict] = {}
+    hops: dict[str, list[Hop]] = {}
+    paths: dict[str, list[str]] = {}
+
+    def entry(did: str) -> dict:
+        if did not in out:
+            out[did] = {
+                "id": did,
+                "name": _name(loader, did) or (verbs.get(did) or {}).get("name"),
+                "via_techniques": [],
+            }
+            if (verbs.get(did) or {}).get("relationship") is not None:
+                out[did]["relationship"] = verbs[did]["relationship"]
+            hops[did], paths[did] = [], []
+        return out[did]
+
+    for tech_id, tsource, ttier in techniques:
+        for did, dsource, dtier in _technique_defenses(loader, tech_id):
+            e = entry(did)
+            if tech_id not in e["via_techniques"]:
+                e["via_techniques"].append(tech_id)
+            hops[did] += [(tsource, ttier), (dsource, dtier)]
+            path = f"CVE→technique: {tsource}; technique→D3FEND: {dsource}"
+            if path not in paths[did]:
+                paths[did].append(path)
+    for did, source, tier in own:
+        entry(did)
+        hops[did].append((source, tier))
+        if not paths[did]:
+            paths[did].append(str(source))
+
+    for did, e in out.items():
+        e["mapping_source"] = " | ".join(paths[did])
+        e["tier"] = _weakest(hops[did])[1]
+
+    defs = sorted(out.values(), key=lambda d: _id_key(d["id"]))
+    meta["count"] = len(defs)
+    meta["techniques"] = list(dict.fromkeys(t for t, _, _ in techniques))
+    meta["path"] = "cve -> technique -> defend; each defense carries the weakest tier on its path"
+    if not techniques:
+        meta["note"] = f"{cid} maps to no ATT&CK technique, so only its own D3FEND rels are listed."
+    return ok_response(defs, meta=meta)
+
+
+_KEV_FIELDS = (
+    ("date_added", "dateAdded"),
+    ("due_date", "dueDate"),
+    ("known_ransomware_campaign_use", "knownRansomwareCampaignUse"),
+    ("required_action", "requiredAction"),
+    ("vendor_project", "vendorProject"),
+    ("product", "product"),
+)
+
+
+def kev_status_impl(loader: IndexLoader, cve_id: str) -> dict:
+    """CISA KEV status for a CVE, plus its SSVC decision when known.
+
+    KEV membership and detail come from kev_db.json (the CISA catalog), so a
+    KEV CVE outside the curated graph still reports in_kev true. When
+    kev_db.json is unavailable the entity graph's kev flag is used and meta
+    says so. SSVC comes from the entity record, else the CVE's shard.
+    """
+    if not isinstance(cve_id, str) or not _CVE_ID_RE.match(cve_id.strip()):
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"cve_id {cve_id!r} is not a valid CVE id",
+            hint="Expected CVE-YYYY-NNNN.",
+        )
+    not_loaded = _ensure_loaded(loader)
+    if not_loaded is not None:
+        return not_loaded
+    cid = normalize_entity_id(cve_id)
+    meta: dict = {}
+
+    key = loader.resolve_entity_key(cid)
+    ent = loader.entities[key] if key is not None else None
+    payload: Optional[dict] = None
+    try:
+        hit = loader.find_cve_in_shards(cid)
+    except ShardReadError as exc:
+        hit = None
+        meta["shard_error"] = str(exc)
+    if hit is not None:
+        payload = hit[0]
+
+    kev_db = loader.kev_db
+    detail: Optional[dict]
+    if kev_db is not None:
+        entry = kev_db.get(cid)
+        detail = entry if _kev_listed(entry) else None
+        meta["kev_source"] = "kev_db.json"
+    else:
+        detail = (ent or {}).get("kev_detail") or (cve_blocks.kev_detail(payload) if payload else None)
+        in_graph_kev = bool((ent or {}).get("kev")) or detail is not None
+        if in_graph_kev and detail is None:
+            detail = {}
+        meta["kev_source"] = "entity_index.json" if ent is not None else ("shard" if payload else None)
+        meta["note"] = "kev_db.json unavailable; KEV status taken from the entity graph or shard."
+
+    data: dict = {"cve_id": cid, "in_kev": detail is not None}
+    for out_key, src_key in _KEV_FIELDS:
+        data[out_key] = (detail or {}).get(src_key)
+
+    ssvc = (ent or {}).get("ssvc")
+    ssvc_source: Optional[str] = "entity_index.json" if ssvc else None
+    if not ssvc and payload is not None:
+        ssvc = cve_blocks.ssvc_block(payload)
+        ssvc_source = "shard" if ssvc else None
+    data["ssvc"] = ssvc or None
+    meta["ssvc_source"] = ssvc_source
+    meta["in_entity_graph"] = ent is not None
+    if ent is None and payload is None:
+        meta.setdefault(
+            "note",
+            f"{cid} is not in the entity graph or the shards; KEV status is from the catalog only.",
+        )
+    return ok_response(data, meta=meta)

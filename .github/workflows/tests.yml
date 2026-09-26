@@ -29,10 +29,11 @@ jobs:
       - name: Install dependencies
         run: pip install --require-hashes -r requirements.txt -r requirements-mcp.txt -r requirements-dev.txt
 
+      # Coverage gate covers the MCP layer (the P10 bar); the pipeline core has no floor yet.
       - name: Unit tests
         env:
           PYTHONPATH: src
-        run: python -m pytest -q --ignore=tests/smoke
+        run: python -m pytest -q --ignore=tests/smoke --cov=src/tip_mcp --cov-report=term --cov-fail-under=90
 
       - name: Type check
         run: python -m mypy

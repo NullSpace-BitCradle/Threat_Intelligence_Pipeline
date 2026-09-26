@@ -29,11 +29,13 @@ Status legend:
 
 ## 1. Executive summary
 
-TIP is functional, live, and auto-updating. P9 (stabilization, 2026-06-09) confirmed the pipeline healthy and landed the Playwright smoke suite + CI. P9.5 (surface-gap closure, 2026-06-20) shipped the MCP data-contract passthrough (full KEV / SSVC / CVSS / D3FEND detail, I22), a schema-driven shared intelligence contract with a cross-seam parity test (I24), web triage badges + clickable references (I23), a worklist/triage mode (I28), and graph/`/health` fixes (I25/I26). The headline next deliverable is **MCP Phase B (P10)** — the three remaining tools plus the CVE-2023-44487 end-to-end demo for Strategic Rogue / Partner Network, now unblocked because the MCP returns real intelligence rather than stripped placeholders.
+TIP is functional, live, and auto-updating. P9 (stabilization, 2026-06-09) confirmed the pipeline healthy and landed the Playwright smoke suite + CI. P9.5 (surface-gap closure, 2026-06-20) shipped the MCP data-contract passthrough (full KEV / SSVC / CVSS / D3FEND detail, I22), a schema-driven shared intelligence contract with a cross-seam parity test (I24), web triage badges + clickable references (I23), a worklist/triage mode (I28), and graph/`/health` fixes (I25/I26). **MCP Phase B (P10) shipped 2026-09-26:** the three remaining tools plus the CVE-2023-44487 end-to-end demo for Strategic Rogue and the Partner Network, built on the MCP contract that returns real intelligence rather than stripped placeholders.
 
-The 2026-04-29 CVE2CAPEC + ctibutler proposal was evaluated and rejected (P11 closed 2026-06-11): enrichment stays in-house, and the "do it better" successor work is the CWE-assignment gap closure (I21). P12 (ctibutler) is deferred indefinitely. The plan runs phases P9-P15 (P9 and P9.5 shipped); phase ordering optimizes for portfolio impact (Strategic Rogue + Partner Network demo) before broader feature breadth.
+The 2026-04-29 CVE2CAPEC + ctibutler proposal was evaluated and rejected (P11 closed 2026-06-11): enrichment stays in-house, and the "do it better" successor work is the CWE-assignment gap closure (I21). P12 (ctibutler) is deferred indefinitely. The plan runs phases P9-P15 (P9, P9.5, P9.6, and P10 shipped); phase ordering optimizes for portfolio impact (Strategic Rogue + Partner Network demo) before broader feature breadth.
 
-**P9.6 (2026-09-26): review remediation, SHIPPED on branch `fix/review-2026-09-26`.** A four-reviewer code review found the pipeline reporting success on failure: reference-DB writes that silently committed empty files (the 2026-09-25 vulnrichment wipe), non-atomic shard writes, `run_pipeline.py` exiting 0 on degraded steps, dangling correlation links, an MCP server that failed to import on a fresh install, and ~3,300 lines of dead monitoring/utils code including an exposed web interface. 54 of the 58 ISCs tracked in `ISA.md` are closed at the time of this pass; open: ISC-3 (PR CI green), ISC-4 and ISC-5 (anti-checks scored at PR time), and ISC-58 (this doc pass, closing now). See that file's Decisions and Verification sections for the full record. P10 (MCP Phase B) remains next after merge.
+**P9.6 (2026-09-26): review remediation, SHIPPED on branch `fix/review-2026-09-26`.** A four-reviewer code review found the pipeline reporting success on failure: reference-DB writes that silently committed empty files (the 2026-09-25 vulnrichment wipe), non-atomic shard writes, `run_pipeline.py` exiting 0 on degraded steps, dangling correlation links, an MCP server that failed to import on a fresh install, and ~3,300 lines of dead monitoring/utils code including an exposed web interface. 54 of the 58 ISCs tracked in `ISA.md` are closed at the time of this pass; open: ISC-3 (PR CI green), ISC-4 and ISC-5 (anti-checks scored at PR time), and ISC-58 (this doc pass, closing now). See that file's Decisions and Verification sections for the full record. P10 (MCP Phase B) followed; see the next paragraph.
+
+**P10 (2026-09-26): MCP Phase B, SHIPPED on branch `feat/p10-mcp-phase-b`.** `build_attack_chain`, `get_defenses`, and `kev_status` complete the six-tool MCP surface. `build_attack_chain` returns exactly the CVEs the graph links to the technique and uses the CAPEC and CWE path only to explain each one (`via_cwes`, `via_capecs`); it builds reverse adjacency in memory at load because the entity index stores capec to technique and cwe to capec edges in one direction only. Every chain element and every CVE-side defense carries the tier of the weakest hop on its path, a CWE to CAPEC link absent from the CWE's own RelatedAttackPatterns (`cwe_db.json`) is flagged `inherited` and derived, and an empty chain says why it is empty. `get_defenses(cve_id)` labels its defenses derived (TIP derives CVE to technique links) and names the techniques each is reached through. `kev_status` decides KEV membership from `kev_db.json`, the CISA catalog. A project `.mcp.json` launches the server from a clone, and `src/tip_mcp/DEMO.md` records the CVE-2023-44487 walkthrough as a real stdio MCP client session (`scripts/mcp_demo.py`, reproducible byte for byte). The demo anchor moved from T1498 to T1499; see Decisions.
 
 ## 2. Current state (verifiable, 2026-09-26)
 
@@ -82,10 +84,10 @@ Renumbered into the new ID space. Originals in parentheses for traceability.
 | New ID | Old | Item | Status |
 |--------|-----|------|--------|
 | T9.2 | N1 | Verify auto-pipeline runs populate the new NVD fields | DONE (P9, 2026-06-09) |
-| T10.1 | N2 | MCP Phase B: `build_attack_chain` | NEXT |
-| T10.2 | N2 | MCP Phase B: `get_defenses` | NEXT |
-| T10.3 | N2 | MCP Phase B: `kev_status` | NEXT |
-| T10.4 | N3 | CVE-2023-44487 demo capture for Partner Network | NEXT (deps T10.1) |
+| T10.1 | N2 | MCP Phase B: `build_attack_chain` | DONE (P10, 2026-09-26) |
+| T10.2 | N2 | MCP Phase B: `get_defenses` | DONE (P10, 2026-09-26) |
+| T10.3 | N2 | MCP Phase B: `kev_status` | DONE (P10, 2026-09-26) |
+| T10.4 | N3 | CVE-2023-44487 demo capture for Partner Network | DONE (P10, 2026-09-26; scripted stdio session, `src/tip_mcp/DEMO.md`) |
 | T13.1 | D2 | Multi-entity analysis mode (paste list, combined view) | MVP SHIPPED 2026-06-20 (worklist, I28); follow-ups → P13 |
 | T13.2 | D3 | Visual polish (graph legend, zoom, landing, responsive) | DEFERRED → P13 |
 | T13.3 | D4 | Live pipeline trigger from search bar | DEFERRED → P15 |
@@ -134,6 +136,7 @@ From a full technical + usability review of the deployed system (live-probed via
 - **I26: `/health` 404 on every page load.** The deployed site requests a health endpoint that does not exist (404 in console on load). Either remove the request or ship the endpoint (ties to I5/T14.1). NEW (bug).
 - **I27: Description/reference sanitization audit.** The SPA parses markdown links out of NVD descriptions/references and GitHub Pages cannot set a CSP. Confirm this cannot carry stored-XSS for a security tool. Audit, not yet a confirmed vuln. NEW (security).
 - **I28: Worklist / triage mode.** The deployed SPA has no list/filter/sort across a result set (search caps at 5/type) — an analyst cannot ask "KEV CVEs with ransomware use due this month" though every field exists. Biggest usability lift. Extends **I13.1** (multi-entity). Own design pass. NEW.
+- **I29: Parent CWEs labeled as NVD-assigned (NEXT, added 2026-09-26).** The processor adds one level of ChildOf parents to each CVE's CWE list, and the generator publishes the whole list as `NVD Enrichment / authoritative`. In CVE-2024, 35,993 of 36,772 records with CWEs (97%) carry a parent of one of their own CWEs. The inherited parents then fan out CWE to CAPEC to technique mappings: CVE-2023-44487 (HTTP/2 Rapid Reset) maps to T1134 Access Token Manipulation, T1539, and T1606 only through CWE-664, a parent NVD never assigned. Fix: keep the NVD-assigned CWEs as the authoritative set, and either drop parent expansion from CVE-to-technique derivation or carry parents separately with an `inherited` tier, as the MCP now does for CWE to CAPEC hops. Affects the site, the entity index, and the MCP. Found by the P10 fresh-context review. ~half day plus a regeneration.
 
 ### 4.2 Higher effort, conditional value
 
@@ -150,7 +153,7 @@ From a full technical + usability review of the deployed system (live-probed via
 - **I17: Shard-size budget monitoring.** `docs/database` is 110 MB on disk today (up from the 35 MB figure this item was written against); track YoY growth and define a "when do we shard differently or move off Pages" trigger. ~half day for the monitoring code, ongoing for the policy.
 - **I18: GitHub Pages content-hash cache busting.** Ensure clients always pull fresh entity_index.json after pipeline runs. ~1-2 hours.
 - **I19: Pipeline rate-limit observability.** Partly addressed: NVD request pacing now honors the documented limits (6 s between requests keyless, 0.6 s keyed) via one shared helper (F4, ISC-28). Per-run 429/retry counts are not yet captured or surfaced; that part is still open. ~half day.
-- **I20: Test coverage gates in CI.** Today: 236 unit tests plus 25 Playwright smoke tests, running in CI (`tests.yml`, `smoke-test.yml`); the CI-gate half of this item is done. No coverage threshold is enforced; `pytest-cov --cov-fail-under=80` for `src/tip_mcp/` and `--cov-fail-under=60` for `src/tip/` is still open. ~2-3 hours.
+- **I20: Test coverage gates in CI.** Today: 236 unit tests plus 25 Playwright smoke tests, running in CI (`tests.yml`, `smoke-test.yml`); the CI-gate half of this item is done. `src/tip_mcp/` now has a 90% coverage floor in CI (P10); a floor for `src/tip/` is still open. ~2-3 hours.
 
 ### 4.4 Drop or hold
 
@@ -202,6 +205,8 @@ Seven phases, sequenced to maximize Strategic Rogue + Partner Network impact whi
 - ISC-9.5.5: Anti — no Phase A response-envelope break; existing MCP tests still pass.
 
 ### P10 — MCP Phase B + Partner Network demo (2 days)
+
+**Status: SHIPPED 2026-09-26** on branch `feat/p10-mcp-phase-b` (PR to main; the principal merges). The task-level definition of done lived in a task ISA whose claims supersede ISC-10.1 to ISC-10.9 below where they differ: the demo anchor is T1499, not T1498 (ISC-10.2, ISC-10.3, ISC-10.5), and the transcript is a scripted stdio MCP client session rather than a captured Claude Code run (ISC-10.7), because running `claude` as a subprocess is out of scope. See Decisions and Verification.
 
 **Why next:** highest-leverage portfolio work and the current active phase. Partner Network reviewers can run the demo end-to-end. CCA Foundations evidence builds. **P9.5 (I22) shipped 2026-06-20, so Phase B now builds on a contract that returns real intelligence — not stripped placeholders.**
 
@@ -371,7 +376,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 ## 9. Source documents (carry forward)
 
-- `docs/superpowers/specs/mcp-server-scope.md` — canonical for MCP scope; P10 follows §5.4-§5.6 verbatim
+- `docs/superpowers/specs/mcp-server-scope.md` — canonical for MCP scope; P10 follows §5.4-§5.6 verbatim. Missing from the repo as of 2026-09-26; P10 was built from T10.1 to T10.6 and ISC-10.1 to ISC-10.9 instead (see Decisions).
 - `docs/superpowers/specs/2026-03-14-tip-v2-redesign-design.md`
 - `docs/superpowers/plans/2026-03-14-kev-vulnrichment-integration.md`
 - `docs/superpowers/specs/2026-03-18-provenance-campaigns-design.md`
@@ -388,6 +393,11 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 ## Decisions
 
 (append-only log; new entries on top)
+
+- 2026-09-26: P10 demo anchor moved from T1498 to T1499. Probe on the regenerated index: T1498 (Network Denial of Service) has 0 CAPEC links, so `build_attack_chain("T1498")` can only return an empty chain; T1499 (Endpoint Denial of Service) has 3 CAPECs and 11 D3FEND defenses, and CVE-2023-44487 maps to T1499, not T1498. (Corrected 2026-09-26 after the fresh-context review: the first probe also reported 52 CWEs and 19 CVEs, counts from a walk that followed CWEs inheriting the CAPECs up the ChildOf chain. With the chain restricted to the technique's own CVE rels, the regenerated index gives 17 CVEs, all KEV, explained through 5 CWEs, 3 of them flagged inherited.) ISC-10.2, ISC-10.3, and ISC-10.5 are read with T1499. T1498 stays in the test story as the honest empty-chain case: ok, empty lists, a `meta.note`, and its 11 defenses.
+- 2026-09-26: the P10 scope doc this plan cites as canonical (`docs/superpowers/specs/mcp-server-scope.md`, §5.4 to §5.6) does not exist in the repo. P10 contracts were taken from T10.1 to T10.6 and ISC-10.1 to ISC-10.9 in this plan. `kev_status` returns `known_ransomware_campaign_use` (the KEV catalog field) in place of the `known_campaigns` named in T10.3, plus the other KEV catalog fields, and `ssvc` in place of `ssvc_decision`.
+- 2026-09-26: P10 builds reverse adjacency (target to incoming edges) on the MCP loader, once and lazily, instead of changing the entity-index generator. The graph stores capec to technique and cwe to capec but not the reverse, so a forward walk from a technique finds nothing.
+- 2026-09-26: pytest-cov added to `requirements-dev.txt` with the principal's approval (same 7-day cooldown, hash-locked). `tests.yml` now enforces `--cov-fail-under=90` on `src/tip_mcp`; the pipeline core still has no coverage floor.
 
 - 2026-09-26: P9.6 review remediation decisions (full detail in `ISA.md` Decisions). Restore vulnrichment_db.json on `main` (`169c6ef`) and pause the weekly `Run CVE Pipeline` until this branch merges; deliver via branch `fix/review-2026-09-26` + PR, principal merges, no history rewrite for the existing repo growth. Layer 2 (curated CVE) redefined as KEV, APT-linked, or SSVC exploitation `active`: curated CVEs drop from 2,971 to 1,726 (every KEV CVE) on the next pipeline run, all others stay reachable via shard fallback. Reference-DB write floor set at 50% of the existing record count, plus a stricter refusal of a zero-record write even when no file exists yet. The APT-linked clause is inert (APT_GROUPS never populates from technique overlap) and stays that way rather than tagging 60% of all CVEs as noise. Async/aiohttp port rejected outright (NVD pacing makes the fetch serial by nature, the policy text is corrected instead of the code). Three requirements files hash-locked via `uv pip compile --generate-hashes` with a 7-day cooldown, installed with `pip --require-hashes`.
 - 2026-06-20 — Removed `Plans/ROADMAP.md`. MASTER_PLAN is the sole plan of record; the superseded ROADMAP added no value in-tree. Git history retains it. Updated the `supersedes` frontmatter, the intro line, and the §9 source-doc list; earlier P9 ISC/narrative mentions of ROADMAP are left as historical record.
@@ -407,6 +417,8 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append on each shipped phase)
 
+- 2026-09-26 (P10, MCP Phase B): shipped on branch `feat/p10-mcp-phase-b`. Three new tools: `build_attack_chain` (the technique's own CVEs, each explained by its CWE and CAPEC path, with KEV-first, CVSS-descending ordering, D3FEND defenses, weakest-hop provenance on every element, inherited CWE links flagged, per-list cap with true totals), `get_defenses` (technique or CVE, exactly one; CVE-side defenses name the techniques they were reached through, carry the derived tier of that path, and keep the D3FEND relationship verb), and `kev_status` (CISA KEV catalog fields plus SSVC). Project `.mcp.json` at the repo root; `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`. READMEs list all six tools with example prompts. Phase A envelopes unchanged.
+
 - 2026-09-26 (P9.6, review remediation): shipped on branch `fix/review-2026-09-26`, 58 ISCs tracked in `ISA.md`. Fail-closed reference-data writes and honest exit codes (F1/F2) close the June NVD-brownout gap and the September vulnrichment wipe at the root. Atomic shard/index writes (F3) and correlation correctness with zero dangling relationship targets (F4) landed alongside. The MCP server now imports cleanly on the pinned `mcp` 2.x SDK, with the three Phase A tools fully covered (F5). Frontend hardening shipped (F6): search route fixed, `d3` vendored under CSP, worklist capped at 25. CI now runs the unit suite and mypy on every push/PR with hash-locked, pinned dependencies (F7). ~3,300 lines of dead monitoring/utils code removed, including the exposed `web_interface.py` (F8). Shards write deterministically so an unchanged run adds no new bytes to history (F9). Test suite: 236 unit tests + 25 Playwright smoke tests, mypy clean on 27 files. Full ISC-by-ISC verification is in `ISA.md`, not duplicated here.
 - 2026-06-20 (I24 + I28): **I24** schema-driven CVE intel contract shipped — `tip_intel.cve_blocks` is the single source of truth, consumed by both the generator and the MCP; `tests/test_cve_intel_parity.py` fails the build on any future cross-seam drift; three hand-maintained allowlists collapsed to one. **I28** worklist/triage MVP shipped — `#/list[/<ids>]` route: paste entity IDs → one sortable table with CVSS / KEV / ransomware / SSVC / due-date across the cohort, rows click into entity pages. entity_index.json gains the I24 blocks on the next pipeline run (additive).
 - 2026-06-20 (P9.5 — planning): deployed-state review landed I22–I28 and inserted P9.5 ahead of P10. No code shipped at plan-landing time; I22 implementation begins immediately after.
@@ -416,6 +428,17 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 ## Verification
 
 (append per ISC as it passes)
+
+- 2026-09-26 (P10, MCP Phase B, after the review fixes): `pytest -q --ignore=tests/smoke` = 364 passed (293 before P10; `tests/tip_mcp` 114 to 185); `mypy` = no issues in 27 source files; `pytest tests/tip_mcp --cov=src/tip_mcp --cov-fail-under=90` = 95.90% (server.py 100%, tools.py 97%, loader.py 94%, schema.py 100%).
+  - ISC-10.1 PASS: `lookup_entity("CVE-2023-44487")` in `src/tip_mcp/DEMO.md` step 1 returns KEV true, CVSS 7.5 HIGH, description, references, 83 relationships.
+  - ISC-10.2 PASS (read with T1499): DEMO.md step 2 returns 9 techniques including T1499.
+  - ISC-10.3 PASS (read with T1499): on the regenerated index `build_attack_chain("T1499")` returns 3 CAPECs, 5 CWEs (3 inherited, derived), 17 CVEs (all KEV, all derived, every one with a CWE path), 11 defenses; on the published `docs/data` (DEMO.md step 3) 3 CAPECs, 11 CWEs, 98 CVEs, 11 defenses. `T1498` returns ok with empty chain lists, a `meta.note`, and 11 defenses. A sweep of all 697 techniques on the regenerated index finds 0 whose chain CVE set differs from its own CVE rels (60 before the fix), and a sweep of every chain plus `get_defenses` for all 1,726 KEV CVEs finds 0 elements labeled authoritative or official with a derived or inherited hop.
+  - ISC-10.4 PASS: DEMO.md step 6, `in_kev: true`, `date_added: 2023-10-10`, `due_date: 2023-10-31`.
+  - ISC-10.5 PASS (read with T1499): `get_defenses(technique_id="T1499")` returns 11 D3FEND entities with `mapping_source` MITRE D3FEND, tier official (DEMO.md step 4); for the CVE, 44 defenses, each naming the techniques it was reached through, carrying a relationship verb, and labeled derived (DEMO.md step 5).
+  - ISC-10.6 PASS: coverage gate above, enforced in CI (`tests.yml`, pytest-cov in `requirements-dev.txt`).
+  - ISC-10.7 PASS: README and `src/tip_mcp/README.md` link DEMO.md, a scripted stdio MCP client transcript; `python scripts/mcp_demo.py --check` reports it matches a fresh run.
+  - ISC-10.8 PASS (Anti): every Phase A test file is unchanged except `test_stdio_smoke.py`, whose tool-set assertion was extended from three tools to six by design.
+  - ISC-10.9 PASS (Anti): no technique, CAPEC, CWE, or D3FEND id literal in the lines P10 added under `src/tip_mcp`; every tool reads `entity_index.json`, `kev_db.json`, or the shards.
 
 - 2026-09-26 (P9.6, review remediation): 54 of 58 ISCs verified and closed at the time of this pass; see `ISA.md` Verification for the ISC-by-ISC evidence (test names, commit hashes, probe output). Headline numbers: `pytest -q --ignore=tests/smoke` = 236 passed; `mypy` = no issues in 27 source files; regenerated `entity_index.json` probe = 0 dangling relationship targets at 7.55 MB with 0 of 1,726 KEV CVEs missing. ISC-58 (this doc pass) is recorded in this plan's Changelog and Decisions entries above plus the README status snapshot, both dated 2026-09-26. Open: ISC-3 (PR CI green, principal merges), ISC-4 and ISC-5 (anti-checks scored at PR time).
 - 2026-06-20 (P9.5 / I22 — T9.5.1, T9.5.2): MCP shard-passthrough implemented in `src/tip_mcp/tools.py` (+128 lines; helpers `_kev_detail`/`_ssvc_block`/`_cisa_cvss`/`_defend_semantics`/`_enrich_record_from_shard`; `_shard_rels` now emits d3fend+apt rels; entity path merges shard detail onto CVE entities). New tests `tests/tip_mcp/test_i22_passthrough.py` (5).

@@ -1,6 +1,7 @@
 # Test and type-check tooling (CI tests.yml and smoke-test.yml, local dev). Compile with:
 #   uv pip compile requirements-dev.in -o requirements-dev.txt --generate-hashes -p 3.13 --exclude-newer <7 days ago>
 pytest
+pytest-cov
 pytest-playwright
 playwright
 mypy

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tip-mcp": {
+      "type": "stdio",
+      "command": "${TIP_PYTHON:-python3}",
+      "args": ["-m", "tip_mcp.server"],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}

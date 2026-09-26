@@ -91,6 +91,13 @@ class IndexLoader:
         # Number of shard files read from disk; tests use it to prove caching
         # and the miss short-circuit.
         self.shard_loads = 0
+        # Built lazily from the entity graph; see reverse_adjacency.
+        self._reverse: Optional[dict[str, dict[str, list[tuple[str, str, Any, Any]]]]] = None
+        # kev_db.json keyed by CVE ID; False means "tried and unavailable".
+        self._kev_db: "Optional[dict[str, dict] | bool]" = None
+        # cwe_db.json RelatedAttackPatterns by bare CWE number; False means
+        # "tried and unavailable".
+        self._cwe_capecs: "Optional[dict[str, frozenset[str]] | bool]" = None
 
     @property
     def loaded(self) -> bool:
@@ -134,6 +141,83 @@ class IndexLoader:
         self._shard_cache.clear()
         self._cache_bytes = 0
         self._oversize_years.clear()
+        self._reverse = None
+        self._kev_db = None
+        self._cwe_capecs = None
+
+    @property
+    def reverse_adjacency(self) -> dict[str, dict[str, list[tuple[str, str, Any, Any]]]]:
+        """Incoming edges for every entity, built once from the graph.
+
+        The entity index stores some edges in one direction only (a CAPEC
+        names its techniques, a CWE names its CAPECs). This maps
+        target_id -> source entity type -> [(source_id, rel_type, source,
+        tier)] so a walk can follow those edges backwards. Order follows the
+        index, so it is deterministic.
+        """
+        if self._reverse is None:
+            rev: dict[str, dict[str, list[tuple[str, str, Any, Any]]]] = {}
+            for eid, ent in self.entities.items():
+                src_type = ent.get("type")
+                if not isinstance(src_type, str):
+                    continue
+                for rel_type, body in (ent.get("rels") or {}).items():
+                    if not isinstance(body, dict):
+                        continue
+                    for tid in body.get("ids", []) or []:
+                        rev.setdefault(str(tid), {}).setdefault(src_type, []).append(
+                            (eid, rel_type, body.get("source"), body.get("tier"))
+                        )
+            self._reverse = rev
+        return self._reverse
+
+    @property
+    def kev_db(self) -> Optional[dict[str, dict]]:
+        """CISA KEV catalog from kev_db.json, keyed by upper-case CVE ID.
+
+        None when the file is absent or malformed; callers fall back to the
+        entity graph and say so. Loaded once per load().
+        """
+        if self._kev_db is None:
+            self._kev_db = False
+            path = self.data_dir / "kev_db.json"
+            if path.is_file():
+                try:
+                    data = _read_json(path, "kev_db.json")
+                except IndexNotLoadedError:
+                    data = None
+                if isinstance(data, dict):
+                    self._kev_db = {
+                        str(k).strip().upper(): v for k, v in data.items() if isinstance(v, dict)
+                    }
+        return self._kev_db if isinstance(self._kev_db, dict) else None
+
+    @property
+    def cwe_related_capecs(self) -> Optional[dict[str, frozenset[str]]]:
+        """Each CWE's own RelatedAttackPatterns from cwe_db.json (MITRE CWE),
+        as bare CWE number -> bare CAPEC numbers.
+
+        The entity graph's cwe -> capec edges also carry CAPECs inherited up
+        the ChildOf chain; this is what tells the two apart. None when the
+        file is absent or malformed. Loaded once per load().
+        """
+        if self._cwe_capecs is None:
+            self._cwe_capecs = False
+            path = self.data_dir / "cwe_db.json"
+            if path.is_file():
+                try:
+                    data = _read_json(path, "cwe_db.json")
+                except IndexNotLoadedError:
+                    data = None
+                if isinstance(data, dict):
+                    self._cwe_capecs = {
+                        str(k).strip(): frozenset(
+                            str(c).strip() for c in (v.get("RelatedAttackPatterns") or [])
+                        )
+                        for k, v in data.items()
+                        if isinstance(v, dict)
+                    }
+        return self._cwe_capecs if isinstance(self._cwe_capecs, dict) else None
 
     def _load_cve_ids(self) -> Optional[dict[str, list[int]]]:
         """Load the Layer 1 all-IDs index. Absent or malformed means None,
