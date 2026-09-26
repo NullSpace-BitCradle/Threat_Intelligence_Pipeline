@@ -123,7 +123,7 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 83 relationships.
 pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
 ```
 
-9 techniques: T1134, T1134.001, T1134.002, T1134.003, T1499, T1528, T1539, T1550.004, T1606.
+9 techniques: T1134, T1134.001, T1134.002, T1134.003, T1499, T1528, T1539, T1550.004, T1606. Tiers of these links: 9 derived.
 
 ```json
 {
@@ -133,49 +133,65 @@ pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
       "id": "T1134",
       "type": "technique",
       "name": "Access Token Manipulation",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1134.001",
       "type": "technique",
       "name": "Token Impersonation/Theft",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1134.002",
       "type": "technique",
       "name": "Create Process with Token",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1134.003",
       "type": "technique",
       "name": "Make and Impersonate Token",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1499",
       "type": "technique",
       "name": "Endpoint Denial of Service",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1528",
       "type": "technique",
       "name": "Steal Application Access Token",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1539",
       "type": "technique",
       "name": "Steal Web Session Cookie",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     {
       "id": "T1550.004",
       "type": "technique",
       "name": "Web Session Cookie",
-      "rel_type": "technique"
+      "rel_type": "technique",
+      "source": "Pipeline (CAPEC→Technique chain)",
+      "tier": "derived"
     },
     "... 1 more"
   ],

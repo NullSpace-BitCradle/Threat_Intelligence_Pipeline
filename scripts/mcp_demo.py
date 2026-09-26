@@ -105,7 +105,10 @@ def summarize(tool: str, result: dict) -> str:
             f"KEV {data['kev']}, {meta['rel_count']} relationships."
         )
     if tool == "pivot_from_entity":
-        return f"{meta['count']} techniques: " + ", ".join(h["id"] for h in data) + "."
+        return (
+            f"{meta['count']} techniques: " + ", ".join(h["id"] for h in data)
+            + f". Tiers of these links: {tier_counts(data)}."
+        )
     if tool == "build_attack_chain":
         t = meta["totals"]
         kev = sum(1 for c in data["cves"] if c["kev"])

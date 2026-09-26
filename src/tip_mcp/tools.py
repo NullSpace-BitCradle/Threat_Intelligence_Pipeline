@@ -352,6 +352,10 @@ def pivot_from_entity_impl(
                         "type": ttype,
                         "name": target.get("name"),
                         "rel_type": rel_type,
+                        # Provenance of the link itself (additive), so a
+                        # derived mapping never reads as a stated fact.
+                        "source": rel_body.get("source"),
+                        "tier": rel_body.get("tier"),
                     }
                 )
         return ok_response(hits, meta={"source": "entity_index.json", "count": len(hits)})
@@ -379,7 +383,18 @@ def pivot_from_entity_impl(
                     name = rel.get("name") or tid
                 if want is not None and not _type_matches(want, ttype, rtype, target):
                     continue
-                hits.append({"id": tid, "type": ttype, "name": name, "rel_type": rtype})
+                hits.append(
+                    {
+                        "id": tid,
+                        "type": ttype,
+                        "name": name,
+                        "rel_type": rtype,
+                        # Shard enrichment lists are pipeline output, not a
+                        # source's own statement, so they are derived.
+                        "source": "Pipeline (shard enrichment)",
+                        "tier": "derived",
+                    }
+                )
             return ok_response(
                 hits,
                 meta={"source": "shard", "shard": shard_name, "count": len(hits)},

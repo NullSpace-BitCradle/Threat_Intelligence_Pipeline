@@ -667,3 +667,27 @@ def test_cwe_db_malformed_or_odd_entries(tmp_path):
     (tmp_path / "cwe_db.json").write_text(json.dumps({"900": {"RelatedAttackPatterns": [900]}, "901": "junk"}))
     ld.load()
     assert ld.cwe_related_capecs == {"900": frozenset({"900"})}
+
+
+def test_pivot_hits_carry_link_provenance(loader):
+    """Every pivot hit names the source and tier of the link it came from, on
+    both the entity path and the shard path, so a derived mapping never reads
+    as a stated fact."""
+    from tip_mcp.tools import pivot_from_entity_impl
+
+    for entity_id, rel_owner in (("T1548", "T1548"),):
+        res = pivot_from_entity_impl(loader, entity_id)
+        assert res["ok"] and res["data"]
+        rels = loader.entities[rel_owner]["rels"]
+        for hit in res["data"]:
+            body = rels[hit["rel_type"]]
+            assert hit["source"] == body.get("source")
+            assert hit["tier"] == body.get("tier")
+
+
+def test_pivot_shard_hits_are_derived(loader):
+    from tip_mcp.tools import pivot_from_entity_impl
+
+    res = pivot_from_entity_impl(loader, "CVE-2024-31337")
+    assert res["ok"] and res["meta"]["source"] == "shard" and res["data"]
+    assert {h["tier"] for h in res["data"]} == {"derived"}
