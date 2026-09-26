@@ -33,33 +33,43 @@ TIP is functional, live, and auto-updating. P9 (stabilization, 2026-06-09) confi
 
 The 2026-04-29 CVE2CAPEC + ctibutler proposal was evaluated and rejected (P11 closed 2026-06-11): enrichment stays in-house, and the "do it better" successor work is the CWE-assignment gap closure (I21). P12 (ctibutler) is deferred indefinitely. The plan runs phases P9-P15 (P9 and P9.5 shipped); phase ordering optimizes for portfolio impact (Strategic Rogue + Partner Network demo) before broader feature breadth.
 
-## 2. Current state (verifiable, 2026-06-20)
+**P9.6 (2026-09-26): review remediation, SHIPPED on branch `fix/review-2026-09-26`.** A four-reviewer code review found the pipeline reporting success on failure: reference-DB writes that silently committed empty files (the 2026-09-25 vulnrichment wipe), non-atomic shard writes, `run_pipeline.py` exiting 0 on degraded steps, dangling correlation links, an MCP server that failed to import on a fresh install, and ~3,300 lines of dead monitoring/utils code including an exposed web interface. 54 of the 58 ISCs tracked in `ISA.md` are closed at the time of this pass; open: ISC-3 (PR CI green), ISC-4 and ISC-5 (anti-checks scored at PR time), and ISC-58 (this doc pass, closing now). See that file's Decisions and Verification sections for the full record. P10 (MCP Phase B) remains next after merge.
+
+## 2. Current state (verifiable, 2026-09-26)
 
 ### 2.1 Code on disk
 
-- 27+ Python modules in `src/tip/` (core processors, monitoring, utils, database)
-- Shared `src/tip_intel/` intelligence contract (`cve_blocks`), consumed by both the generator and the MCP
-- 5 Python modules in `src/tip_mcp/` (loader, schema, server, tools)
-- 82 tests passing (processors + MCP layer + cross-seam parity + Playwright smoke)
-- Static SPA in `docs/` (HTML + 5 JS modules + 2 CSS files)
-- 3 GitHub Actions workflows (daily reference DB, weekly CVE pipeline, site smoke test)
+- 20 Python modules in `src/tip/` (core processors, utils, database); the `monitoring/` package and the dead half of `utils/` (`web_interface.py`, `rate_limiter.py`, `error_recovery.py`, `config_validator.py`, `request_tracker.py`, `metrics.py`, `health_check.py`) were removed 2026-09-26 as unused (F8), so I5's "existing monitoring/ code" premise no longer holds; any observability work starts from zero
+- Shared `src/tip_intel/` intelligence contract (`cve_blocks`), consumed by both the generator and the MCP (2 modules)
+- 5 Python modules in `src/tip_mcp/` (loader, schema, server, tools, `__init__`)
+- 27 source files total across `src/`; `mypy` (as configured in `pyproject.toml`) is clean on all of them
+- 236 unit tests passing (`pytest -q --ignore=tests/smoke`: processors + MCP layer + cross-seam parity + honest-exit-code + atomic-write regression coverage) plus 25 Playwright smoke tests (`tests/smoke/`); no coverage threshold is enforced (I20 still open)
+- Static SPA in `docs/` (HTML + 5 JS modules + 2 CSS files + vendored `d3` under `docs/vendor/`)
+- 4 GitHub Actions workflows: `tests.yml` (unit tests + mypy, push to main + PR), `update-databases.yml` (daily reference DB), `run-pipeline.yml` (weekly CVE pipeline), `smoke-test.yml` (local gate on push/PR touching docs, daily live canary). Actions pinned to commit SHAs; CodeQL runs as GitHub's default setup; `.github/dependabot.yml` covers pip and github-actions. No branch protection is configured, so these are CI gates, not enforced required checks.
+- Three hash-locked lockfiles (`requirements.txt`, `requirements-dev.txt`, `requirements-mcp.txt`) compiled by `uv pip compile --generate-hashes` from their `*.in` sources with a 7-day `--exclude-newer` cooldown; CI installs with `pip install --require-hashes`. `requirements.txt` carries only `requests` and its transitives.
 
 ### 2.2 Data on disk
 
-Counts move with the auto-pipeline; the README status snapshot carries the live figures. As of the 2026-06-14 index build:
+Counts move with the auto-pipeline; the README status snapshot carries the live figures. As of the 2026-09-20 index build (the last one published; the next pipeline run applies the corrected Layer 2 rule below):
 
 | Asset | Current |
 |-------|---------|
-| `docs/data/entity_index.json` | 5,503 entities (v1.5): 2,891 curated CVEs, 969 CWEs, 697 techniques, 559 CAPECs, 174 APT groups, 147 D3FEND, 56 campaigns, 10 OWASP |
-| `docs/data/cve_ids_index.json` | 357,794 CVE IDs (all-CVE tiered index) |
-| `docs/database/CVE-*.jsonl.gz` | 28 per-year shards, full per-CVE enrichment |
-| `docs/data/kev_db.json` | 1,623 CISA KEV entries (daily refresh) |
+| `docs/data/entity_index.json` | 5,585 entities (v1.5): 2,971 curated CVEs under the prior inclusion rule, 969 CWEs, 697 techniques, 559 CAPECs, 176 APT groups, 147 D3FEND, 56 campaigns, 10 OWASP. Layer 2 (curated CVE) is now defined as KEV, APT-linked, or SSVC exploitation status `active`; today that is exactly the 1,726 KEV CVEs. On the next pipeline run the curated set rebuilds to every KEV CVE and the index shrinks to about 4,340 entities (~7.6 MB) with zero dangling relationship targets. |
+| `docs/data/cve_ids_index.json` | 395,617 CVE IDs (all-CVE tiered index); every one, curated or not, stays reachable by ID through the per-year shard fallback |
+| `docs/database/CVE-*.jsonl.gz` | 28 per-year shards, full per-CVE enrichment, written atomically with deterministic gzip so an unchanged shard re-writes byte-identical |
+| `docs/data/kev_db.json` | 1,726 CISA KEV entries (daily refresh) |
 
 ### 2.3 Resolved since the 2026-05-08 snapshot
 
 - **The "two-week stall" was a non-issue.** P9 (2026-06-09) confirmed it: the local checkout was simply behind; every remote commit was healthy auto-pipeline data maintenance. Pipeline verified healthy, with the Playwright smoke suite + CI now guarding it.
 - **The then-untracked files were resolved.** The 2026-04-29 CVE2CAPEC proposal and the layer-2 PNG were committed during P9, then removed 2026-06-20 as obsolete (git history retains them).
 - **Roadmap hygiene closed.** `Plans/ROADMAP.md` was frozen with a superseded pointer, then removed 2026-06-20. This master plan is the sole plan of record.
+
+### 2.4 Resolved since the 2026-06-20 snapshot
+
+- **The June NVD brownout reached CI late, then got fixed twice.** Four weekly-pipeline runs failed plus one was cancelled between 2026-06-21 and 2026-06-24 (an NVD 503 brownout). `c12bbee` (2026-07-09) added `NVDUnavailableError` so an outage fails loud instead of returning an empty list read as "no new CVEs." That fix's exit code never actually reached CI, though: `run_pipeline.py` still exited 0 on a `degraded` step. The 2026-09-26 review (F2, ISC-12..15) closed that gap: a degraded, partial, or failed step now exits non-zero on this branch.
+- **The September vulnrichment wipe.** A silent GitHub API failure on 2026-09-25 wrote `vulnrichment_db.json` empty (2,333 -> 0 entries), the 21st such wipe on record. Restored on `main` as `169c6ef` (from `27edc17`, merged with 299 entries rebuilt 09-26, for 2,567 total); the weekly `Run CVE Pipeline` workflow was paused pending this branch. The root cause (writers accepting an empty or shrunken result) is fixed on this branch: F1 (ISC-6..9) makes every reference-DB writer refuse to replace an existing non-empty file with fewer than half its current record count, and refuses a zero-record write even when no file exists yet.
+- Full ISC-by-ISC detail for both fixes, plus the F3/F4/F9 remediation shipped alongside them, is in `ISA.md` (Decisions and Verification sections); this plan does not duplicate that list.
 
 ---
 
@@ -104,11 +114,11 @@ Proposed during this 2026-05-08 review. Not yet committed; ranked by impact-to-e
 - **I2: MITRE ATLAS framework.** AI/ML adversary tactics. Aligns with the maintainer's interest in AI security and Anthropic Partner Network positioning. CTIButler exposes ATLAS for free. Add as ninth framework. ~1 day.
 - **I3: CWE Top 25 alongside OWASP Top 10.** CWE Top 25 is the more cited industry list; small dataset, additive UI. ~2-4 hours.
 - **I4: Sigma rules pivot from CVE/technique.** Sigma is the open detection rule format; a "show detection content" tab on each CVE/technique would be unique vs. competitors. Source: SigmaHQ/sigma. ~1-2 days.
-- **I5: Pipeline observability dashboard.** Existing `monitoring/` and `utils/` code is partially wired but underused. Build a `/health` route and a JSON metrics export so a Pulse module can read it. ~1 day.
+- **I5: Pipeline observability dashboard.** The `monitoring/` package this item originally proposed to wire up was removed 2026-09-26 as dead code (F8): nothing in it was ever called. Build a `/health` route and a JSON metrics export from scratch, not by extending the removed package, so a Pulse module can read it. ~1 day.
 - **I6: Schema-versioned entity_index with migration doc.** Entity_index.json is at v1.5; the schema is implicit in `entity_index_generator.py`. Promote to a versioned formal schema (jsonschema) and write a one-page migration doc. ~half day.
 - **I7: Saved searches / watchlists (localStorage).** Investigation pinning exists; extend to "watch this APT group / CWE / technique." Per-device, no server. ~half day.
 - **I8: Diff view between pipeline runs.** "What changed in this week's pipeline?" is a real analyst question and free with the auto-pipeline cadence. ~1 day.
-- **I9: Type-strict mypy pass.** Project uses Python 3.9+; add `mypy --strict` to CI and address findings. ~1 day on first pass.
+- **I9: Type-strict mypy pass.** Partly addressed: `mypy` (as configured in `pyproject.toml`, not yet `--strict`) runs in CI on every push and PR via `tests.yml` and is clean across all 27 source files. `--strict` scope is still open; propose `src/tip_mcp/` first, gradual on `src/tip/`, per the original proposal.
 - **I21: CWE-assignment gap closure (added 2026-06-11).** The chain-coverage ceiling: TECHNIQUES coverage caps at ~75% in modern years (near zero pre-2010) because many NVD records carry no usable CWE to join from — the joins themselves are fine. Close it in-house, in provenance-tagged tiers: (a) CNA-provided CWEs from the NVD record's CNA/ADP containers, (b) CISA vulnrichment CWE assignments (already ingested, currently only used for SSVC/CVSS), (c) description-based CWE inference as an explicitly-labeled lowest tier. This is the "better than CVE2CAPEC" successor work from the P11 decision. ~2-3 days for (a)+(b); (c) scoped separately if (a)+(b) leave a gap worth chasing.
 
 ### 4.1b Pre-MCP deployed-state review findings (added 2026-06-20)
@@ -136,11 +146,11 @@ From a full technical + usability review of the deployed system (live-probed via
 
 ### 4.3 Operational / hardening (high importance, often invisible)
 
-- **I16: Auto-pipeline failure alerting.** GH Actions can succeed-with-no-changes silently; add a notification channel (email / GitHub issue / RSS) when a run fails or skips for >36h. ~half day.
-- **I17: Shard-size budget monitoring.** 35 MB compressed today; track YoY growth and define a "when do we shard differently or move off Pages" trigger. ~half day for the monitoring code, ongoing for the policy.
+- **I16: Auto-pipeline failure alerting.** Partly addressed: 2026-09-26 (F2) made a degraded, partial, or failed run exit non-zero, so a run failure now shows red in Actions instead of succeeding silently. No push notification channel (email / GitHub issue / RSS) exists yet on a failure or a >36h skip; that part is still open. ~half day.
+- **I17: Shard-size budget monitoring.** `docs/database` is 110 MB on disk today (up from the 35 MB figure this item was written against); track YoY growth and define a "when do we shard differently or move off Pages" trigger. ~half day for the monitoring code, ongoing for the policy.
 - **I18: GitHub Pages content-hash cache busting.** Ensure clients always pull fresh entity_index.json after pipeline runs. ~1-2 hours.
-- **I19: Pipeline rate-limit observability.** NVD has tight rate limits; capture per-run rate-limit hits and 429 responses for tuning. ~half day.
-- **I20: Test coverage gates in CI.** Today: 82 tests, no coverage threshold. Add `pytest-cov --cov-fail-under=80` for `src/tip_mcp/` and `--cov-fail-under=60` for `src/tip/` (lower bar reflecting integration-heavy code). ~2-3 hours.
+- **I19: Pipeline rate-limit observability.** Partly addressed: NVD request pacing now honors the documented limits (6 s between requests keyless, 0.6 s keyed) via one shared helper (F4, ISC-28). Per-run 429/retry counts are not yet captured or surfaced; that part is still open. ~half day.
+- **I20: Test coverage gates in CI.** Today: 236 unit tests plus 25 Playwright smoke tests, running in CI (`tests.yml`, `smoke-test.yml`); the CI-gate half of this item is done. No coverage threshold is enforced; `pytest-cov --cov-fail-under=80` for `src/tip_mcp/` and `--cov-fail-under=60` for `src/tip/` is still open. ~2-3 hours.
 
 ### 4.4 Drop or hold
 
@@ -282,9 +292,9 @@ Seven phases, sequenced to maximize Strategic Rogue + Partner Network impact whi
 | T14.1 | I5: `/health` JSON endpoint surfacing pipeline last-run, success/failure, durations per processor. | nothing |
 | T14.2 | I16: Auto-pipeline failure alerting — GitHub Actions notify on failure; weekly "no commit in 36h" canary. | nothing |
 | T14.3 | I17: Shard-size budget monitoring. Track entity_index.json + shard total size per run; warn at 80% of a configured budget. | nothing |
-| T14.4 | I20: pytest-cov coverage gates in CI. | T9.3 |
-| T14.5 | I19: NVD rate-limit observability. Per-run 429 + retry counts logged + surfaced in `/health`. | T14.1 |
-| T14.6 | I9: `mypy --strict` pass on `src/tip_mcp/` first; gradual on `src/tip/`. | nothing |
+| T14.4 | I20: pytest-cov coverage gates in CI. Unit tests + mypy already run in CI (`tests.yml`, shipped 2026-09-26); this task is the remaining coverage-threshold half. | T9.3 |
+| T14.5 | I19: NVD rate-limit observability. Per-run 429 + retry counts logged + surfaced in `/health`. Pacing itself (6 s / 0.6 s) already shipped 2026-09-26; this task is the remaining per-run 429 capture. | T14.1 |
+| T14.6 | I9: `mypy --strict` pass on `src/tip_mcp/` first; gradual on `src/tip/`. Non-strict `mypy` already runs in CI clean on all 27 files (shipped 2026-09-26); this task is the `--strict` escalation. | nothing |
 
 **Acceptance criteria (ISCs for P14):**
 - ISC-14.1: `curl https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/health.json` (or chosen path) returns last-run timestamp, status, processor durations.
@@ -325,11 +335,11 @@ Acceptance criteria for P15: each promoted item produces its own ISC list at the
 |------|-------------|------------|
 | CVE2CAPEC GH Actions stops publishing | Medium | T11.3/T11.4 cache the last-good JSONL locally; alert if stale >36h. |
 | ctibutler ArangoDB disk runaway | Low-Medium | T12.4 enforces 5 GB budget. |
-| GitHub Pages outgrowing 35 MB compressed corpus | Low today, rising YoY | I17 monitors and triggers a Cloudflare Pages or R2 migration discussion at 80% of budget. |
+| GitHub Pages outgrowing the corpus size budget | Now live: `docs/database` is 110 MB as of 2026-09-26, against the 100 MB budget this row was written for | I17 monitors and triggers a Cloudflare Pages or R2 migration discussion at 80% of budget; that threshold is already passed and unaddressed. |
 | Phase B tests break after CVE2CAPEC swap | Medium if REPLACE chosen | P11 is gated on parity report; if mappings shift, T11.3 includes test backfill. |
-| Auto-pipeline silently broken (current state, possibly) | Unknown until T9.1 | T9.1 first action; P14 builds proper observability so this is not the second time we discover it weeks late. |
+| Auto-pipeline silently broken | Occurred twice since (June 2026-06-21..24 NVD brownout runs; September 2026-09-25 vulnrichment wipe) | Both root causes fixed 2026-09-26: honest exit codes on degraded/partial steps (F2) and a write floor that refuses to shrink a reference DB below half its record count (F1). P14 still builds the alerting/observability layer on top of that fail-closed foundation. |
 | Phase B builds against soon-to-be-retired manual mappings | Low if P11 runs before P12; impossible if P11 chooses HOLD | Sequence is exactly P10 → P11 → P12 to bound this risk. |
-| Multi-entity mode produces unmanageable graph for >50 entities | Medium | T13.1 design must pick a hard cap (default proposal: 25 entities) and a "summary view" fallback for larger inputs. |
+| Multi-entity mode produces unmanageable graph for >50 entities | Shipped | Cap landed at 25 entities (worklist, ISC-45); a "summary view" fallback for larger inputs is not built. |
 | Improvements list (§4) derails focus | High if items are intaken in parallel | P15 explicitly serial; one at a time, with its own ISCs. |
 
 Rollback: each phase commits to its own branch. P11 REPLACE in particular branches as `feat/cve2capec-replace` and only merges after T11.3 passes.
@@ -352,9 +362,9 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 1. **Auto-pipeline status:** if T9.1 finds the pipeline has not run in two weeks, decide whether to repair (re-trigger workflow, fix Actions config) or accept manual `--db-only` runs as the new operating mode.
 2. **CVE2CAPEC posture (P11):** ~~REPLACE / AUGMENT / HOLD. Decision evidence: the parity report from T11.1.~~ **DECIDED 2026-06-11: none of the above — CVE2CAPEC rejected outright; enrichment stays in-house** (TIP was built off CVE2CAPEC's approach and can do it better). See the resolution note at P11. P12 deferred indefinitely per its conditional.
-3. **Multi-entity entity cap (T13.1):** propose 25; confirm.
-4. **GitHub Pages migration trigger (I17):** propose 80% of a 100 MB total corpus budget; confirm.
-5. **mypy strictness scope (I9):** propose `src/tip_mcp/` first, gradual on `src/tip/`; confirm.
+3. **Multi-entity entity cap (T13.1):** ~~propose 25; confirm.~~ **DECIDED, shipped 2026-09-26: the worklist caps input at 25 ids (ISC-45).**
+4. **GitHub Pages migration trigger (I17):** propose 80% of a 100 MB total corpus budget; confirm. (`docs/database` alone is 110 MB as of 2026-09-26, so this budget conversation is now overdue, not hypothetical.)
+5. **mypy strictness scope (I9):** propose `src/tip_mcp/` first, gradual on `src/tip/`; confirm. Partly resolved: non-strict `mypy` runs in CI on all 27 files as of 2026-09-26; the `--strict` escalation and which package goes first are still the maintainer's call.
 6. **Improvement promotion order (P15):** the proposed order is revisable; the maintainer's call.
 
 ---
@@ -379,6 +389,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append-only log; new entries on top)
 
+- 2026-09-26: P9.6 review remediation decisions (full detail in `ISA.md` Decisions). Restore vulnrichment_db.json on `main` (`169c6ef`) and pause the weekly `Run CVE Pipeline` until this branch merges; deliver via branch `fix/review-2026-09-26` + PR, principal merges, no history rewrite for the existing repo growth. Layer 2 (curated CVE) redefined as KEV, APT-linked, or SSVC exploitation `active`: curated CVEs drop from 2,971 to 1,726 (every KEV CVE) on the next pipeline run, all others stay reachable via shard fallback. Reference-DB write floor set at 50% of the existing record count, plus a stricter refusal of a zero-record write even when no file exists yet. The APT-linked clause is inert (APT_GROUPS never populates from technique overlap) and stays that way rather than tagging 60% of all CVEs as noise. Async/aiohttp port rejected outright (NVD pacing makes the fetch serial by nature, the policy text is corrected instead of the code). Three requirements files hash-locked via `uv pip compile --generate-hashes` with a 7-day cooldown, installed with `pip --require-hashes`.
 - 2026-06-20 — Removed `Plans/ROADMAP.md`. MASTER_PLAN is the sole plan of record; the superseded ROADMAP added no value in-tree. Git history retains it. Updated the `supersedes` frontmatter, the intro line, and the §9 source-doc list; earlier P9 ISC/narrative mentions of ROADMAP are left as historical record.
 - 2026-06-20 — Removed two obsolete files: `Plans/2026-04-29_cve2capec-ctibutler-integration.md` (superseded — CVE2CAPEC rejected at P11; content absorbed into P11/P12) and the unreferenced root-level `d1-after-pipeline-layer2-with-desc.png` screenshot. `Plans/ROADMAP.md` retained as frozen historical record; `CLAUDE.md` retained as active project rules. Git history preserves the removed files. Source-doc list (§9) updated.
 
@@ -396,6 +407,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append on each shipped phase)
 
+- 2026-09-26 (P9.6, review remediation): shipped on branch `fix/review-2026-09-26`, 58 ISCs tracked in `ISA.md`. Fail-closed reference-data writes and honest exit codes (F1/F2) close the June NVD-brownout gap and the September vulnrichment wipe at the root. Atomic shard/index writes (F3) and correlation correctness with zero dangling relationship targets (F4) landed alongside. The MCP server now imports cleanly on the pinned `mcp` 2.x SDK, with the three Phase A tools fully covered (F5). Frontend hardening shipped (F6): search route fixed, `d3` vendored under CSP, worklist capped at 25. CI now runs the unit suite and mypy on every push/PR with hash-locked, pinned dependencies (F7). ~3,300 lines of dead monitoring/utils code removed, including the exposed `web_interface.py` (F8). Shards write deterministically so an unchanged run adds no new bytes to history (F9). Test suite: 236 unit tests + 25 Playwright smoke tests, mypy clean on 27 files. Full ISC-by-ISC verification is in `ISA.md`, not duplicated here.
 - 2026-06-20 (I24 + I28): **I24** schema-driven CVE intel contract shipped — `tip_intel.cve_blocks` is the single source of truth, consumed by both the generator and the MCP; `tests/test_cve_intel_parity.py` fails the build on any future cross-seam drift; three hand-maintained allowlists collapsed to one. **I28** worklist/triage MVP shipped — `#/list[/<ids>]` route: paste entity IDs → one sortable table with CVSS / KEV / ransomware / SSVC / due-date across the cohort, rows click into entity pages. entity_index.json gains the I24 blocks on the next pipeline run (additive).
 - 2026-06-20 (P9.5 — planning): deployed-state review landed I22–I28 and inserted P9.5 ahead of P10. No code shipped at plan-landing time; I22 implementation begins immediately after.
 - 2026-06-09 (P9 — stabilize): synced to origin (52 data commits), auto-pipeline verified healthy, NVD field population verified on sampled CVEs, Playwright smoke suite added (5 tests, green against live site) + daily CI job, plan documents landed. No production code changes. P10 (MCP Phase B) unblocked.
@@ -405,6 +417,7 @@ These shape phase priority. Carried forward verbatim from the 2026-04-24 ROADMAP
 
 (append per ISC as it passes)
 
+- 2026-09-26 (P9.6, review remediation): 54 of 58 ISCs verified and closed at the time of this pass; see `ISA.md` Verification for the ISC-by-ISC evidence (test names, commit hashes, probe output). Headline numbers: `pytest -q --ignore=tests/smoke` = 236 passed; `mypy` = no issues in 27 source files; regenerated `entity_index.json` probe = 0 dangling relationship targets at 7.55 MB with 0 of 1,726 KEV CVEs missing. ISC-58 (this doc pass) is recorded in this plan's Changelog and Decisions entries above plus the README status snapshot, both dated 2026-09-26. Open: ISC-3 (PR CI green, principal merges), ISC-4 and ISC-5 (anti-checks scored at PR time).
 - 2026-06-20 (P9.5 / I22 — T9.5.1, T9.5.2): MCP shard-passthrough implemented in `src/tip_mcp/tools.py` (+128 lines; helpers `_kev_detail`/`_ssvc_block`/`_cisa_cvss`/`_defend_semantics`/`_enrich_record_from_shard`; `_shard_rels` now emits d3fend+apt rels; entity path merges shard detail onto CVE entities). New tests `tests/tip_mcp/test_i22_passthrough.py` (5).
   - ISC-9.5.1 PASS — live smoke on real `CVE-2023-44487`: `source=entity_index.json, enriched_from_shard=True`; `kev_detail.dueDate=2023-10-31`, `knownRansomwareCampaignUse=Unknown`; 44/44 D3FEND rels carry a `relationship` verb (e.g. D3-ABPI → "isolates").
   - ISC-9.5.2 PASS — fixture CVE with non-null VULNRICHMENT returns `ssvc{exploit_status=active, automatable=no, technical_impact=total}` (44487 itself has null VULNRICHMENT upstream → block correctly omitted, no crash).
