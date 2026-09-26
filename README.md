@@ -152,8 +152,8 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 | `lookup_entity(entity_id)` | One entity record and its relationships; any of the 395,617 ingested CVEs via the shard fallback | "What is CVE-2023-44487?" |
 | `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type, with the same shard fallback | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
-| `build_attack_chain(technique_id, limit?)` | The CAPECs, CWEs, and CVEs (KEV first, then CVSS) behind a technique, plus its D3FEND defenses, each with provenance; an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
-| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for one technique or CVE, with mapping source, the technique each was reached through, and the relationship verb | "How do I defend against CVE-2023-44487?" |
+| `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus its D3FEND defenses; every element carries the tier of its weakest hop, inherited CWE links are flagged, and an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
+| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb; CVE-side defenses are derived leads through the CVE's techniques | "Which D3FEND countermeasures map to T1499?" |
 | `kev_status(cve_id)` | CISA KEV membership, dates, ransomware use, required action, vendor, product, and SSVC when known | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
 CVE lookups carry the full intelligence the pipeline stores in the shards: KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics, projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
@@ -186,7 +186,7 @@ Once the client is configured:
 
 > Use the tip threat intel tools. Look up CVE-2023-44487, walk me through the attack chain and defenses, and tell me how urgent the patch is. Cite entity IDs.
 
-[src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md) is that walkthrough recorded as a real MCP client session over stdio on this repo's data (lookup, pivot to T1499, `build_attack_chain`, `get_defenses`, `kev_status`). `python scripts/mcp_demo.py` regenerates it; add `--check` to verify the committed copy still matches.
+[src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md) is that walkthrough recorded as a real MCP client session over stdio on this repo's data (lookup, pivot to T1499, `build_attack_chain`, `get_defenses` for T1499 and for the CVE, `kev_status`). `python scripts/mcp_demo.py` regenerates it; add `--check` to verify the committed copy still matches.
 
 See [src/tip_mcp/README.md](src/tip_mcp/README.md) for full install and tool details.
 

@@ -53,7 +53,12 @@ STEPS: list[tuple[str, str, dict[str, Any]]] = [
         {"technique_id": "T1499", "limit": 10},
     ),
     (
-        "How do I defend against CVE-2023-44487?",
+        "Which D3FEND countermeasures does MITRE map to T1499?",
+        "get_defenses",
+        {"technique_id": "T1499"},
+    ),
+    (
+        "And from the CVE side: which defenses do its mapped techniques reach?",
         "get_defenses",
         {"cve_id": "CVE-2023-44487"},
     ),
@@ -79,6 +84,16 @@ def trim(value: Any) -> Any:
     return value
 
 
+def tier_counts(items: list) -> str:
+    """'17 derived' or '8 official, 3 derived', strongest first."""
+    order = ["authoritative", "official", "derived"]
+    counts: dict = {}
+    for item in items:
+        counts[item.get("tier")] = counts.get(item.get("tier"), 0) + 1
+    keys = sorted(counts, key=lambda k: order.index(k) if k in order else len(order))
+    return ", ".join(f"{counts[k]} {k}" for k in keys)
+
+
 def summarize(tool: str, result: dict) -> str:
     """One plain sentence stating what came back, computed from the result."""
     if not result.get("ok"):
@@ -94,16 +109,29 @@ def summarize(tool: str, result: dict) -> str:
     if tool == "build_attack_chain":
         t = meta["totals"]
         kev = sum(1 for c in data["cves"] if c["kev"])
+        inherited = sum(1 for c in data["cwes"] if c["inherited"])
         return (
-            f"{t['capecs']} CAPEC patterns, {t['cwes']} weaknesses, {t['cves']} CVEs, "
-            f"{t['defenses']} D3FEND defenses (lists capped at {meta['limit']}; "
-            f"{kev} of the {len(data['cves'])} CVEs shown are in KEV)."
+            f"{t['cves']} CVEs linked to the technique (each explained by its CWE and "
+            f"CAPEC path; {meta['cves_without_path']} without one), through "
+            f"{t['capecs']} CAPEC patterns and {t['cwes']} weaknesses ({inherited} of "
+            f"the {len(data['cwes'])} shown reach at least one of those CAPECs only by "
+            f"inheritance from a parent CWE, so they are derived), and {t['defenses']} "
+            f"D3FEND defenses. Lists capped at {meta['limit']}; {kev} of the "
+            f"{len(data['cves'])} CVEs shown are in KEV. Tiers of the CVEs shown: "
+            f"{tier_counts(data['cves'])}; of the weaknesses shown: {tier_counts(data['cwes'])}."
         )
     if tool == "get_defenses":
         verbs = sum(1 for d in data if "relationship" in d)
+        if "technique_id" in meta["query"]:
+            return (
+                f"{meta['count']} D3FEND defenses mapped to {meta['query']['technique_id']}; "
+                f"tiers: {tier_counts(data)}."
+            )
         return (
             f"{meta['count']} D3FEND defenses reached through {len(meta['techniques'])} "
-            f"techniques; {verbs} carry a relationship verb."
+            f"techniques; {verbs} carry a relationship verb. Tiers: {tier_counts(data)}, "
+            "because TIP derives the CVE to technique links (CAPEC to technique chain), "
+            "so these are leads, not MITRE mappings of the CVE."
         )
     if tool == "kev_status":
         return (
