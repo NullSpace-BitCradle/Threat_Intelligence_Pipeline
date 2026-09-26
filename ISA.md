@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 54/58
+progress: 54/66
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -156,6 +156,18 @@ Why: the maintainer's next return starts from docs that are true.
 
 - [ ] ISC-58: README and `Plans/MASTER_PLAN.md` current-state numbers, test counts, CI description, and the July/September incidents match disk on the branch; repo CLAUDE.md async rule corrected to the serial-paced reality.
 
+### F11 · Audit closures
+Why: the cross-vendor audit found fail-open paths inside records, not whole files, that the diff never touched; done means those are closed too.
+
+- [ ] ISC-59: A CVE whose enrichment throws is not written; its prior shard record stays byte-identical, and the step fails above 1% or 50 failures.
+- [ ] ISC-60: Any non-404 D3FEND per-technique error fails the D3FEND update and keeps the previous defend_db.
+- [ ] ISC-61: Anti: a data workflow dispatched from any ref other than main does not run its job.
+- [ ] ISC-62: Any per-file error during a vulnrichment resync aborts it with no DB write and no state advance.
+- [ ] ISC-63: A failure on the second replace in atomic_replace_many leaves all targets byte-identical to before.
+- [ ] ISC-64: A malformed JSONL line in a shard yields the data_corrupt envelope instead of not_found.
+- [ ] ISC-65: The MCP shard cache enforces a byte budget, not only a year count.
+- [ ] ISC-66: search_threat_intel with a non-list types value returns an error envelope.
+
 ## Test Strategy
 
 | isc | type | check | threshold | tool | anchors_to |
@@ -184,6 +196,8 @@ Why: the maintainer's next return starts from docs that are true.
 | ISC-53..55 | code+unit | rg importers, CLI run, log line count | 0 importers, CLI ok, 1 line | rg, python | F8 |
 | ISC-56 | unit | write twice, compare bytes | identical | pytest | F9 |
 | ISC-57 | workflow | commit step guarded on data diff | no-op run makes no commit | rg + local git probe | F9 |
+| ISC-59..60,62..66 | unit | fault-injection tests red before fix | per claim | pytest | F11 |
+| ISC-61 | ci | job-level ref guard read-back + actionlint | guard present | rg, actionlint | F11 |
 | ISC-58 | doc | numbers in docs vs disk | match | python + rg | F10 |
 
 ## Decisions
@@ -205,7 +219,15 @@ Why: the maintainer's next return starts from docs that are true.
 - 2026-09-26 12:40: APT_GROUPS is never populated (processor passes technique ids without the T prefix). Not fixed: repairing the lookup would mark 235,807 of 395,617 CVEs APT-linked through technique overlap, which is noise and would breach the 20 MB budget. The APT clause in Layer 2 is inert. Moved to Remaining Work.
 - 2026-09-26 12:40: write floor also refuses a 0-record write when no file exists yet (stricter than recorded). Accepted: there is no legitimate empty reference DB; D3FEND-disabled skips the write instead.
 - 2026-09-26 12:40: the first weekly run after merge rewrites every shard once (normalized ids, deterministic gzip), adding one last ~135 MB to history; unchanged shards are byte-identical after that.
+- 2026-09-26 12:45: Forge (GPT) cross-vendor audit returned fail with 3 critical, 1 high, 3 medium, 1 low. All 8 adopted as ISC-59..66 and dispatched to one fix worker. Blind spot it named, recorded as a learning: the fail-closed work guarded whole-file writes but left per-record and per-technique swallows in untouched code, and a 50% count floor stops wipes but does not prove completeness.
 - 2026-09-26 11:25: `docs/mitre/` Navigator bundle left untouched (public URL, principal's call); recorded in Remaining Work.
+
+## Learning
+
+- conjectured: guarding whole-file writes (atomic replace, count floor, honest exit code) makes the pipeline fail closed.
+  refuted by: Forge audit 2026-09-26: per-record and per-technique exception handlers inside untouched code still published partial data under an exit 0.
+  learned: fail-closed has to be traced from every exception handler to the publish step, not from the writers backward; a diff-only review cannot see handlers the diff never touched.
+  criterion now: ISC-59, ISC-60, ISC-62 (every swallow on the path to publish either fails the step or preserves prior data).
 
 ## Verification
 
