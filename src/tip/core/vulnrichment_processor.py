@@ -235,7 +235,9 @@ class VulnrichmentProcessor:
             head_sha = result.stdout.strip()
 
             # Process all CVE JSON files into a fresh dict; it replaces the
-            # in-memory DB only once the whole clone has been read.
+            # in-memory DB only once the whole clone has been read. Any file
+            # that cannot be read or parsed aborts the resync: an incomplete
+            # dict must not be saved, and last_commit_sha must not advance.
             fresh: Dict[str, Any] = {}
             cve_count = 0
             for json_file in clone_dir.rglob("CVE-*.json"):
@@ -243,12 +245,15 @@ class VulnrichmentProcessor:
                     with open(json_file, 'r', encoding='utf-8') as f:
                         cve_json = json.load(f)
                     enrichment = self._extract_enrichment(cve_json)
-                    if enrichment:
-                        fresh[json_file.stem] = enrichment
-                        cve_count += 1
                 except Exception as e:
-                    self.logger.debug(f"Error processing {json_file.name}: {e}")
-                    continue
+                    self.logger.error(
+                        f"Vulnrichment resync aborted: {json_file.name} unreadable "
+                        f"({type(e).__name__}: {e}); DB and state left unchanged"
+                    )
+                    return False
+                if enrichment:
+                    fresh[json_file.stem] = enrichment
+                    cve_count += 1
 
             self.vulnrichment_db = fresh
             self._pending_sha = head_sha
