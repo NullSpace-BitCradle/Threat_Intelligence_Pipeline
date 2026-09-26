@@ -184,8 +184,8 @@ cd Threat_Intelligence_Pipeline
 PYTHONPATH=src pytest tests/tip_mcp/ tests/test_cve_intel_parity.py -v
 ```
 
-Coverage on `src/tip_mcp` is above 90% (measured with pytest-cov, which is not
-in the lockfiles; install it locally to reproduce):
+Coverage on `src/tip_mcp` is above 90%, and CI enforces that floor (`tests.yml` runs
+pytest-cov from `requirements-dev.txt`). To reproduce locally:
 
 ```bash
 pytest tests/tip_mcp --cov=src/tip_mcp --cov-fail-under=90
