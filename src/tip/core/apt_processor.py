@@ -7,14 +7,14 @@ technique usage, builds a reverse index (technique -> groups) for CVE enrichment
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError
-from tip.utils.error_recovery import with_recovery, create_api_context
+from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
+from tip.utils.atomic_io import write_reference_db, count_groups
 
 config = get_config()
 
@@ -29,7 +29,6 @@ class APTProcessor:
         self.db_path = config.get('database.groups.file', 'resources/groups_db.json')
 
     @performance_timer("download_stix")
-    @with_recovery("download_stix", recovery_strategy="api")
     def download(self) -> Dict[str, Any]:
         """Download ATT&CK Enterprise STIX bundle"""
         url = config.get(
@@ -43,7 +42,7 @@ class APTProcessor:
             timeout = config.get('api.nvd.timeout', 120)
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-            stix_data = response.json()
+            stix_data: Dict[str, Any] = response.json()
             obj_count = len(stix_data.get('objects', []))
             self.logger.info(f"Downloaded STIX bundle: {obj_count} objects")
             return stix_data
@@ -162,11 +161,9 @@ class APTProcessor:
             self.logger.error(f"Failed to load groups database: {e}")
             return False
 
-    def _save(self, data: Dict[str, Any]):
-        """Save processed groups database to disk"""
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+    def _save(self, data: Dict[str, Any]) -> None:
+        """Floor-check and atomically save the groups database"""
+        write_reference_db(self.db_path, data, count_groups, indent=2)
         group_count = len(data.get("groups", {}))
         self.logger.info(f"Saved {group_count} groups to {self.db_path}")
 

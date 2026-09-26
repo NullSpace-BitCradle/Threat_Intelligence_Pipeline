@@ -14,18 +14,19 @@ A search-first threat intelligence tool that correlates CVEs across 8 security f
 
 ## Status snapshot
 
-As of 2026-06-20:
+As of 2026-09-26:
 
-- 357K+ raw CVEs ingested from NVD (357,794 at the last weekly run); every one is searchable by ID via the tiered all-CVE index
+- 395,617 raw CVEs ingested from NVD (published index as of the last pipeline run); every one is searchable by ID via the tiered all-CVE index
 - CVSS coverage is corpus-wide: 75,945 historical CVEs backfilled from NVD on 2026-06-11 (the 1999 shard went from 2.4% to 98% scored); extraction falls back v4.0 -> v3.1 -> v3.0 -> v2, so every CVE NVD has ever scored carries a severity
 - MITRE sources track always-latest (version pins removed 2026-06-11); ATT&CK reference data is at v19.1 (697 techniques)
-- Curated entity graph holds 2,891 enriched CVEs (KEV / APT-linked / vulnrichment) with full cross-framework relationships
-- 5,503 total entities across 8 frameworks: 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 174 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
-- 1,623 CISA KEV entries tracked with daily refresh
-- Fully automated: daily reference database refresh, weekly full CVE pipeline, daily site smoke test, plus a smoke gate on every push
+- Curated entity graph currently holds 2,971 enriched CVEs under the prior inclusion rule (as published). The corrected rule is KEV, APT-linked, or SSVC exploitation status active; on the next pipeline run the curated set rebuilds to every KEV CVE (1,726 today), and the entity index shrinks to about 4,340 entities (~7.6 MB). Every other ingested CVE stays reachable by ID through the per-year shard fallback on the site and in the MCP, curated or not.
+- 5,585 total entities across 8 frameworks (currently published; drops to ~4,340 on the next pipeline run per the curated-CVE rule above): 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 176 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
+- 1,726 CISA KEV entries tracked with daily refresh
+- Fail-closed by design: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
+- Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
 - MCP server Phase A live (3 of 6 planned tools) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
-- Web triage: a worklist mode (paste a list of IDs for one sortable cohort table across CVSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / CISA-override badges and clickable references on CVE pages
-- 82 tests passing across pipeline processors, the MCP layer, and a Playwright smoke suite
+- Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / CISA-override badges and clickable references on CVE pages
+- 236 unit tests plus 25 Playwright smoke tests passing; mypy is clean across all 27 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -75,7 +76,7 @@ Features:
 |--------|------------------|------------------|
 | NVD API 2.0 | CVE records, CVSS scores, CWE assignments, descriptions, references | Weekly (Actions) |
 | MITRE ATT&CK | Attack techniques (enterprise, mobile, ICS) | Weekly (Actions) |
-| MITRE ATT&CK Groups | 174 threat groups with aliases and technique usage | Weekly (Actions) |
+| MITRE ATT&CK Groups | 176 threat groups with aliases and technique usage | Weekly (Actions) |
 | MITRE ATT&CK Campaigns | 56 named campaigns with attribution and timelines | Weekly (Actions) |
 | MITRE D3FEND | Defensive countermeasure mappings per technique | Weekly (Actions) |
 | MITRE CWE | Weakness definitions and parent relationships | Weekly (Actions) |
@@ -86,7 +87,7 @@ Features:
 
 ## Requirements
 
-- Python 3.9+ (CI runs 3.12 for the pipeline, 3.13 for smoke tests)
+- Python 3.13 (matches CI and the hash-locked lockfiles)
 - NVD API key (free; recommended for rate limit performance)
 
 ## Quick start
@@ -109,33 +110,36 @@ export NVD_API_KEY="your-key-here"
 # Run the full pipeline
 PYTHONPATH=src python run_pipeline.py
 
-# Start local web server
-PYTHONPATH=src python run_pipeline.py --web-interface --web-port 8080
+# Serve the static site locally
+python -m http.server 8000 --directory docs
 ```
 
 ### CLI options
 
 ```bash
-PYTHONPATH=src python run_pipeline.py              # Full pipeline
-PYTHONPATH=src python run_pipeline.py --db-only    # Update reference databases only
-PYTHONPATH=src python run_pipeline.py --cve-only   # Process CVEs only (with resume)
-PYTHONPATH=src python run_pipeline.py --force      # Force full update
-PYTHONPATH=src python run_pipeline.py --status     # Show pipeline status
-PYTHONPATH=src python run_pipeline.py --health-check # System health check
-PYTHONPATH=src python run_pipeline.py --metrics    # Show pipeline metrics
+PYTHONPATH=src python run_pipeline.py                   # Full pipeline
+PYTHONPATH=src python run_pipeline.py --force           # Force update even if not needed
+PYTHONPATH=src python run_pipeline.py --db-only         # Update reference databases only
+PYTHONPATH=src python run_pipeline.py --cve-only        # Process CVEs only (with resume)
+PYTHONPATH=src python run_pipeline.py --clear-progress  # Clear progress file and start CVE retrieval from the beginning
+PYTHONPATH=src python run_pipeline.py --status          # Show pipeline status
+PYTHONPATH=src python run_pipeline.py --verbose         # Enable verbose logging
 ```
+
+There is no web interface or built-in metrics/health-check flag; the monitoring package that backed them was removed as dead code. The site is static and served from `docs/`, as shown above.
 
 ## GitHub Actions
 
-Three automated workflows keep the data fresh and the site honest:
+Four automated workflows keep the code honest, the data fresh, and the site working:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
+| Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) plus `mypy` |
 | Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
-| Site Smoke Test | Push / PR + daily 07:00 UTC | Playwright suite: gates pushed content by serving `docs/` locally, plus a daily canary against the deployed site |
+| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 25-test Playwright suite against the deployed site |
 
-The data workflows auto-commit results back to the repo and require `NVD_API_KEY` as a repository secret. The smoke test needs no secrets.
+The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; there is no branch protection configured yet, so these are CI gates a maintainer checks before merging, not enforced required checks.
 
 ## MCP server (optional)
 
@@ -143,7 +147,7 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 
 **Status:** Phase A (v1 MVP) shipped 2026-04-23. Three read-only tools, plus a JSONL shard fallback added 2026-04-24:
 
-- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 357K+ ingested CVEs is queryable by ID.
+- `lookup_entity(entity_id)`: returns a single entity record and its relationships. Falls back to scanning the per-year CVE shard for any CVE not in the enriched entity graph, so any of the 395,617 ingested CVEs is queryable by ID.
 - `pivot_from_entity(entity_id, target_type?)`: returns entities related by type. Same shard fallback as `lookup_entity`, so pivoting from any ingested CVE works even if it is not in the enriched graph.
 - `search_threat_intel(query, limit?, types?)`: returns ranked hits from the inverted index
 
@@ -212,15 +216,14 @@ src/tip/
     kev_processor.py          # CISA KEV catalog
     vulnrichment_processor.py # CISA SSVC decisions and CVSS overrides
     apt_processor.py          # ATT&CK Groups with reverse technique index
-  monitoring/                 # Health checks, metrics, web server
-  utils/                      # Config, error handling, rate limiting
+  utils/                      # Config, error handling, validation, atomic writes, performance
   database/                   # JSONL file manager
 src/tip_intel/
   cve_blocks.py               # Shared CVE intelligence contract (KEV/SSVC/CVSS/D3FEND) for generator + MCP
 src/tip_mcp/
   loader.py                   # Loads entity / search indexes; CVE shard scanner
   tools.py                    # MCP tool implementations
-  server.py                   # FastMCP stdio entry point
+  server.py                   # MCPServer (mcp 2.x) stdio entry point
   schema.py                   # Response envelope + error codes
 ```
 
@@ -238,6 +241,7 @@ docs/
     results.js                # Result page rendering (header, tabs, summary cards)
     worklist.js               # Worklist / triage mode (sortable cohort table)
     graph.js                  # D3 force-directed relationship graph
+  vendor/                      # d3 7.9.0, pinned and served same-origin (CSP script-src 'self')
   data/                       # Reference databases (auto-updated)
   database/                   # CVE database by year (auto-updated)
 ```
@@ -245,9 +249,11 @@ docs/
 ## Testing
 
 ```bash
-# Unit and integration tests (pipeline + MCP)
-PYTHONPATH=src python -m pytest tests/ -v
-PYTHONPATH=src python -m pytest tests/ --cov=src/tip
+# Unit tests (pipeline + MCP), same command CI runs
+PYTHONPATH=src python -m pytest -q --ignore=tests/smoke
+
+# Type check, same command CI runs
+python -m mypy
 
 # Browser smoke tests against the live site (requires playwright + pytest-playwright)
 pytest tests/smoke/ --browser chromium
@@ -257,7 +263,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 82 tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), and the Playwright smoke suite. The smoke suite also runs in CI on every push and daily against the deployed site.
+Current suite: 236 unit tests across pipeline processors, the MCP layer, and the shared intelligence contract (cross-seam parity), plus 25 Playwright smoke tests; mypy is clean across all 27 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 

@@ -90,7 +90,7 @@ def test_shard_fallback_handles_plain_jsonl_without_gzip(
     shards.mkdir()
     payload = {
         "CVE-2023-42424": {
-            "CWE": ["CWE-22"],
+            "CWE": ["22"],
             "CAPEC": [],
             "TECHNIQUES": [],
             "DEFEND": [],
@@ -100,7 +100,12 @@ def test_shard_fallback_handles_plain_jsonl_without_gzip(
     }
     (shards / "CVE-2023.jsonl").write_text(json.dumps(payload) + "\n")
 
-    ld = IndexLoader(fixture_data_dir, shards_dir=shards)
+    # Data dir without cve_ids_index.json, so the loader has to scan.
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "entity_index.json").write_text(json.dumps({"entities": {}}))
+    (data / "search_index.json").write_text("{}")
+    ld = IndexLoader(data, shards_dir=shards)
     ld.load()
     resp = lookup_entity_impl(ld, "CVE-2023-42424")
     assert resp["ok"] is True
@@ -154,7 +159,8 @@ def test_pivot_shard_fallback_returns_ok_for_cve_not_in_entity_index(loader):
     assert resp["meta"]["source"] == "shard"
     assert resp["meta"]["shard"].startswith("CVE-2024.jsonl")
     target_ids = {h["target_id"] if "target_id" in h else h["id"] for h in resp["data"]}
-    # Fixture CVE-2024-31337 has CWE-79, CAPEC-86, T1059, A03:2021
+    # Fixture CVE-2024-31337 stores bare ids ("79", "86", "1059"); the
+    # pivot must emit them in graph form.
     assert "CWE-79" in target_ids
     assert "CAPEC-86" in target_ids
     assert "T1059" in target_ids

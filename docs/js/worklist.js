@@ -10,6 +10,10 @@
 
 var WORKLIST_STATE = { rows: [], sortKey: 'cvss', sortDir: -1, kevOnly: false };
 
+// Each distinct CVE year in the cohort costs one shard download (up to tens
+// of MB decompressed on the main thread), so the cohort is capped.
+var WORKLIST_MAX_IDS = 25;
+
 var WORKLIST_COLUMNS = [
     { key: 'id', label: 'ID', sortable: true },
     { key: 'type', label: 'Type', sortable: true },
@@ -43,7 +47,13 @@ async function resolveWorklistRow(id) {
     };
     if (/^CVE-\d{4}-\d+$/i.test(id)) {
         row.type = 'cve';
-        var payload = await fetchCveFromShard(id);
+        var payload;
+        try {
+            payload = await fetchCveFromShard(id);
+        } catch (err) {
+            row.loadError = (err && err.message) ? err.message : String(err);
+            return row;
+        }
         if (payload) {
             row.found = true;
             var desc = payload.DESCRIPTION || '';
@@ -145,6 +155,7 @@ function renderWorklistTable(container) {
                 tr.addEventListener('click', function() { navigateToEntity(row.id); });
             } else {
                 tr.classList.add('not-found');
+                if (row.loadError) tr.title = row.loadError;
             }
             appendCell(tr, row.id);
             appendCell(tr, row.type);
@@ -154,7 +165,7 @@ function renderWorklistTable(container) {
                 cvssCell.style.color = sevPalette[(row.severity || '').toUpperCase()] || 'inherit';
                 cvssCell.style.fontWeight = '600';
             } else {
-                cvssCell.textContent = row.found ? '—' : 'not found';
+                cvssCell.textContent = row.found ? '-' : (row.loadError ? 'load failed' : 'not found');
             }
             tr.appendChild(cvssCell);
             appendCell(tr, row.kev ? 'KEV' : '');
@@ -178,25 +189,47 @@ function appendCell(tr, text) {
     tr.appendChild(td);
 }
 
-async function buildWorklist(raw, tableContainer, statusEl) {
-    var ids = parseWorklistIds(raw);
-    if (ids.length === 0) {
-        statusEl.textContent = 'Paste one or more IDs (CVE-…, T…, CWE-…, APT…) to build a worklist.';
+function worklistCapNotice(total) {
+    if (total <= WORKLIST_MAX_IDS) return '';
+    return 'Showing the first ' + WORKLIST_MAX_IDS + ' of ' + total +
+        ' IDs; the worklist is capped at ' + WORKLIST_MAX_IDS + '.';
+}
+
+async function buildWorklist(raw, tableContainer, statusEl, gen) {
+    if (gen === undefined) gen = nextRenderGeneration();
+    var allIds = parseWorklistIds(raw);
+    if (allIds.length === 0) {
+        statusEl.textContent = 'Paste one or more IDs (CVE-..., T..., CWE-..., APT...) to build a worklist, up to ' + WORKLIST_MAX_IDS + '.';
         tableContainer.textContent = '';
         WORKLIST_STATE.rows = [];
         return;
     }
-    statusEl.textContent = 'Resolving ' + ids.length + ' entities…';
+    var ids = allIds.slice(0, WORKLIST_MAX_IDS);
+    var capNotice = worklistCapNotice(allIds.length);
+    statusEl.textContent = (capNotice ? capNotice + ' ' : '') + 'Resolving ' + ids.length + ' entities...';
     tableContainer.textContent = '';
     var rows = await Promise.all(ids.map(resolveWorklistRow));
+    // The user navigated away or started another build while this one ran:
+    // drop the result instead of overwriting the page or the URL.
+    if (!isCurrentRender(gen)) return;
     WORKLIST_STATE.rows = rows;
-    statusEl.textContent = '';
+    var failed = rows.filter(function(r) { return r.loadError; }).length;
+    var parts = [];
+    if (capNotice) parts.push(capNotice);
+    if (failed) parts.push(failed + ' ID' + (failed === 1 ? '' : 's') + ' could not be loaded (network or shard error); reload to retry.');
+    statusEl.textContent = parts.join(' ');
+    statusEl.classList.toggle('worklist-status-error', failed > 0);
     // Reflect the resolved cohort in the URL so the worklist is shareable.
-    window.location.hash = '#/list/' + encodeURIComponent(ids.join(','));
+    // pushState keeps the history entry but does not fire hashchange, so the
+    // router does not re-enter showWorklistPage and build the list twice.
+    var newHash = '#/list/' + encodeURIComponent(ids.join(','));
+    if (window.location.hash !== newHash) {
+        history.pushState(null, '', newHash);
+    }
     renderWorklistTable(tableContainer);
 }
 
-function showWorklistPage(idsCsv) {
+function showWorklistPage(idsCsv, gen) {
     showPage('page-worklist');
     var input = document.getElementById('worklist-input');
     var buildBtn = document.getElementById('worklist-build');
@@ -212,16 +245,18 @@ function showWorklistPage(idsCsv) {
         buildBtn.addEventListener('click', function() {
             buildWorklist(input.value, tableContainer, status);
         });
+        input.placeholder = 'Paste up to ' + WORKLIST_MAX_IDS + ' IDs: CVE-2023-44487, T1499, CWE-79, APT29 (comma, space, or newline separated)';
         kevToggle.addEventListener('change', function() {
             WORKLIST_STATE.kevOnly = kevToggle.checked;
             renderWorklistTable(tableContainer);
         });
     }
 
+    status.classList.remove('worklist-status-error');
     if (idsCsv) {
-        buildWorklist(idsCsv, tableContainer, status);
+        buildWorklist(idsCsv, tableContainer, status, gen);
     } else {
-        status.textContent = 'Paste IDs and build a worklist.';
+        status.textContent = 'Paste up to ' + WORKLIST_MAX_IDS + ' IDs and build a worklist.';
         tableContainer.textContent = '';
     }
 }

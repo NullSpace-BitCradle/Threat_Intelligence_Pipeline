@@ -1,5 +1,9 @@
 [tool.mypy]
 python_version = "3.13"
+files = ["src"]
+# Packages live under src/ (tip, tip_intel, tip_mcp); resolve `from tip...` there.
+mypy_path = "src"
+explicit_package_bases = true
 # Enable stricter type checking gradually
 warn_return_any = true
 warn_unused_configs = true
@@ -23,17 +27,12 @@ pretty = true
 [[tool.mypy.overrides]]
 module = [
     "requests.*",
-    "tqdm.*",
-    "pandas.*",
-    "numpy.*",
-    "openpyxl.*",
-    "aiohttp.*",
-    "psutil.*"
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

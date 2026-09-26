@@ -5,17 +5,6 @@ as a distinct 'degraded' status — success False, no output-file write, resume
 metadata preserved — NOT as a falsely-successful "no new CVEs" run.
 """
 import logging
-import sys
-import types
-
-# pipeline_orchestrator imports monitoring.health_check, which imports psutil at
-# module load. psutil is a declared runtime dep (requirements.txt); stub it ONLY
-# when genuinely absent so this test can import the orchestrator in minimal envs.
-# Real environments use the real psutil — the stub is never installed there.
-try:  # pragma: no cover - environment dependent
-    import psutil  # noqa: F401
-except ModuleNotFoundError:  # pragma: no cover
-    sys.modules["psutil"] = types.ModuleType("psutil")
 
 from tip.core.pipeline_orchestrator import PipelineOrchestrator
 from tip.utils.error_handler import NVDUnavailableError

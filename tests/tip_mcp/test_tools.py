@@ -41,11 +41,11 @@ def test_lookup_entity_empty_string_returns_bad_param(loader):
     assert resp["error"]["code"] == "bad_param"
 
 
-def test_pivot_returns_all_when_no_target_type(loader, sample_entity_id):
-    resp = pivot_from_entity_impl(loader, sample_entity_id)
+def test_pivot_returns_all_when_no_target_type(loader):
+    resp = pivot_from_entity_impl(loader, "CVE-2002-0367")
     assert resp["ok"] is True
-    assert isinstance(resp["data"], list)
-    assert resp["meta"]["count"] == len(resp["data"])
+    assert resp["meta"]["count"] == len(resp["data"]) == 11
+    assert {h["rel_type"] for h in resp["data"]} == {"capec", "cwe", "defend", "owasp", "technique"}
 
 
 def test_pivot_invalid_type_returns_error(loader, sample_entity_id):
@@ -60,44 +60,43 @@ def test_pivot_unknown_entity_returns_not_found(loader):
     assert resp["error"]["code"] == "not_found"
 
 
-def test_pivot_filters_by_target_type(loader, sample_entity_id):
-    # Find a target_type actually present in the sample entity's rels
-    ent = loader.entities[sample_entity_id]
-    rel_types = list(ent.get("rels", {}).keys())
-    if not rel_types:
-        pytest.skip("fixture entity has no rels")
-    chosen = rel_types[0]
-    # Normalize chosen to a VALID_TYPES member (rel_types often match type names)
-    from tip_mcp.tools import VALID_TYPES
-    if chosen not in VALID_TYPES:
-        pytest.skip(f"rel_type {chosen} is not in VALID_TYPES; test needs different fixture")
-    resp = pivot_from_entity_impl(loader, sample_entity_id, target_type=chosen)
+def test_pivot_filters_by_target_type(loader):
+    resp = pivot_from_entity_impl(loader, "CVE-2002-0367", target_type="capec")
     assert resp["ok"] is True
-    for hit in resp["data"]:
-        # Either the target's type matches, or the rel_type that linked it matches
-        assert hit["type"] == chosen or hit["rel_type"] == chosen
+    assert sorted(h["id"] for h in resp["data"]) == ["CAPEC-122", "CAPEC-233", "CAPEC-58"]
+    assert all(h["type"] == "capec" for h in resp["data"])
 
 
 def test_search_returns_structure(loader):
-    resp = search_threat_intel_impl(loader, "a")
+    resp = search_threat_intel_impl(loader, "privilege")
     assert resp["ok"] is True
-    assert isinstance(resp["data"], list)
+    assert len(resp["data"]) == 4
     assert resp["meta"]["source"] == "search_index.json"
-    assert "query_tokens" in resp["meta"]
+    assert resp["meta"]["query_tokens"] == ["privilege"]
+    for hit in resp["data"]:
+        assert set(hit) == {"id", "type", "name", "score"}
+        assert hit["score"] == 1
 
 
 def test_search_respects_limit(loader):
-    # Pick a token that exists in the fixture's search index so we have >= 1 hit
-    sample_term = next(iter(loader.search_index.keys()))
-    resp = search_threat_intel_impl(loader, sample_term, limit=1)
+    # "privilege" has 4 hits in the fixture; limit must cut to exactly 1.
+    assert len(loader.search_index["privilege"]) >= 2
+    resp = search_threat_intel_impl(loader, "privilege", limit=1)
     assert resp["ok"] is True
-    assert len(resp["data"]) <= 1
+    assert len(resp["data"]) == 1
 
 
 def test_search_empty_query_returns_bad_param(loader):
     resp = search_threat_intel_impl(loader, "")
     assert resp["ok"] is False
     assert resp["error"]["code"] == "bad_param"
+
+
+def test_search_ranks_by_match_count(loader):
+    resp = search_threat_intel_impl(loader, "privilege abuse")
+    scores = [h["score"] for h in resp["data"]]
+    assert scores == sorted(scores, reverse=True)
+    assert scores[0] == 2
 
 
 def test_search_bad_limit_returns_bad_param(loader):

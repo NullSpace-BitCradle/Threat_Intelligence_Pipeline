@@ -10,15 +10,10 @@ from pathlib import Path
 # Add src directory to Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from tip.core.pipeline_orchestrator import PipelineOrchestrator
-from tip.core.database_manager import DatabaseManager
-from tip.core.cve_processor import CVEProcessor
-from tip.utils.error_handler import get_logger, log_info, log_critical
-from tip.monitoring.health_check import get_health_status, is_healthy
-from tip.monitoring.metrics import get_pipeline_metrics
-from tip.monitoring.request_tracker import get_request_summary
+from tip.core.pipeline_orchestrator import PipelineOrchestrator, exit_code_for
+from tip.utils.error_handler import log_info, log_critical
 
-def main():
+def main() -> int:
     """Main entry point for Threat Intelligence Pipeline"""
     parser = argparse.ArgumentParser(
         description='Threat Intelligence Pipeline (TIP) - CVE to CAPEC to ATT&CK Pipeline',
@@ -32,10 +27,6 @@ Examples:
   tip --db-only               # Update databases only
   tip --status                # Show pipeline status
   tip --verbose               # Enable verbose logging
-  tip --health-check          # Run health check
-  tip --metrics               # Show metrics
-  tip --web-interface         # Start web interface
-  tip --web-interface --web-port 9000  # Start web interface on port 9000
         """
     )
     
@@ -51,50 +42,10 @@ Examples:
                        help='Show pipeline status')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose logging')
-    parser.add_argument('--web-interface', action='store_true',
-                       help='Start web interface instead of running pipeline')
-    parser.add_argument('--web-host', default='localhost',
-                       help='Host for web interface (default: localhost)')
-    parser.add_argument('--web-port', type=int, default=8080,
-                       help='Port for web interface (default: 8080)')
-    parser.add_argument('--health-check', action='store_true',
-                       help='Run health check and exit')
-    parser.add_argument('--metrics', action='store_true',
-                       help='Show metrics and exit')
     
     args = parser.parse_args()
     
     try:
-        # Handle special commands first
-        if args.health_check:
-            health_status = get_health_status()
-            print("Health Check Results:")
-            print("=" * 40)
-            print(f"Status: {health_status['status']}")
-            print(f"Uptime: {health_status['uptime']:.1f} seconds")
-            print(f"Version: {health_status['version']}")
-            
-            if health_status['status'] != 'healthy':
-                print("\nIssues found:")
-                for check_name, check_data in health_status['checks'].items():
-                    if check_data['status'] != 'healthy':
-                        print(f"  - {check_name}: {check_data['message']}")
-            
-            return 0 if health_status['status'] == 'healthy' else 1
-        
-        if args.metrics:
-            metrics = get_pipeline_metrics()
-            print("Pipeline Metrics:")
-            print("=" * 40)
-            for metric_name, metric in metrics.items():
-                print(f"{metric_name}: {metric}")
-            return 0
-        
-        if args.web_interface:
-            from tip.monitoring.web_interface import start_web_interface
-            start_web_interface(args.web_host, args.web_port)
-            return 0
-        
         # Create orchestrator
         orchestrator = PipelineOrchestrator()
         
@@ -147,27 +98,39 @@ Examples:
             log_info("Running complete Threat Intelligence Pipeline...")
             summary = orchestrator.run_full_pipeline(force_update=args.force)
         
+        session = summary['pipeline_session']
+        exit_code = exit_code_for(summary)
+
         # Print results
         print("\n" + "="*60)
-        print("THREAT INTELLIGENCE PIPELINE COMPLETED SUCCESSFULLY")
+        if exit_code == 0:
+            print("THREAT INTELLIGENCE PIPELINE COMPLETED SUCCESSFULLY")
+        else:
+            print("THREAT INTELLIGENCE PIPELINE DID NOT COMPLETE CLEANLY")
         print("="*60)
-        
-        session = summary['pipeline_session']
+
         print(f"Total Duration: {session['total_duration']:.2f} seconds")
         print(f"Successful Steps: {session['successful_steps']}")
         print(f"Failed Steps: {session['failed_steps']}")
+        print(f"Degraded Steps: {session.get('degraded_steps', 0)}")
+        print(f"Partial Steps: {session.get('partial_steps', 0)}")
         print(f"Total Steps: {session['total_steps']}")
-        
-        if session['failed_steps'] > 0:
-            print(f"\nSome steps failed:")
+
+        if exit_code != 0:
+            print("\nSteps that were not clean:")
             for name, result in summary['results'].items():
-                if result.get('status') == 'failed':
-                    print(f"   - {name}: {result.get('error', 'Unknown error')}")
-        
+                status = result.get('status')
+                if status in ('failed', 'degraded', 'partial'):
+                    detail = result.get('error') or result.get('reason') or ''
+                    if status == 'partial' and 'results' in result:
+                        bad = [k for k, ok in result['results'].items() if not ok]
+                        detail = f"failed: {', '.join(bad)}"
+                    print(f"   - {name} [{status}]: {detail}")
+
         print(f"\nDetailed summary: results/update_summary.json")
         print("="*60)
-        
-        return 0 if session['failed_steps'] == 0 else 1
+
+        return exit_code
         
     except KeyboardInterrupt:
         print("\n\nPipeline interrupted by user")

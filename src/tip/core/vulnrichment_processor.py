@@ -14,13 +14,19 @@ from typing import Dict, Any, Optional
 import requests
 
 from tip.utils.config import get_config
-from tip.utils.error_handler import get_logger, NetworkError
+from tip.utils.error_handler import get_logger
 from tip.utils.performance_optimizer import performance_timer
+from tip.utils.atomic_io import atomic_write_json, write_reference_db
 
 config = get_config()
 
 # CISA ADP provider org ID (identifies the CISA enrichment container)
 CISA_ADP_ORG_ID = "134c704f-9b21-4f2e-91b3-4a467353bcc0"
+
+# GitHub's compare API returns at most 300 files and 250 commits. A response
+# at either cap may be missing changes, so the delta cannot be trusted.
+COMPARE_FILE_CAP = 300
+COMPARE_COMMIT_CAP = 250
 
 
 class VulnrichmentProcessor:
@@ -30,6 +36,8 @@ class VulnrichmentProcessor:
         self.config = config
         self.logger = get_logger('vulnrichment_processor')
         self.vulnrichment_db: Dict[str, Any] = {}
+        # HEAD sha of the data now in memory; persisted only after the DB is.
+        self._pending_sha: Optional[str] = None
         self.db_path = config.get('database.vulnrichment.file', 'resources/vulnrichment_db.json')
         self.state_path = config.get('database.vulnrichment.state_file', 'resources/vulnrichment_state.json')
         self.repo = config.get('database.vulnrichment.repo', 'cisagov/vulnrichment')
@@ -107,16 +115,43 @@ class VulnrichmentProcessor:
                 success = self._bootstrap_clone()
 
             if success:
+                # DB first, state second: a refused or failed DB write must
+                # not advance last_commit_sha past data that never landed.
                 self._save(self.vulnrichment_db)
+                if self._pending_sha:
+                    self._save_state({"last_commit_sha": self._pending_sha})
             return success
 
         except Exception as e:
             self.logger.error(f"Failed to update Vulnrichment database: {e}")
             return False
 
+    def _compare_is_truncated(self, compare_data: Dict[str, Any]) -> bool:
+        """True when the compare response may be missing files or commits."""
+        files = compare_data.get("files")
+        if not isinstance(files, list) or len(files) >= COMPARE_FILE_CAP:
+            return True
+        commits = compare_data.get("commits")
+        total = compare_data.get("total_commits")
+        if isinstance(commits, list) and isinstance(total, int):
+            if total > len(commits) or len(commits) >= COMPARE_COMMIT_CAP:
+                return True
+        return False
+
     def _incremental_update(self, last_sha: str) -> bool:
-        """Fetch only changed CVE files since last_sha using GitHub Compare API"""
+        """Fetch only changed CVE files since last_sha using GitHub Compare API.
+
+        Fail-closed: the on-disk DB is loaded before anything else, a
+        truncated compare falls back to a full resync, and any per-file fetch
+        failure returns False without advancing ``last_commit_sha``.
+        """
         try:
+            # Load first: every path that returns True leads update() to save
+            # self.vulnrichment_db, so it must never be the empty initial dict.
+            if not self.load():
+                self.logger.warning("Existing Vulnrichment DB missing or unreadable; falling back to full resync")
+                return self._bootstrap_clone()
+
             # Get current HEAD SHA
             url = f"https://api.github.com/repos/{self.repo}/commits?per_page=1"
             response = requests.get(url, timeout=30)
@@ -133,40 +168,48 @@ class VulnrichmentProcessor:
             response.raise_for_status()
             compare_data = response.json()
 
-            # Load existing db
-            self.load()
+            if self._compare_is_truncated(compare_data):
+                self.logger.warning(
+                    "Vulnrichment compare response is truncated "
+                    f"({len(compare_data.get('files') or [])} files); falling back to full resync"
+                )
+                return self._bootstrap_clone()
 
-            # Process changed files
             changed_files = compare_data.get("files", [])
             cve_files = [f for f in changed_files if f["filename"].endswith(".json") and "CVE-" in f["filename"]]
 
             self.logger.info(f"Processing {len(cve_files)} changed Vulnrichment files...")
 
+            failures = []
             for file_info in cve_files:
+                cve_id = Path(file_info["filename"]).stem
                 if file_info["status"] == "removed":
-                    cve_id = Path(file_info["filename"]).stem
                     self.vulnrichment_db.pop(cve_id, None)
                     continue
 
-                # Fetch file content
                 raw_url = file_info.get("raw_url")
                 if not raw_url:
+                    failures.append(file_info["filename"])
                     continue
 
                 try:
                     resp = requests.get(raw_url, timeout=30)
                     resp.raise_for_status()
-                    cve_json = resp.json()
-                    cve_id = Path(file_info["filename"]).stem
-                    enrichment = self._extract_enrichment(cve_json)
+                    enrichment = self._extract_enrichment(resp.json())
                     if enrichment:
                         self.vulnrichment_db[cve_id] = enrichment
                 except Exception as e:
-                    self.logger.debug(f"Error processing {file_info['filename']}: {e}")
-                    continue
+                    self.logger.warning(f"Error processing {file_info['filename']}: {e}")
+                    failures.append(file_info["filename"])
 
-            # Save state
-            self._save_state({"last_commit_sha": current_sha})
+            if failures:
+                self.logger.error(
+                    f"{len(failures)} Vulnrichment file(s) failed to fetch; "
+                    "state not advanced, the next run retries the whole delta"
+                )
+                return False
+
+            self._pending_sha = current_sha
             self.logger.info(f"Incremental update complete. DB has {len(self.vulnrichment_db)} entries.")
             return True
 
@@ -191,23 +234,29 @@ class VulnrichmentProcessor:
             )
             head_sha = result.stdout.strip()
 
-            # Process all CVE JSON files
-            self.vulnrichment_db = {}
+            # Process all CVE JSON files into a fresh dict; it replaces the
+            # in-memory DB only once the whole clone has been read. Any file
+            # that cannot be read or parsed aborts the resync: an incomplete
+            # dict must not be saved, and last_commit_sha must not advance.
+            fresh: Dict[str, Any] = {}
             cve_count = 0
             for json_file in clone_dir.rglob("CVE-*.json"):
                 try:
                     with open(json_file, 'r', encoding='utf-8') as f:
                         cve_json = json.load(f)
                     enrichment = self._extract_enrichment(cve_json)
-                    if enrichment:
-                        cve_id = json_file.stem
-                        self.vulnrichment_db[cve_id] = enrichment
-                        cve_count += 1
                 except Exception as e:
-                    self.logger.debug(f"Error processing {json_file.name}: {e}")
-                    continue
+                    self.logger.error(
+                        f"Vulnrichment resync aborted: {json_file.name} unreadable "
+                        f"({type(e).__name__}: {e}); DB and state left unchanged"
+                    )
+                    return False
+                if enrichment:
+                    fresh[json_file.stem] = enrichment
+                    cve_count += 1
 
-            self._save_state({"last_commit_sha": head_sha})
+            self.vulnrichment_db = fresh
+            self._pending_sha = head_sha
             self.logger.info(f"Bootstrap complete. Processed {cve_count} CVEs with SSVC data.")
             return True
 
@@ -235,11 +284,9 @@ class VulnrichmentProcessor:
             self.logger.error(f"Failed to load Vulnrichment database: {e}")
             return False
 
-    def _save(self, data: Dict[str, Any]):
-        """Save processed Vulnrichment database to disk"""
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+    def _save(self, data: Dict[str, Any]) -> None:
+        """Floor-check and atomically save the Vulnrichment database"""
+        write_reference_db(self.db_path, data, indent=2)
         self.logger.info(f"Saved {len(data)} Vulnrichment entries to {self.db_path}")
 
     def _load_state(self) -> Dict[str, Any]:
@@ -247,16 +294,16 @@ class VulnrichmentProcessor:
         try:
             if Path(self.state_path).exists():
                 with open(self.state_path, 'r') as f:
-                    return json.load(f)
+                    state = json.load(f)
+                    if isinstance(state, dict):
+                        return state
         except Exception:
             pass
         return {}
 
-    def _save_state(self, state: Dict[str, Any]):
-        """Save update state"""
-        Path(self.state_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_path, 'w') as f:
-            json.dump(state, f, indent=2)
+    def _save_state(self, state: Dict[str, Any]) -> None:
+        """Atomically save update state"""
+        atomic_write_json(self.state_path, state, indent=2)
 
     def lookup(self, cve_id: str) -> Optional[Dict[str, Any]]:
         """Look up a CVE's Vulnrichment data. Returns entry dict or None."""

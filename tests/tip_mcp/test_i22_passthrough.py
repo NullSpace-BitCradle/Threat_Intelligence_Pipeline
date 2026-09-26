@@ -44,9 +44,11 @@ _RICH_PAYLOAD = {
         "version": "3.1",
         "source": "cisa_vulnrichment",
     },
-    "CWE": ["CWE-400"],
-    "CAPEC": [],
-    "TECHNIQUES": ["T1499"],
+    # Real shard shapes: bare/mixed CWE ids, bare technique and CAPEC ids,
+    # no APT_GROUPS (zero real shard records carry it).
+    "CWE": ["400", "CWE-770"],
+    "CAPEC": ["125"],
+    "TECHNIQUES": ["1499", "1498.001"],
     "OWASP": [],
     "DEFEND": [
         {
@@ -56,7 +58,6 @@ _RICH_PAYLOAD = {
             "relationship": "isolates",
         }
     ],
-    "APT_GROUPS": ["G0007"],
     "KEV": {
         "inKEV": True,
         "dateAdded": "2023-10-10",
@@ -96,7 +97,7 @@ def test_shard_only_cve_exposes_kev_detail_ssvc_and_cvss_meta(tmp_path: Path) ->
     assert data["cvss_source"] == "cisa_vulnrichment"
 
 
-def test_shard_fallback_adds_d3fend_and_apt_rels_with_semantics(tmp_path: Path) -> None:
+def test_shard_fallback_adds_defend_rels_with_semantics(tmp_path: Path) -> None:
     _write_indexes(tmp_path, {})
     shards = _write_shard(tmp_path, "CVE-2023-44487", _RICH_PAYLOAD)
     ld = IndexLoader(tmp_path, shards_dir=shards)
@@ -107,11 +108,27 @@ def test_shard_fallback_adds_d3fend_and_apt_rels_with_semantics(tmp_path: Path) 
     for rel in rels:
         by_type.setdefault(rel["rel_type"], []).append(rel)
 
-    assert "D3-ABPI" in {r["target_id"] for r in by_type.get("d3fend", [])}
-    d3 = next(r for r in by_type["d3fend"] if r["target_id"] == "D3-ABPI")
+    # Graph vocabulary, not the legacy d3fend/apt labels.
+    assert "d3fend" not in by_type and "apt" not in by_type
+    d3 = next(r for r in by_type["defend"] if r["target_id"] == "D3-ABPI")
     assert d3["relationship"] == "isolates"
     assert d3["name"] == "Application-based Process Isolation"
-    assert "G0007" in {r["target_id"] for r in by_type.get("apt", [])}
+    # Bare/mixed shard ids come out in graph form.
+    assert {r["target_id"] for r in by_type["cwe"]} == {"CWE-400", "CWE-770"}
+    assert {r["target_id"] for r in by_type["technique"]} == {"T1499", "T1498.001"}
+    assert {r["target_id"] for r in by_type["capec"]} == {"CAPEC-125"}
+
+
+def test_shard_apt_groups_field_maps_to_apt_group(tmp_path: Path) -> None:
+    # No real record carries APT_GROUPS today; if one ever does, it must land
+    # in the graph vocabulary.
+    payload = dict(_RICH_PAYLOAD, APT_GROUPS=["g0007"])
+    _write_indexes(tmp_path, {})
+    shards = _write_shard(tmp_path, "CVE-2023-44487", payload)
+    ld = IndexLoader(tmp_path, shards_dir=shards)
+    ld.load()
+    rels = lookup_entity_impl(ld, "CVE-2023-44487")["data"]["rels"]
+    assert {"target_id": "G0007", "rel_type": "apt_group", "source": "shard"} in rels
 
 
 def test_curated_cve_entity_path_enriched_from_shard(tmp_path: Path) -> None:

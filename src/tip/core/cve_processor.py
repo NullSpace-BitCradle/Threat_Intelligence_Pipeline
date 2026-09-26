@@ -7,47 +7,53 @@ import json
 import re
 import sys
 import time
-import requests  # type: ignore
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm  # type: ignore
-from typing import Dict, Any, List, Optional
+import requests
+from typing import Dict, Any, List, Optional, cast
 from pathlib import Path
 
 from tip.utils.config import get_config
-from tip.database.database_optimizer import get_database_optimizer, get_jsonl_manager
-from tip.utils.performance_optimizer import (
-    OptimizedThreadPool, performance_timer, get_performance_monitor,
-    BatchProcessor, get_global_cache, optimize_data_structures
-)
-from tip.utils.error_handler import (
-    error_handler, log_operation, ProcessingError, DatabaseError,
-    NVDUnavailableError, get_logger
-)
-from tip.utils.error_recovery import (
-    with_recovery, with_retry, RetryConfig, RetryStrategy,
-    create_data_context
-)
-from tip.utils.validation import (
-    validate_cve_data, validate_cwe_id, validate_capec_id,
-    safe_parse_capec_techniques, logger
-)
+from tip.database.database_optimizer import get_jsonl_manager
+from tip.utils.performance_optimizer import performance_timer, get_global_cache
+from tip.utils.error_handler import log_operation, NVDUnavailableError, get_logger
+from tip.utils.validation import validate_cve_data, safe_parse_capec_techniques
 from tip.core.owasp_processor import OWASPProcessor
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
-from tip.utils.rate_limiter import rate_limit, adaptive_rate_limit
-from tip.monitoring.metrics import track_api_metrics, track_cve_processing_metrics, record_error
-from tip.monitoring.request_tracker import track_request, get_current_request_id
+from tip.core.id_normalize import cwe_number, cwe_parents, expand_cwe_list
+from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
 config = get_config()
 config.setup_logging()
 
+# NVD API 2.0 guidance: sleep 6 s between requests without a key, 0.6 s with
+# one (5 and 50 requests per rolling 30 s window).
+NVD_DELAY_KEYLESS = 6.0
+NVD_DELAY_KEYED = 0.6
+
+# A CVE whose enrichment throws is not written. The cve_processing step fails
+# when such failures exceed 1% of the CVEs processed or 50, whichever is
+# smaller.
+ENRICHMENT_FAILURE_RATE = 0.01
+ENRICHMENT_FAILURE_MAX = 50
+
+
+def nvd_request_delay(has_api_key: bool) -> float:
+    """Seconds to wait between successful NVD page requests."""
+    return NVD_DELAY_KEYED if has_api_key else NVD_DELAY_KEYLESS
+
+
 class CVEProcessor:
     """Unified CVE processing pipeline"""
-    
+
+    # Counts from the last process_cve_pipeline call: attempted, failed,
+    # failed_ids. None before the first call.
+    last_enrichment: Optional[Dict[str, Any]] = None
+
     def __init__(self):
         self.config = config
         self.cache = get_global_cache()
+        self.last_fetch_resumed_from = 0
         self.jsonl_manager = get_jsonl_manager()
         self.logger = get_logger('cve_processor')
         
@@ -77,48 +83,57 @@ class CVEProcessor:
         self.apt_processor = APTProcessor()
         self.apt_processor.load()
     
-    @track_api_metrics("nvd", "GET")
-    @track_request("retrieve_cves", "cve_processor")
-    def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
-        """Retrieve CVEs from NVD API with progress tracking and resume capability"""
+    def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieve CVEs from NVD API with progress tracking and resume capability.
+
+        Completion is decided by NVD's ``totalResults``: the crawl ends only
+        when ``startIndex`` reaches it. An empty page before that point is an
+        outage, not the end of the corpus. Pages are paced by
+        ``nvd_request_delay``. When the fetch resumes from a progress file,
+        ``self.last_fetch_resumed_from`` records the start index so the caller
+        can report a partial refresh.
+        """
+        self.last_fetch_resumed_from = 0
         try:
             api_key = self.config.get_api_key('nvd')
             base_url = self.config.get('api.nvd.base_url')
-            
+
             headers = {}
             if api_key:
                 headers['apiKey'] = api_key
-            
-            params = {
+
+            params: Dict[str, Any] = {
                 'resultsPerPage': self.config.get('api.nvd.results_per_page', 2000),
                 'startIndex': 0
             }
-            
+
             if start_date:
                 params['pubStartDate'] = start_date
             if end_date:
                 params['pubEndDate'] = end_date
-            
+
             # Progress tracking - use config value
             progress_file = Path(self.config.get('files.progress_file', 'cve_progress.json'))
             save_interval = self.config.get('progress_tracking.save_interval', 5000)
             log_interval = self.config.get('progress_tracking.log_interval', 10000)
-            all_cves = []
+            all_cves: List[Dict[str, Any]] = []
             start_index = 0
-            
+
             # Try to resume from previous progress
             if progress_file.exists():
                 try:
                     with open(progress_file, 'r') as f:
                         progress_data = json.load(f)
-                        start_index = progress_data.get('last_index', 0)
+                        start_index = int(progress_data.get('last_index', 0))
                         self.logger.info(f"Resuming CVE retrieval from index {start_index}")
                 except Exception as e:
                     self.logger.warning(f"Could not load progress file: {e}")
-            
+            self.last_fetch_resumed_from = start_index
+
             self.logger.info("Retrieving CVEs from NVD API...")
-            
-            # Adaptive rate limiting variables - use config values
+
+            # Retry backoff for 429/5xx/timeouts comes from config; the pacing
+            # between successful pages is NVD's documented limit.
             rate_limit_config = self.config.get('api.nvd.rate_limit', {})
             base_delay = rate_limit_config.get('base_delay', 0.5)
             max_delay = rate_limit_config.get('max_delay', 60.0)
@@ -127,28 +142,24 @@ class CVEProcessor:
             # last minutes; 8 retries with capped exponential backoff gives the
             # endpoint a multi-minute window to recover before the run fails.
             max_retries = rate_limit_config.get('max_retries', 8)
-            current_delay = base_delay
-            consecutive_429s = 0
-            successful_requests = 0
-            
+            page_delay = nvd_request_delay(bool(api_key))
+            total_results: Optional[int] = None
+
             while True:
                 params['startIndex'] = start_index
-                
-                # Adaptive retry logic for 429 errors
-                retry_delay = current_delay
-                
+                retry_delay = base_delay
+
                 for attempt in range(max_retries):
                     try:
-                        response = requests.get(base_url, headers=headers, params=params, 
+                        response = requests.get(base_url, headers=headers, params=params,
                                              timeout=self.config.get('api.nvd.timeout', 30))
-                        
+
                         if response.status_code == 429:
-                            consecutive_429s += 1
                             if attempt < max_retries - 1:
                                 # Exponential backoff with jitter
-                                jitter = time.time() % 1.0  # Add some randomness
+                                jitter = time.time() % 1.0
                                 actual_delay = retry_delay + jitter
-                                
+
                                 self.logger.warning(f"Rate limited (429), waiting {actual_delay:.2f}s before retry {attempt + 1}/{max_retries}")
                                 time.sleep(actual_delay)
                                 # Cap the backoff so deep retry chains stay bounded.
@@ -157,18 +168,10 @@ class CVEProcessor:
                             else:
                                 self.logger.error("Rate limited, max retries exceeded")
                                 break
-                        
-                        # Success - reset counters and adjust delay
-                        consecutive_429s = 0
-                        successful_requests += 1
-                        
-                        # Gradually increase delay if we've been getting 429s recently
-                        if successful_requests > 0 and successful_requests % 10 == 0:
-                            current_delay = min(current_delay * 1.1, max_delay)
-                        
+
                         response.raise_for_status()
                         break
-                        
+
                     except requests.exceptions.RequestException as e:
                         if attempt < max_retries - 1:
                             self.logger.warning(
@@ -188,7 +191,7 @@ class CVEProcessor:
                                 partial_count=len(all_cves),
                                 last_index=start_index,
                             ) from e
-                
+
                 if response.status_code == 429:
                     # Rate-limit retries exhausted mid-pagination. Raise rather
                     # than break-and-return the partial page set as if the fetch
@@ -204,54 +207,66 @@ class CVEProcessor:
                         partial_count=len(all_cves),
                         last_index=start_index,
                     )
-                
+
                 data = response.json()
-                if not isinstance(data, dict) or 'vulnerabilities' not in data:
+                if (
+                    not isinstance(data, dict)
+                    or not isinstance(data.get('vulnerabilities'), list)
+                    or not isinstance(data.get('totalResults'), int)
+                ):
                     # A 200 that lacks the expected NVD envelope (an error or
                     # maintenance page served with status 200 during a brownout)
-                    # is an outage, not a genuine empty result — fail loud rather
-                    # than letting a missing key read downstream as "no new CVEs".
+                    # is an outage, not a genuine empty result.
                     raise NVDUnavailableError(
-                        "NVD returned 200 without a 'vulnerabilities' field "
+                        "NVD returned 200 without 'vulnerabilities' and 'totalResults' "
                         "(malformed/maintenance response)",
                         url=base_url,
                         partial_count=len(all_cves),
                         last_index=start_index,
                     )
-                cves = data.get('vulnerabilities', [])
+                total_results = data['totalResults']
+                cves = data['vulnerabilities']
 
                 if not cves:
-                    break
-                    
+                    if start_index >= total_results:
+                        break
+                    # An empty page before totalResults is a truncated corpus,
+                    # never the end of it.
+                    raise NVDUnavailableError(
+                        f"NVD returned an empty page at index {start_index} of "
+                        f"{total_results}",
+                        url=base_url,
+                        partial_count=len(all_cves),
+                        last_index=start_index,
+                    )
+
                 all_cves.extend(cves)
                 start_index += len(cves)
-                
-                # Progress reporting and saving
-                if len(all_cves) % log_interval == 0 or len(cves) < params['resultsPerPage']:
-                    self.logger.info(f"Retrieved {len(cves)} CVEs (total: {len(all_cves)}) - Current delay: {current_delay:.2f}s")
-                
+
+                if len(all_cves) % log_interval == 0 or start_index >= total_results:
+                    self.logger.info(f"Retrieved {len(cves)} CVEs (index {start_index}/{total_results})")
+
                 # Save progress at configured interval
                 if len(all_cves) % save_interval == 0:
                     progress_data = {
                         'last_index': start_index,
                         'total_retrieved': len(all_cves),
-                        'current_delay': current_delay,
                         'timestamp': time.time()
                     }
                     try:
-                        with open(progress_file, 'w') as f:
-                            json.dump(progress_data, f)
+                        atomic_write_json(progress_file, progress_data)
                     except Exception as e:
                         self.logger.warning(f"Could not save progress: {e}")
-                
-                if len(cves) < params['resultsPerPage']:
+
+                if start_index >= total_results:
                     break
-                
-                # Adaptive delay between requests
-                time.sleep(current_delay)
-            
-            self.logger.info(f"Total CVEs retrieved: {len(all_cves)}")
-            
+
+                # A short page before totalResults just means "keep going":
+                # the next request starts where this one ended.
+                time.sleep(page_delay)
+
+            self.logger.info(f"Total CVEs retrieved: {len(all_cves)} (totalResults {total_results})")
+
             # Clean up progress file on successful completion
             if progress_file.exists():
                 try:
@@ -259,16 +274,16 @@ class CVEProcessor:
                     self.logger.info("Progress file cleaned up")
                 except Exception as e:
                     self.logger.warning(f"Could not clean up progress file: {e}")
-            
+
             return all_cves
-            
+
         except NVDUnavailableError:
-            # Already typed and logged at the failure point — propagate so the
+            # Already typed and logged at the failure point; propagate so the
             # orchestrator records a degraded run instead of false success.
             raise
         except Exception as e:
             # Any other unexpected failure must surface too. Returning [] here is
-            # what made an outage read downstream as "no new CVEs" → success.
+            # what made an outage read downstream as "no new CVEs".
             self.logger.error(f"Failed to retrieve CVEs from NVD: {e}")
             raise NVDUnavailableError(
                 f"Unexpected failure retrieving CVEs from NVD: {e}",
@@ -387,7 +402,8 @@ class CVEProcessor:
         """Load CWE database"""
         try:
             with open(self.cwe_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load CWE database: {e}")
             return {}
@@ -396,7 +412,8 @@ class CVEProcessor:
         """Load CAPEC database"""
         try:
             with open(self.capec_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load CAPEC database: {e}")
             return {}
@@ -405,54 +422,27 @@ class CVEProcessor:
         """Load techniques database"""
         try:
             with open(self.techniques_file, 'r') as f:
-                return json.load(f)
+                db: Dict[str, Any] = json.load(f)
+                return db
         except Exception as e:
             self.logger.error(f"Failed to load techniques database: {e}")
             return {}
     
-    @performance_timer("get_parent_cwe")
     def get_parent_cwe(self, cwe: str) -> Optional[List[str]]:
-        """Get parent CWE relationships with caching"""
-        cache_key = f"parent_cwe_{cwe}"
-        
-        # Check cache first
-        cached_result = self.cache.get(cache_key)
-        if cached_result is not None:
-            return cached_result
-        
-        cwe_list = set()
-        try:
-            # Handle both CWE-XXX and XXX formats
-            if cwe.startswith("CWE-"):
-                cwe_key = cwe
-                result = self.cwe_db.get(cwe_key, {})
-                if not result:
-                    cwe_key = cwe[4:]  # Remove "CWE-" prefix
-                    result = self.cwe_db.get(cwe_key, {})
-            else:
-                cwe_key = cwe
-                result = self.cwe_db.get(cwe_key, {})
-            
-            if result.get("ChildOf", []):
-                for related_cwe in result["ChildOf"]:
-                    cwe_list.add(related_cwe)
-                result = list(cwe_list)
-            else:
-                result = None
-            
-            # Cache the result
-            self.cache.set(cache_key, result, ttl=3600)
-            return result
-        except Exception as e:
-            self.logger.warning(f"Exception occurred for {cwe}: {e}")
-        return None
-    
+        """One level of ChildOf parents as normalized ``CWE-<n>`` ids, or None.
+
+        Delegates to the shared definition in ``tip.core.id_normalize`` so the
+        processor and the entity index generator cannot disagree.
+        """
+        parents = cwe_parents(self.cwe_db, cwe)
+        return parents or None
+
     def fetch_capec_for_cwe(self, cwe: str) -> List[str]:
-        """Fetch CAPEC entries for a CWE"""
+        """Fetch CAPEC entries for a CWE (``'79'`` or ``'CWE-79'``)"""
         try:
-            result = self.cwe_db.get(cwe, {})
+            result = self.cwe_db.get(cwe_number(cwe) or cwe, {})
             capec_list = result.get("RelatedAttackPatterns", [])
-            return capec_list if capec_list else []
+            return list(capec_list) if capec_list else []
         except Exception as e:
             self.logger.warning(f"Exception for CWE-{cwe}: {str(e)}")
             return []
@@ -478,8 +468,8 @@ class CVEProcessor:
         cache_key = f"defend_{technique_id}"
         cached_result = self.cache.get(cache_key)
         if cached_result is not None:
-            return cached_result
-        
+            return cast(List[Dict[str, str]], cached_result)
+
         try:
             # Normalize technique ID
             attack_id = technique_id if technique_id.startswith('T') else f"T{technique_id}"
@@ -488,7 +478,7 @@ class CVEProcessor:
             if Path(defend_file).exists():
                 for entry in self.jsonl_manager.read_jsonl(defend_file):
                     if attack_id in entry:
-                        result = entry[attack_id].get('defensive_techniques', [])
+                        result: List[Dict[str, str]] = entry[attack_id].get('defensive_techniques', [])
                         self.cache.set(cache_key, result, ttl=3600)
                         return result
             
@@ -511,12 +501,11 @@ class CVEProcessor:
             return []
     
     @log_operation("process_cve_pipeline", "cve_processing")
-    @track_cve_processing_metrics("process_cve_pipeline")
-    @track_request("process_cve_pipeline", "cve_processor")
     def process_cve_pipeline(self, cve_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single CVE through the entire pipeline"""
-        result = {}
-        
+        result: Dict[str, Dict[str, Any]] = {}
+        failed_ids: List[str] = []
+
         # Fields preserved verbatim from ingest (raw NVD data) through enrichment.
         PRESERVED_FIELDS = (
             'DESCRIPTION', 'PUBLISHED', 'LAST_MODIFIED', 'REFERENCES', 'CVSS',
@@ -524,17 +513,11 @@ class CVEProcessor:
 
         for cve_id, data in cve_data.items():
             try:
-                # Step 1: Process CWE relationships
-                cwe_list = set(data.get('CWE', []))
-                for cwe in data.get('CWE', []):
-                    cwe_list.add(cwe)
-                    # Extract numeric CWE ID (remove "CWE-" prefix if present)
-                    cwe_id = cwe.replace("CWE-", "") if cwe.startswith("CWE-") else cwe
-                    parent_cwes = self.get_parent_cwe(cwe_id)
-                    if parent_cwes:
-                        cwe_list.update(parent_cwes)
+                # Step 1: CWE list plus one level of ChildOf parents, every
+                # id normalized to CWE-<n> (shared definition, ISC-21/23).
+                cwe_list = expand_cwe_list(self.cwe_db, data.get('CWE', []))
 
-                result[cve_id] = {"CWE": list(sorted(cwe_list))}
+                result[cve_id] = {"CWE": cwe_list}
                 # Carry forward raw NVD fields that enrichment does not regenerate.
                 for field in PRESERVED_FIELDS:
                     if field in data:
@@ -543,10 +526,7 @@ class CVEProcessor:
                 # Step 2: Get CAPEC entries
                 capec_list = set()
                 for cwe in cwe_list:
-                    # Extract numeric CWE ID (remove "CWE-" prefix if present)
-                    cwe_id = cwe.replace("CWE-", "") if cwe.startswith("CWE-") else cwe
-                    capecs = self.fetch_capec_for_cwe(cwe_id)
-                    capec_list.update(capecs)
+                    capec_list.update(self.fetch_capec_for_cwe(cwe))
                 
                 result[cve_id]["CAPEC"] = list(sorted(capec_list))
                 
@@ -625,28 +605,31 @@ class CVEProcessor:
                         result[cve_id]["APT_GROUPS"] = apt_groups
 
             except Exception as e:
+                # Never publish a stripped record: a partial result would
+                # replace the complete one already in the shard. The CVE is
+                # left out, its previous record stays, and the failure is
+                # counted so process_file can fail the step.
                 self.logger.error(f"Error processing CVE {cve_id}: {e}")
-                # Return partial result while still preserving raw NVD fields
-                partial: Dict[str, Any] = {
-                    "CWE": data.get('CWE', []),
-                    "CAPEC": [],
-                    "TECHNIQUES": [],
-                    "DEFEND": [],
-                    "OWASP": []
-                }
-                for field in PRESERVED_FIELDS:
-                    if field in data:
-                        partial[field] = data[field]
-                result[cve_id] = partial
-        
+                result.pop(cve_id, None)
+                failed_ids.append(cve_id)
+
+        self.last_enrichment = {
+            "attempted": len(cve_data),
+            "failed": len(failed_ids),
+            "failed_ids": failed_ids,
+        }
         return result
     
-    def save_results(self, results: Dict[str, Any]):
+    @staticmethod
+    def enrichment_failures_exceed_threshold(failed: int, attempted: int) -> bool:
+        """True when failures exceed 1% of attempted CVEs or 50, whichever
+        is smaller. Above it the cve_processing step fails."""
+        return failed > min(attempted * ENRICHMENT_FAILURE_RATE, ENRICHMENT_FAILURE_MAX)
+
+    def save_results(self, results: Dict[str, Any]) -> None:
         """Save results to JSONL file and update database"""
         # Save to main output file
-        with open(self.cve_file, 'w', encoding='utf-8') as f:
-            for cve_id, data in results.items():
-                f.write(json.dumps({cve_id: data}) + "\n")
+        atomic_write_bytes(self.cve_file, jsonl_bytes(results.items()))
         
         # Update database files by year
         new_cves: Dict[str, Dict[str, Any]] = {}
@@ -694,7 +677,24 @@ class CVEProcessor:
         # Process through pipeline
         try:
             results = self.process_cve_pipeline(cve_data)
+            # Successful records are saved even when the run fails below:
+            # they are correct, failed CVEs keep their previous record, and
+            # the workflow publishes nothing unless the run exits 0.
             self.save_results(results)
+            stats = self.last_enrichment or {}
+            failed = int(stats.get("failed", 0))
+            attempted = int(stats.get("attempted", len(cve_data)))
+            if failed:
+                self.logger.warning(
+                    f"{failed} of {attempted} CVEs failed enrichment and were not "
+                    "written; their previous records are kept"
+                )
+            if self.enrichment_failures_exceed_threshold(failed, attempted):
+                self.logger.error(
+                    f"Enrichment failures ({failed} of {attempted}) exceed the "
+                    f"threshold of min(1%, {ENRICHMENT_FAILURE_MAX})"
+                )
+                return False
             self.logger.info(f"Successfully processed {len(results)} CVEs")
             return True
         except Exception as e:

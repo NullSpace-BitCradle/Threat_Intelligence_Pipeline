@@ -1,6 +1,6 @@
 """Canonical extractors for the rich CVE intelligence blocks.
 
-Every block here is derived from a *shard payload* — the per-CVE dict that the
+Every block here is derived from a *shard payload*: the per-CVE dict that the
 pipeline writes to ``docs/database/CVE-YYYY.jsonl.gz``. The generator's
 ``cve_data`` and the MCP loader's shard ``payload`` are the same shape, so one
 set of extractors serves both producer and consumer. This is the contract that
@@ -114,7 +114,7 @@ def enrich(record: dict, payload: dict) -> None:
         record.setdefault(key, value)
     # D3FEND semantics decorate the MCP record's flat rels list. The generator's
     # entity rels are a dict (and absent at emission time), so guard for the
-    # list shape — the scalar blocks above attach to both callers regardless.
+    # list shape; the scalar blocks above attach to both callers regardless.
     sem = defend_semantics(payload)
     rels = record.get("rels")
     if sem and isinstance(rels, list):

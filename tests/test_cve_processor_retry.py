@@ -48,7 +48,7 @@ class _OkResponse:
         return None
 
     def json(self):
-        return {"vulnerabilities": []}
+        return {"totalResults": 0, "vulnerabilities": []}
 
 
 def _make_processor(rate_limit):
