@@ -15,6 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from tip_intel import cve_blocks
+from tip.utils.atomic_io import atomic_replace_many
+from tip.database.database_optimizer import JSONLManager
+
+_jsonl = JSONLManager()
 
 
 # Provenance metadata — entity-level derived from type
@@ -302,13 +306,9 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     total_cve_ids = 0
     for cve_file in cve_files:
         print(f"  Processing {cve_file.name}...")
-        opener = gzip.open if cve_file.suffix == '.gz' else open
-        with opener(cve_file, "rt", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                record = json.loads(line)
+        # Strict reader: a malformed line or truncated gzip raises
+        # ShardCorruptError naming the shard, instead of a bare EOFError.
+        for record in _jsonl.read_jsonl(str(cve_file)):
                 for cve_id, cve_data in record.items():
                     # Layer 1: every ingested CVE goes into the all-IDs index,
                     # regardless of CWE coverage.
@@ -600,35 +600,32 @@ def write_outputs(
     search_index: dict,
     base_dir: str | Path,
     cve_ids_index: dict | None = None,
-):
+    out_dir: str | Path | None = None,
+) -> None:
     """Write entity_index.json, search_index.json, and the optional
-    Layer 1 all-CVE-IDs index to docs/data/."""
-    base = Path(base_dir)
-    out_dir = base / "docs" / "data"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    Layer 1 all-CVE-IDs index to docs/data/ (or ``out_dir``).
 
-    ei_path = out_dir / "entity_index.json"
-    si_path = out_dir / "search_index.json"
+    All files are serialized in memory, then published together: every temp
+    file is written before any target is replaced, so a failure cannot leave
+    a mix of old and new indexes.
+    """
+    target_dir = Path(out_dir) if out_dir is not None else Path(base_dir) / "docs" / "data"
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nWriting {ei_path}...")
-    with open(ei_path, "w", encoding="utf-8") as f:
-        json.dump(entity_index, f, separators=(",", ":"))
-    ei_size = ei_path.stat().st_size / (1024 * 1024)
-    print(f"  entity_index.json: {ei_size:.1f} MB")
+    def _dump(obj: dict) -> bytes:
+        return json.dumps(obj, separators=(",", ":")).encode("utf-8")
 
-    print(f"Writing {si_path}...")
-    with open(si_path, "w", encoding="utf-8") as f:
-        json.dump(search_index, f, separators=(",", ":"))
-    si_size = si_path.stat().st_size / (1024 * 1024)
-    print(f"  search_index.json: {si_size:.1f} MB")
-
+    items: list[tuple[Path, bytes]] = [
+        (target_dir / "entity_index.json", _dump(entity_index)),
+        (target_dir / "search_index.json", _dump(search_index)),
+    ]
     if cve_ids_index is not None:
-        cve_ids_path = out_dir / "cve_ids_index.json"
-        print(f"Writing {cve_ids_path}...")
-        with open(cve_ids_path, "w", encoding="utf-8") as f:
-            json.dump(cve_ids_index, f, separators=(",", ":"))
-        cve_ids_size = cve_ids_path.stat().st_size / (1024 * 1024)
-        print(f"  cve_ids_index.json: {cve_ids_size:.1f} MB")
+        items.append((target_dir / "cve_ids_index.json", _dump(cve_ids_index)))
+
+    print(f"\nWriting {len(items)} index files to {target_dir}...")
+    atomic_replace_many(items)
+    for path, data in items:
+        print(f"  {path.name}: {len(data) / (1024 * 1024):.1f} MB")
 
 
 def main():
@@ -638,13 +635,18 @@ def main():
         default=str(Path(__file__).resolve().parents[3]),
         help="Project root directory (default: auto-detected from script location)",
     )
+    parser.add_argument(
+        "--out-dir",
+        default=None,
+        help="Write the index files here instead of <base-dir>/docs/data",
+    )
     args = parser.parse_args()
 
     print("=== TIP Entity Index Generator ===")
     print(f"Base dir: {args.base_dir}\n")
 
     entity_index, search_index, cve_ids_index = generate_entity_index(args.base_dir)
-    write_outputs(entity_index, search_index, args.base_dir, cve_ids_index)
+    write_outputs(entity_index, search_index, args.base_dir, cve_ids_index, out_dir=args.out_dir)
 
     # Summary
     type_counts = defaultdict(int)

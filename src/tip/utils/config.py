@@ -62,7 +62,7 @@ class Config:
                     "file": "resources/capec_db.json"
                 },
                 "cwe": {
-                    "url": "http://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
+                    "url": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
                     "file": "resources/cwe_db.json"
                 },
                 "techniques": {

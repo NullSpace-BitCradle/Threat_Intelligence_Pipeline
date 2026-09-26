@@ -17,6 +17,7 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
+from tip.utils.atomic_io import write_reference_db
 
 config = get_config()
 logger = get_logger('campaign_fetcher')
@@ -151,9 +152,7 @@ def fetch_campaigns(base_dir: str | Path) -> Dict[str, Any]:
     stix_data = _download_stix_bundle()
     campaigns_db = _extract_campaigns(stix_data)
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(campaigns_db, f, separators=(",", ":"))
+    write_reference_db(out_path, campaigns_db, indent=None, separators=(",", ":"))
 
     groups_linked = sum(1 for c in campaigns_db.values() if c["groups"])
     techniques_total = sum(len(c["techniques"]) for c in campaigns_db.values())

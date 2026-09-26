@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Dict, List, Set, Any, Optional
 from dataclasses import dataclass
 
+from tip.utils.atomic_io import write_reference_db, count_owasp
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -161,8 +163,7 @@ class OWASPProcessor:
                 'categories': self.owasp_categories,
                 'cwe_mapping': self.cwe_owasp_mapping
             }
-            with open(self.owasp_db_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            write_reference_db(self.owasp_db_path, data, count_owasp, indent=2, ensure_ascii=False)
             logger.info(f"Saved OWASP database to {self.owasp_db_path}")
         except Exception as e:
             logger.error(f"Error saving OWASP database: {e}")

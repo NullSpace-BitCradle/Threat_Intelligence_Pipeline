@@ -23,6 +23,7 @@ from tip.utils.error_handler import (
 from tip.utils.performance_optimizer import (
     performance_timer, get_performance_summary
 )
+from tip.utils.atomic_io import atomic_write_bytes, atomic_write_text, jsonl_bytes
 
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
@@ -32,7 +33,7 @@ class PipelineOrchestrator:
     
     def __init__(self):
         self.start_time = datetime.now()
-        self.results = {}
+        self.results: Dict[str, Dict[str, Any]] = {}
         self.config = config
         
         # Initialize components
@@ -78,29 +79,15 @@ class PipelineOrchestrator:
                 log_info("No new CVEs to process")
                 processing_results = {'success': True, 'message': 'No new CVEs'}
 
-            # Step 3b: Fetch campaign data
+            # Step 3b: Fetch campaign data. A failure keeps the last-good
+            # campaigns_db.json but is a failed step: the run goes red.
             log_info("Step 3b: Fetching ATT&CK campaigns...")
-            try:
-                from tip.core.campaign_fetcher import fetch_campaigns
-                base_dir = Path(__file__).resolve().parents[3]
-                fetch_campaigns(base_dir)
-                log_info("Campaign data fetched successfully")
-            except Exception as e:
-                log_warning(f"Campaign fetch failed (non-fatal): {e}")
+            self._fetch_campaigns()
 
-            # Step 4: Generate entity index for unified entity system
+            # Step 4: Generate entity index for unified entity system. A
+            # generator exception is a failed step, never a warning.
             log_info("Step 4: Generating entity index...")
-            try:
-                from tip.core.entity_index_generator import generate_entity_index, write_outputs
-                base_dir = Path(__file__).resolve().parents[3]
-                entity_index, search_index, cve_ids_index = generate_entity_index(base_dir)
-                write_outputs(entity_index, search_index, base_dir, cve_ids_index)
-                log_info(
-                    f"Entity index generated: {entity_index['meta']['entity_count']} entities, "
-                    f"{cve_ids_index['count']} CVE IDs in Layer 1"
-                )
-            except Exception as e:
-                log_warning(f"Entity index generation failed (non-fatal): {e}")
+            self._generate_entity_index()
 
             # Generate final summary
             summary = self._create_summary()
@@ -112,6 +99,44 @@ class PipelineOrchestrator:
             log_critical(f"Pipeline failed: {e}")
             raise
     
+    def _fetch_campaigns(self) -> None:
+        try:
+            from tip.core.campaign_fetcher import fetch_campaigns
+            base_dir = Path(__file__).resolve().parents[3]
+            fetch_campaigns(base_dir)
+            self.results['campaigns'] = {
+                'status': 'success', 'timestamp': datetime.now().isoformat()
+            }
+            log_info("Campaign data fetched successfully")
+        except Exception as e:
+            log_error(f"Campaign fetch failed: {e}")
+            self.results['campaigns'] = {
+                'status': 'failed', 'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+
+    def _generate_entity_index(self) -> None:
+        try:
+            from tip.core.entity_index_generator import generate_entity_index, write_outputs
+            base_dir = Path(__file__).resolve().parents[3]
+            entity_index, search_index, cve_ids_index = generate_entity_index(base_dir)
+            write_outputs(entity_index, search_index, base_dir, cve_ids_index)
+            self.results['entity_index'] = {
+                'status': 'success',
+                'entity_count': entity_index['meta']['entity_count'],
+                'timestamp': datetime.now().isoformat()
+            }
+            log_info(
+                f"Entity index generated: {entity_index['meta']['entity_count']} entities, "
+                f"{cve_ids_index['count']} CVE IDs in Layer 1"
+            )
+        except Exception as e:
+            log_error(f"Entity index generation failed: {e}")
+            self.results['entity_index'] = {
+                'status': 'failed', 'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+
     def _updates_needed(self) -> bool:
         """Check if updates are needed based on last update time"""
         try:
@@ -156,7 +181,7 @@ class PipelineOrchestrator:
             successful = sum(1 for success in db_results.values() if success)
             failed = len(db_results) - successful
             
-            self.results['database_updates'] = {
+            summary: Dict[str, Any] = {
                 'status': 'success' if failed == 0 else 'partial',
                 'duration': duration,
                 'successful': successful,
@@ -164,13 +189,14 @@ class PipelineOrchestrator:
                 'results': db_results,
                 'timestamp': datetime.now().isoformat()
             }
-            
+            self.results['database_updates'] = summary
+
             log_info(f"Database updates completed: {successful} successful, {failed} failed")
-            
+
             if failed > 0:
                 log_warning(f"Some database updates failed: {[k for k, v in db_results.items() if not v]}")
-            
-            return self.results['database_updates']
+
+            return summary
             
         except Exception as e:
             error_msg = f"Database updates failed: {e}"
@@ -221,18 +247,26 @@ class PipelineOrchestrator:
             
             # Save to file for processing
             cve_file = self.config.get_output_path('cve_output')
-            with open(cve_file, 'w', encoding='utf-8') as f:
-                for cve_id, data in processed_cves.items():
-                    f.write(json.dumps({cve_id: data}) + "\n")
-            
+            atomic_write_bytes(cve_file, jsonl_bytes(processed_cves.items()))
+
             duration = time.time() - start_time
-            
+
+            # A fetch resumed from a progress file only covers the tail of
+            # the corpus. It is real progress but not a full refresh, so it
+            # is recorded as partial and the run does not report clean.
+            resumed_from = getattr(self.cve_processor, 'last_fetch_resumed_from', 0) or 0
             self.results['cve_retrieval'] = {
-                'status': 'success',
+                'status': 'partial' if resumed_from else 'success',
                 'duration': duration,
                 'cve_count': len(processed_cves),
                 'timestamp': datetime.now().isoformat()
             }
+            if resumed_from:
+                self.results['cve_retrieval']['resumed_from_index'] = resumed_from
+                log_warning(
+                    f"CVE fetch resumed from index {resumed_from}; "
+                    "run recorded as partial, not a full refresh"
+                )
             
             log_info(f"CVE retrieval completed: {len(processed_cves)} CVEs retrieved")
             
@@ -334,6 +368,9 @@ class PipelineOrchestrator:
         # Count successes and failures
         successful_steps = sum(1 for r in self.results.values() if r.get('status') == 'success')
         failed_steps = sum(1 for r in self.results.values() if r.get('status') == 'failed')
+        # 'partial' (some reference DBs failed, or a resumed CVE fetch) is not
+        # a clean run either.
+        partial_steps = sum(1 for r in self.results.values() if r.get('status') == 'partial')
         # 'degraded' (e.g. NVD unavailable) is neither success nor failure — it
         # must not silently roll up as a clean run. Counted distinctly so the
         # exit code and summary surface the brownout.
@@ -347,6 +384,7 @@ class PipelineOrchestrator:
                 'successful_steps': successful_steps,
                 'failed_steps': failed_steps,
                 'degraded_steps': degraded_steps,
+                'partial_steps': partial_steps,
                 'total_steps': len(self.results)
             },
             'results': self.results,
@@ -357,20 +395,32 @@ class PipelineOrchestrator:
         summary_file = Path('results/update_summary.json')
         summary_file.parent.mkdir(exist_ok=True)
         
-        with open(summary_file, 'w') as f:
-            json.dump(summary, f, indent=2)
-        
-        # Update last update timestamp
-        self._update_last_update_time()
-        
+        atomic_write_text(summary_file, json.dumps(summary, indent=2))
+
+        # lastUpdate.txt advances only on a run that did work and was fully
+        # clean; a degraded, partial or failed run leaves it where it was.
+        if self._run_is_clean(summary):
+            self._update_last_update_time()
+        elif summary['pipeline_session']['total_steps']:
+            log_warning("Run not fully successful; lastUpdate.txt left unchanged")
+
         return summary
+
+    @staticmethod
+    def _run_is_clean(summary: Dict[str, Any]) -> bool:
+        session = summary['pipeline_session']
+        return bool(
+            session['total_steps'] > 0
+            and session['failed_steps'] == 0
+            and session.get('degraded_steps', 0) == 0
+            and session.get('partial_steps', 0) == 0
+        )
     
     def _update_last_update_time(self):
         """Update the last update timestamp"""
         try:
             last_update_file = Path(self.config.get('files.last_update', 'lastUpdate.txt'))
-            with open(last_update_file, 'w') as f:
-                f.write(datetime.now().isoformat())
+            atomic_write_text(last_update_file, datetime.now().isoformat())
             log_info(f"Updated last update timestamp in {last_update_file}")
         except Exception as e:
             log_warning(f"Failed to update last update timestamp: {e}")
@@ -428,7 +478,22 @@ class PipelineOrchestrator:
         
         return True
 
-def main():
+def exit_code_for(summary: Dict[str, Any]) -> int:
+    """Process exit code for a pipeline summary: 0 only for a clean run.
+
+    Failed, degraded and partial steps all exit 1. This is the one rule both
+    entry points (run_pipeline.py and this module) use; CI reads nothing else.
+    """
+    session = summary['pipeline_session']
+    unclean = (
+        session.get('failed_steps', 0)
+        + session.get('degraded_steps', 0)
+        + session.get('partial_steps', 0)
+    )
+    return 0 if unclean == 0 else 1
+
+
+def main() -> None:
     """Main entry point for the pipeline orchestrator"""
     parser = argparse.ArgumentParser(description='Threat Intelligence Pipeline Orchestrator')
     parser.add_argument('--force-update', action='store_true',
@@ -490,12 +555,10 @@ def main():
         print(f"\nDetailed summary saved to: results/update_summary.json")
         print("="*60)
 
-        # Exit with appropriate code. A degraded run (e.g. NVD brownout) is NOT
-        # a clean run — exit non-zero so CI/monitors don't read it as success.
-        if summary['pipeline_session']['failed_steps'] > 0 or degraded_steps > 0:
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        # Exit with appropriate code. A degraded or partial run (e.g. NVD
+        # brownout) is NOT a clean run; exit non-zero so CI does not read it
+        # as success.
+        sys.exit(exit_code_for(summary))
             
     except Exception as e:
         log_critical(f"Pipeline orchestrator failed: {e}")

@@ -4,12 +4,15 @@ Unified database management system
 Combines all database update operations into a single, efficient manager
 """
 import os
+import io
 import requests
 import json
 import csv
 import time
+import tempfile
+from pathlib import Path
 from zipfile import ZipFile
-from typing import Dict, Any, List
+from typing import Callable, Dict, Any, List, Optional
 from datetime import datetime
 
 from tip.utils.config import get_config
@@ -18,13 +21,15 @@ from tip.utils.error_handler import (
     log_operation, NetworkError, FileOperationError,
     get_logger, create_api_context
 )
-from tip.utils.validation import validate_file_exists
+from tip.utils.atomic_io import write_reference_db, count_records, count_groups
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
 
 config = get_config()
 config.setup_logging()
+
+CAPEC_CSV_MEMBER = "1000.csv"
 
 class DatabaseManager:
     """Unified database management for all Threat Intelligence Pipeline databases"""
@@ -96,45 +101,35 @@ class DatabaseManager:
     
     @log_operation("process_capec", "database_update")
     def _process_capec_data(self, zip_file: str) -> Dict[str, Any]:
-        """Process CAPEC CSV data"""
+        """Process CAPEC CSV data.
+
+        The CSV member is read straight out of the archive; nothing is
+        extracted to disk.
+        """
         try:
-            # Extract CSV from zip
             with ZipFile(zip_file, 'r') as zip_ref:
-                zip_ref.extractall()
-            
-            csv_file = "1000.csv"
-            if not validate_file_exists(csv_file):
-                raise FileOperationError("CAPEC CSV file not found after extraction")
-            
-            # Process CSV data
-            capec_data = {}
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    try:
-                        capec_id = row.get("'ID", "")
-                        name = row.get("Name", "")
-                        techniques = row.get("Taxonomy Mappings", "")
-                        
-                        if not capec_id:
-                            self.logger.warning("CAPEC entry missing ID, skipping")
-                            continue
-                        
-                        capec_data[capec_id] = {
-                            "name": name,
-                            "techniques": techniques
-                        }
-                    except Exception as e:
-                        self.logger.warning(f"Error processing CAPEC entry: {e}")
-                        continue
-            
-            # Clean up
-            os.remove(csv_file)
-            os.remove(zip_file)
-            
+                if CAPEC_CSV_MEMBER not in zip_ref.namelist():
+                    raise FileOperationError(
+                        f"CAPEC archive has no {CAPEC_CSV_MEMBER} member",
+                        file_path=zip_file,
+                    )
+                raw = zip_ref.read(CAPEC_CSV_MEMBER)
+
+            capec_data: Dict[str, Any] = {}
+            reader = csv.DictReader(io.StringIO(raw.decode('utf-8')))
+            for row in reader:
+                capec_id = row.get("'ID", "")
+                if not capec_id:
+                    self.logger.warning("CAPEC entry missing ID, skipping")
+                    continue
+                capec_data[capec_id] = {
+                    "name": row.get("Name", ""),
+                    "techniques": row.get("Taxonomy Mappings", ""),
+                }
+
             self.logger.info(f"Processed {len(capec_data)} CAPEC entries")
             return capec_data
-            
+
         except Exception as e:
             self.logger.error(f"Error processing CAPEC data: {e}")
             raise
@@ -145,27 +140,24 @@ class DatabaseManager:
         try:
             import xml.etree.ElementTree as ET
             
-            # Extract XML from zip
+            # Read the single expected XML member straight out of the archive;
+            # nothing is extracted to disk.
             with ZipFile(zip_file, 'r') as zip_ref:
-                # List files in the zip to find the actual XML filename
-                file_list = zip_ref.namelist()
-                xml_files = [f for f in file_list if f.endswith('.xml')]
-                
-                if not xml_files:
-                    raise FileOperationError("No XML file found in CWE zip")
-                
-                # Extract the first XML file found
-                xml_file = xml_files[0]
-                zip_ref.extract(xml_file)
-            
-            if not validate_file_exists(xml_file):
-                raise FileOperationError("CWE XML file not found after extraction")
-            
-            # Process XML data
+                xml_files = [
+                    f for f in zip_ref.namelist()
+                    if f.endswith('.xml') and '/' not in f and f.startswith('cwec_')
+                ]
+                if len(xml_files) != 1:
+                    raise FileOperationError(
+                        f"Expected exactly one cwec_*.xml member in CWE zip, found {xml_files}",
+                        file_path=zip_file,
+                    )
+                with zip_ref.open(xml_files[0]) as xml_stream:
+                    tree = ET.parse(xml_stream)
+
             cwe_data: Dict[str, Any] = {}
-            tree = ET.parse(xml_file)
             root = tree.getroot()
-            
+
             # Parse CWE entries
             for weakness in root.findall('.//{http://cwe.mitre.org/cwe-7}Weakness'):
                 cwe_id = weakness.get('ID')
@@ -198,10 +190,6 @@ class DatabaseManager:
                         'ChildOf': child_of,
                         'RelatedAttackPatterns': related_capecs
                     }
-            
-            # Clean up
-            os.remove(xml_file)
-            os.remove(zip_file)
             
             self.logger.info(f"Processed {len(cwe_data)} CWE entries")
             return cwe_data
@@ -269,10 +257,13 @@ class DatabaseManager:
             raise
     
     @log_operation("process_defend", "database_update")
-    def _process_defend_data(self) -> Dict[str, Any]:
+    def _process_defend_data(self) -> Optional[Dict[str, Any]]:
         """
         Process D3FEND data by querying the D3FEND API for defensive techniques
         that counter ATT&CK techniques.
+
+        Returns None when D3FEND is disabled or its input is missing, meaning
+        "nothing to write": the existing file is left as is.
         """
         try:
             defend_data: Dict[str, Any] = {}
@@ -280,13 +271,13 @@ class DatabaseManager:
             # Check if D3FEND is enabled in config
             if not config.get('api.d3fend.enabled', True):
                 self.logger.info("D3FEND integration is disabled in config")
-                return defend_data
+                return None
             
             # Load the techniques database to get ATT&CK technique IDs
             techniques_file = config.get_database_path('techniques')
             if not os.path.exists(techniques_file):
                 self.logger.warning("Techniques database not found, skipping D3FEND update")
-                return defend_data
+                return None
             
             with open(techniques_file, 'r') as f:
                 techniques_db = json.load(f)
@@ -423,9 +414,14 @@ class DatabaseManager:
         return kev_processor._process_kev_data(raw_data)
 
     def _update_vulnrichment_database(self) -> Dict[str, Any]:
-        """Download and process CISA Vulnrichment data"""
+        """Download and process CISA Vulnrichment data.
+
+        Raises when the processor reports failure: its in-memory dict is empty
+        or stale in that case and must never reach disk.
+        """
         vr_processor = VulnrichmentProcessor()
-        vr_processor.update()
+        if not vr_processor.update():
+            raise RuntimeError("Vulnrichment update failed; keeping the existing database")
         return vr_processor.vulnrichment_db
 
     def _update_groups_database(self) -> Dict[str, Any]:
@@ -434,85 +430,44 @@ class DatabaseManager:
         stix_data = apt_processor.download()
         return apt_processor._process_stix_data(stix_data)
 
-    def _save_database(self, data: Dict[str, Any], file_path: str):
-        """Save database data to JSON or JSONL file based on extension"""
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    def _save_database(
+        self,
+        data: Dict[str, Any],
+        file_path: str,
+        counter: Callable[[Any], int] = count_records,
+    ) -> None:
+        """Floor-check and atomically save a reference DB (JSON or JSONL)."""
+        count = write_reference_db(file_path, data, counter)
+        self.logger.info(f"Saved {count} entries to {file_path}")
 
-            with open(file_path, 'w', encoding='utf-8') as f:
-                if file_path.endswith('.jsonl'):
-                    # JSONL: one JSON object per line (key: value)
-                    for key, value in data.items():
-                        json.dump({key: value}, f)
-                        f.write('\n')
-                else:
-                    json.dump(data, f, indent=4)
-
-            self.logger.info(f"Saved {len(data)} entries to {file_path}")
-
-        except Exception as e:
-            self.logger.error(f"Error saving database to {file_path}: {e}")
-            raise
-    
     @performance_timer("update_database")
     def update_database(self, db_name: str) -> bool:
-        """Update a specific database"""
+        """Update a specific database. Returns False on any failure, leaving
+        the existing file untouched."""
         if db_name not in self.databases:
             self.logger.error(f"Unknown database: {db_name}")
             return False
-        
+
         db_config = self.databases[db_name]
-        
+
         try:
-            if db_name == 'capec':
-                # Download and process CAPEC
-                zip_file = "capec_data.zip"
-                if self._download_file(db_config['url'], zip_file):
+            data: Optional[Dict[str, Any]]
+            if db_name in ('capec', 'cwe'):
+                with tempfile.TemporaryDirectory(prefix=f"tip_{db_name}_") as tmp:
+                    zip_file = str(Path(tmp) / f"{db_name}_data.zip")
+                    self._download_file(db_config['url'], zip_file)
                     data = db_config['processor'](zip_file)
-                    self._save_database(data, db_config['file'])
-                    return True
-            
-            elif db_name == 'cwe':
-                # Download and process CWE
-                zip_file = "cwe_data.zip"
-                if self._download_file(db_config['url'], zip_file):
-                    data = db_config['processor'](zip_file)
-                    self._save_database(data, db_config['file'])
-                    return True
-            
-            elif db_name == 'techniques':
-                # Process techniques
+            else:
                 data = db_config['processor']()
-                self._save_database(data, db_config['file'])
-                return True
-            
-            elif db_name == 'defend':
-                # Process D3FEND
-                data = db_config['processor']()
-                self._save_database(data, db_config['file'])
+
+            if data is None:
+                self.logger.info(f"{db_name}: nothing to write, existing file kept")
                 return True
 
-            elif db_name == 'kev':
-                # Process KEV
-                data = db_config['processor']()
-                self._save_database(data, db_config['file'])
-                return True
+            counter = count_groups if db_name == 'groups' else count_records
+            self._save_database(data, db_config['file'], counter)
+            return True
 
-            elif db_name == 'vulnrichment':
-                # Process Vulnrichment
-                data = db_config['processor']()
-                self._save_database(data, db_config['file'])
-                return True
-
-            elif db_name == 'groups':
-                # Process ATT&CK Groups
-                data = db_config['processor']()
-                self._save_database(data, db_config['file'])
-                return True
-
-            return False
-            
         except Exception as e:
             self.logger.error(f"Failed to update {db_name} database: {e}")
             return False

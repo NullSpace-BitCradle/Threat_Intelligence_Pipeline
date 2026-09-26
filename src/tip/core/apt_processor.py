@@ -14,6 +14,7 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
+from tip.utils.atomic_io import write_reference_db, count_groups
 
 config = get_config()
 
@@ -160,11 +161,9 @@ class APTProcessor:
             self.logger.error(f"Failed to load groups database: {e}")
             return False
 
-    def _save(self, data: Dict[str, Any]):
-        """Save processed groups database to disk"""
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+    def _save(self, data: Dict[str, Any]) -> None:
+        """Floor-check and atomically save the groups database"""
+        write_reference_db(self.db_path, data, count_groups, indent=2)
         group_count = len(data.get("groups", {}))
         self.logger.info(f"Saved {group_count} groups to {self.db_path}")
 
