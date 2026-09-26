@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 54/66
+progress: 55/66
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -154,7 +154,7 @@ Why: an unchanged shard must not add a new blob to history every week.
 ### F10 · Docs match disk
 Why: the maintainer's next return starts from docs that are true.
 
-- [ ] ISC-58: README and `Plans/MASTER_PLAN.md` current-state numbers, test counts, CI description, and the July/September incidents match disk on the branch; repo CLAUDE.md async rule corrected to the serial-paced reality.
+- [x] ISC-58: README and `Plans/MASTER_PLAN.md` current-state numbers, test counts, CI description, and the July/September incidents match disk on the branch; repo CLAUDE.md async rule corrected to the serial-paced reality.
 
 ### F11 · Audit closures
 Why: the cross-vendor audit found fail-open paths inside records, not whole files, that the diff never touched; done means those are closed too.
@@ -231,6 +231,7 @@ Why: the cross-vendor audit found fail-open paths inside records, not whole file
 
 ## Verification
 
+- ISC-58: 1ba7d18 docs diff: 0 dashes, 0 local paths, removed flags only named as removed
 - ISC-1: 236 passed at 3e11ab4
 - ISC-2: mypy: no issues in 27 source files at 3e11ab4
 - ISC-6: 536b805 test: API error leaves DB and state byte-identical
