@@ -3,7 +3,7 @@ task: "Fix every 2026-09-26 review finding and ship recommended improvements"
 slug: 20260926-112500_tip-review-remediation
 project: Threat_Intelligence_Pipeline
 phase: climbing
-progress: 55/66
+progress: 63/66
 started: 2026-09-26T18:25:00Z
 updated: 2026-09-26T18:25:00Z
 principal_stated_goal: "Write up the ISA for fixing all the found issues and implementing recommended improvements then execute."
@@ -159,14 +159,14 @@ Why: the maintainer's next return starts from docs that are true.
 ### F11 · Audit closures
 Why: the cross-vendor audit found fail-open paths inside records, not whole files, that the diff never touched; done means those are closed too.
 
-- [ ] ISC-59: A CVE whose enrichment throws is not written; its prior shard record stays byte-identical, and the step fails above 1% or 50 failures.
-- [ ] ISC-60: Any non-404 D3FEND per-technique error fails the D3FEND update and keeps the previous defend_db.
-- [ ] ISC-61: Anti: a data workflow dispatched from any ref other than main does not run its job.
-- [ ] ISC-62: Any per-file error during a vulnrichment resync aborts it with no DB write and no state advance.
-- [ ] ISC-63: A failure on the second replace in atomic_replace_many leaves all targets byte-identical to before.
-- [ ] ISC-64: A malformed JSONL line in a shard yields the data_corrupt envelope instead of not_found.
-- [ ] ISC-65: The MCP shard cache enforces a byte budget, not only a year count.
-- [ ] ISC-66: search_threat_intel with a non-list types value returns an error envelope.
+- [x] ISC-59: A CVE whose enrichment throws is not written; its prior shard record stays byte-identical, and the step fails above 1% or 50 failures.
+- [x] ISC-60: Any non-404 D3FEND per-technique error fails the D3FEND update and keeps the previous defend_db.
+- [x] ISC-61: Anti: a data workflow dispatched from any ref other than main does not run its job.
+- [x] ISC-62: Any per-file error during a vulnrichment resync aborts it with no DB write and no state advance.
+- [x] ISC-63: A failure on the second replace in atomic_replace_many leaves all targets byte-identical to before.
+- [x] ISC-64: A malformed JSONL line in a shard yields the data_corrupt envelope instead of not_found.
+- [x] ISC-65: The MCP shard cache enforces a byte budget, not only a year count.
+- [x] ISC-66: search_threat_intel with a non-list types value returns an error envelope.
 
 ## Test Strategy
 
@@ -231,9 +231,17 @@ Why: the cross-vendor audit found fail-open paths inside records, not whole file
 
 ## Verification
 
+- ISC-59: fba0b8d test_enrichment_failure.py
+- ISC-60: e17697f test_d3fend_fail_closed.py
+- ISC-61: 545c6f2 job if github.ref main + push guard; test_data_workflow_guards.py
+- ISC-62: c743e62 test_vulnrichment_resync_fail_closed.py
+- ISC-63: cb681ec test_second_replace_failure_restores_all_targets
+- ISC-64: ce283ae test_shard_malformed_lines.py
+- ISC-65: 7b36a63 test_shard_cache_budget.py
+- ISC-66: c574dff test_search_types_param.py
 - ISC-58: 1ba7d18 docs diff: 0 dashes, 0 local paths, removed flags only named as removed
-- ISC-1: 236 passed at 3e11ab4
-- ISC-2: mypy: no issues in 27 source files at 3e11ab4
+- ISC-1: 293 passed at 6bcdc52
+- ISC-2: mypy: no issues in 27 source files at 6bcdc52
 - ISC-6: 536b805 test: API error leaves DB and state byte-identical
 - ISC-7: 536b805 compare >=300 files falls back to resync (mocked)
 - ISC-8: 536b805 per-file failure keeps last_commit_sha
