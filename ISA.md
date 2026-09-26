@@ -200,6 +200,7 @@ Why: the maintainer's next return starts from docs that are true.
 - 2026-09-26 12:00: F8 escalation accepted: removing `@with_recovery` lets `_update_databases` raise instead of continuing with status failed. Both exit 1; fail loud matches Principles.
 - 2026-09-26 12:00: F5 accepted: `search_threat_intel` with an unknown type now returns `invalid_type` (consistent with pivot); mcp pinned 2.2.0 on the 2.x MCPServer API; shard cache stores zlib-compressed lines, LRU 3 years, about 300 MB worst case.
 - 2026-09-26 12:00: lockfiles compiled by uv with generate-hashes and an exclude-newer cooldown of 7 days; CI installs with pip require-hashes. The three lockfiles share no conflicting pins (checked).
+- 2026-09-26 12:15: F6 merged (7a369f3). Playwright Chromium smoke suite 25/25 locally, including CSP-violation listener, stale-render repro with mutation check, and worklist cap. Interceptor real-Chrome pass is [DEFERRED-VERIFY]: Chrome was not running and launching it was denied by the permission classifier; ISC-40..46 stay open until the principal starts Chrome and the Interceptor pass runs. Accepted F6 extras: worklist URL via history.pushState (removes the double build), form-action 'none' in CSP, Google Fonts left remote.
 - 2026-09-26 11:25: `docs/mitre/` Navigator bundle left untouched (public URL, principal's call); recorded in Remaining Work.
 
 ## Verification
