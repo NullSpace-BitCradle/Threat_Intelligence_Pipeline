@@ -91,15 +91,23 @@ def search_threat_intel(
 def build_attack_chain(technique_id: str, limit: int = DEFAULT_CHAIN_LIMIT) -> dict[str, Any]:
     """Build the attack chain behind an ATT&CK technique.
 
-    Walks technique <- CAPEC attack patterns <- CWE weaknesses -> CVEs, and
-    lists the technique's D3FEND defenses. CVEs are ordered KEV first, then
-    CVSS descending, and each carries kev, cvss_score, and severity. Every
-    element carries its provenance (source, tier) so derived links are not
-    mistaken for authoritative ones. Each list is capped at `limit` (default
-    50); meta.totals has the full counts. A technique with no CAPEC mapping
-    returns empty chain lists and a meta.note explaining why, still with its
-    defenses. Errors: not_found for an unknown id, invalid_type for a
-    non-technique id.
+    cves is exactly the set of CVEs the TIP graph links to the technique.
+    capecs are the CAPEC patterns that map to the technique. Each CVE
+    carries via_cwes and via_capecs: its CWE weaknesses that reach one of
+    those CAPECs, and the CAPECs reached (empty when no CWE path exists).
+    cwes lists only the CWEs some returned CVE goes through, each with
+    via_capecs and an inherited flag: true when a CWE to CAPEC link is not in
+    the CWE's own MITRE RelatedAttackPatterns (the generator inherited it
+    from a parent CWE), null when cwe_db.json is unavailable to check.
+    defenses are the technique's D3FEND mappings.
+
+    Every element carries source and tier (authoritative > official >
+    derived) of the weakest hop on its path, so an inherited or pipeline
+    derived link is never labeled official. CVEs are ordered KEV first, then
+    CVSS descending, and carry kev, cvss_score, and severity. Each list is
+    capped at `limit` (default 50); meta.totals has the full counts and
+    meta.note explains an empty or partly explained chain. Errors:
+    not_found for an unknown id, invalid_type for a non-technique id.
     """
     return build_attack_chain_impl(_loader, technique_id, limit)
 
@@ -110,12 +118,17 @@ def get_defenses(
 ) -> dict[str, Any]:
     """List D3FEND countermeasures for an ATT&CK technique or a CVE.
 
-    Pass exactly one of technique_id or cve_id (both or neither is
-    bad_param). Each defense has id, name, mapping_source, tier, and
-    via_techniques. For a CVE, defenses are reached through the ATT&CK
-    techniques the CVE maps to (named in via_techniques), plus the CVE's own
-    D3FEND links (direct: true), and include the D3FEND relationship verb
-    (isolates, monitors, hardens, ...) when the CVE's data records it.
+    Pass exactly one of technique_id or cve_id (both, neither, or a
+    non-string is bad_param). Each defense has id, name, mapping_source,
+    tier, and via_techniques. For a technique, mapping_source and tier are
+    the technique to D3FEND mapping's own (MITRE D3FEND, official). For a
+    CVE, defenses are reached through the ATT&CK techniques the CVE maps to
+    (named in via_techniques; empty for a defense only on the CVE's own
+    D3FEND rels); tier is the weakest of the CVE to technique and technique
+    to D3FEND hops, which is derived because TIP derives CVE to technique
+    links, and mapping_source names both hops. The D3FEND relationship verb
+    (isolates, monitors, hardens, ...) is included when the CVE's data
+    records it.
     """
     return get_defenses_impl(_loader, technique_id, cve_id)
 
