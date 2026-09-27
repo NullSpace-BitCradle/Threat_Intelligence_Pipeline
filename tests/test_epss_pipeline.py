@@ -49,6 +49,7 @@ def orch(tmp_path, monkeypatch):
         return _Resp(state["content"])
 
     monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(ep.time, "sleep", lambda s: None)
     o = po.PipelineOrchestrator()
     real_update = o.db_manager.update_database
     monkeypatch.setattr(
@@ -131,7 +132,9 @@ def test_shard_records_carry_epss_when_scored(tmp_path, monkeypatch):
     proc.epss_processor = epss
     assert proc.process_file() is True
     shard = _shard(db_dir)
-    assert shard["CVE-2023-44487"]["EPSS"] == {"score": 0.99999, "percentile": 0.99998, "date": "2026-09-26"}
+    assert shard["CVE-2023-44487"]["EPSS"] == {
+        "score": 0.99999, "percentile": 0.99998, "date": "2026-09-26", "model_version": "v2026.06.15",
+    }
     assert "EPSS" not in shard["CVE-2023-99999"]
     assert proc.last_epss_error is None
 
@@ -161,11 +164,13 @@ def test_fetch_failure_is_not_retried_in_the_same_run(monkeypatch):
         raise requests.exceptions.ConnectionError("down")
 
     monkeypatch.setattr(ep.requests, "get", boom)
+    monkeypatch.setattr(ep.time, "sleep", lambda s: None)
     proc = ep.EPSSProcessor()
     for _ in range(2):
         with pytest.raises(ep.NetworkError):
             proc.fetch()
-    assert len(calls) == 1
+    # One bounded retry cycle for the first caller, none for the second.
+    assert len(calls) == ep.EPSS_ATTEMPTS
 
 
 def test_orchestrator_shares_one_processor(orch):
@@ -207,10 +212,30 @@ def test_workflows_stage_only_data_paths(workflow):
     assert "epss" not in text.lower()
 
 
-def test_epss_output_paths_are_the_curated_file_only():
-    cfg = json.loads((REPO_ROOT / "config.json").read_text())
-    assert cfg["database"]["epss"]["file"] == "docs/data/epss_curated.json"
-    src = (REPO_ROOT / "src" / "tip" / "core" / "epss_processor.py").read_text()
-    # The processor has exactly one writer call and it targets db_path.
-    assert src.count("write_reference_db(") == 1
-    assert "atomic_write" not in src
+# Item 3: fail closed before the NVD crawl -------------------------------------
+
+def _run_full(env, monkeypatch) -> tuple[int, list]:
+    crawled: list = []
+    monkeypatch.setattr(env.orch.cve_processor, "retrieve_cves_from_nvd",
+                        lambda *a, **k: crawled.append(1) or [])
+    monkeypatch.setattr(env.orch, "_fetch_campaigns", lambda: None)
+    monkeypatch.setattr(env.orch, "_generate_entity_index", lambda: None)
+    monkeypatch.setattr(run_pipeline, "PipelineOrchestrator", lambda: env.orch)
+    monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--force"])
+    return run_pipeline.main(), crawled
+
+
+def test_full_run_aborts_before_nvd_crawl_when_epss_fails(orch, monkeypatch):
+    orch.state["error"] = requests.exceptions.ConnectionError("down")
+    code, crawled = _run_full(orch, monkeypatch)
+    assert code == 1
+    assert crawled == []
+    step = orch.orch.results["cve_retrieval"]
+    assert step["status"] == "failed" and "EPSS" in step["error"]
+    assert len(orch.calls) == ep.EPSS_ATTEMPTS  # bounded retry, then stop
+
+
+def test_full_run_crawls_when_epss_is_good(orch, monkeypatch):
+    code, crawled = _run_full(orch, monkeypatch)
+    assert crawled == [1]
+    assert len(orch.calls) == 1

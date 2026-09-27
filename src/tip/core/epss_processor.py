@@ -16,6 +16,7 @@ from __future__ import annotations
 import gzip
 import json
 import re
+import time
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,13 +27,19 @@ import requests
 
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
-from tip.utils.atomic_io import write_reference_db
+from tip.utils.atomic_io import REFERENCE_DB_FLOOR, DataFloorError, write_reference_db
 
 config = get_config()
 
 DEFAULT_URL = "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
 DEFAULT_FILE = "docs/data/epss_curated.json"
 COLUMNS = "cve,epss,percentile"
+
+# Transient download failures (connection, timeout, HTTP error) are retried
+# this many times in total, with a short linear backoff. A format error is
+# never retried: the same bytes would come back.
+EPSS_ATTEMPTS = 3
+EPSS_BACKOFF_SECONDS = 5.0
 
 _HEADER_RE = re.compile(
     r"^#model_version:(?P<model>[^,\s]+),score_date:(?P<date>\d{4}-\d{2}-\d{2}(?:T[0-9:.]+Z?)?)\s*$"
@@ -65,7 +72,10 @@ class EPSSSnapshot:
         hit = self.scores.get(cve_id.strip().upper())
         if hit is None:
             return None
-        return {"score": hit[0], "percentile": hit[1], "date": self.date}
+        return {
+            "score": hit[0], "percentile": hit[1], "date": self.date,
+            "model_version": self.model_version,
+        }
 
 
 def _probability(raw: str, what: str, line_no: int) -> float:
@@ -115,6 +125,15 @@ def parse_bulk(content: bytes) -> EPSSSnapshot:
     return snap
 
 
+def count_curated(data: Any) -> Optional[int]:
+    """Curated CVE count recorded in a curated file's meta, or None."""
+    if isinstance(data, dict):
+        meta = data.get("meta")
+        if isinstance(meta, dict) and isinstance(meta.get("curated_count"), int):
+            return int(meta["curated_count"])
+    return None
+
+
 def count_epss(data: Any) -> int:
     """Floor counter: the bulk row count recorded in the curated file's meta."""
     if isinstance(data, dict):
@@ -155,13 +174,25 @@ class EPSSProcessor:
 
     def _download(self) -> EPSSSnapshot:
         context = create_api_context("download_epss", self.url)
-        try:
-            self.logger.info(f"Downloading EPSS bulk file from {self.url}")
-            timeout = config.get('api.nvd.timeout', 60)
-            response = requests.get(self.url, timeout=timeout)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise NetworkError(f"Failed to download EPSS bulk file: {e}", url=self.url, context=context)
+        timeout = config.get('api.nvd.timeout', 60)
+        last_error = ""
+        for attempt in range(1, EPSS_ATTEMPTS + 1):
+            try:
+                self.logger.info(
+                    f"Downloading EPSS bulk file from {self.url} (attempt {attempt}/{EPSS_ATTEMPTS})"
+                )
+                response = requests.get(self.url, timeout=timeout)
+                response.raise_for_status()
+                break
+            except requests.exceptions.RequestException as e:
+                last_error = f"{type(e).__name__}: {e}"
+                if attempt < EPSS_ATTEMPTS:
+                    time.sleep(EPSS_BACKOFF_SECONDS * attempt)
+        else:
+            raise NetworkError(
+                f"Failed to download EPSS bulk file after {EPSS_ATTEMPTS} attempts: {last_error}",
+                url=self.url, context=context,
+            )
         snap = parse_bulk(response.content)
         self.logger.info(
             f"Parsed EPSS {snap.model_version} scored {snap.score_date}: {snap.row_count} CVEs"
@@ -171,8 +202,6 @@ class EPSSProcessor:
     def build_curated(self, snap: EPSSSnapshot) -> Dict[str, Any]:
         """Scores for the curated CVE tier (entity_index.json cve entities)."""
         path = self.entity_index_path
-        if not path.is_file():
-            raise FileNotFoundError(f"{path} not found; cannot pick the curated EPSS tier")
         with open(path, "r", encoding="utf-8") as f:
             entities = json.load(f).get("entities", {})
         scores: Dict[str, Dict[str, float]] = {}
@@ -193,9 +222,45 @@ class EPSSProcessor:
             "scores": scores,
         }
 
+    def _check_curated_floor(self, curated: Dict[str, Any]) -> None:
+        """Refuse a curated tier under half of the last good one (or empty).
+
+        Guards the entity index side: an index that parses with no CVE
+        entities must not publish ``scores: {}`` over a good file.
+        """
+        new = int(curated["meta"]["curated_count"])
+        old: Optional[int] = None
+        target = Path(self.db_path)
+        if target.is_file():
+            try:
+                with open(target, "r", encoding="utf-8") as f:
+                    old = count_curated(json.load(f))
+            except (OSError, ValueError):
+                old = None
+        if new == 0:
+            raise DataFloorError(
+                f"refusing to write {target}: the entity index has no scored curated CVEs "
+                f"(existing: {old if old is not None else 'none'})"
+            )
+        if old and new < old * REFERENCE_DB_FLOOR:
+            raise DataFloorError(
+                f"refusing to write {target}: {new} curated CVEs is under "
+                f"{int(REFERENCE_DB_FLOOR * 100)}% of the existing {old}"
+            )
+
     def write_curated(self, snap: EPSSSnapshot) -> int:
-        """Floor-check the row count against the last good file, then write atomically."""
+        """Floor-check the bulk row count and the curated count against the
+        last good file, then write atomically. Returns the curated count, or
+        0 when there is no entity index yet (nothing to curate)."""
+        if not self.entity_index_path.is_file():
+            self.logger.warning(
+                f"{self.entity_index_path} not found (no curated tier yet); "
+                f"skipping epss_curated.json. EPSS {snap.model_version} "
+                f"({snap.row_count} rows) was fetched and validated."
+            )
+            return 0
         curated = self.build_curated(snap)
+        self._check_curated_floor(curated)
         write_reference_db(
             self.db_path, curated, counter=count_epss, indent=None, separators=(",", ":")
         )

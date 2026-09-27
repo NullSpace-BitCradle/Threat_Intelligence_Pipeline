@@ -58,7 +58,19 @@ class PipelineOrchestrator:
             # Step 1: Update databases
             log_info("Step 1: Updating databases...")
             db_results = self._update_databases()
-            
+
+            # Fail closed early: every shard record the crawl would rewrite
+            # needs this run's EPSS, and a red run publishes nothing, so do
+            # not spend hours on NVD when EPSS already failed.
+            if db_results.get('results', {}).get('epss') is False:
+                log_error("EPSS database step failed; NVD crawl not started")
+                self.results['cve_retrieval'] = {
+                    'status': 'failed',
+                    'error': 'skipped: the EPSS database step failed, so the NVD crawl was not started',
+                    'timestamp': datetime.now().isoformat()
+                }
+                return self._create_summary()
+
             # Step 2: Retrieve all CVEs
             log_info("Step 2: Retrieving all CVEs...")
             cve_results = self._retrieve_cves()
