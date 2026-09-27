@@ -70,7 +70,9 @@ def test_daily_file_serves_curated_cve(data_dir: Path) -> None:
     _daily(data_dir, {CURATED: {"score": 0.97, "percentile": 0.999}})
     ld = _load(data_dir)
     resp = lookup_entity_impl(ld, CURATED.lower())
-    assert resp["data"]["epss"] == {"score": 0.97, "percentile": 0.999, "date": "2026-09-26"}
+    assert resp["data"]["epss"] == {
+        "score": 0.97, "percentile": 0.999, "date": "2026-09-26", "model_version": "v2026.06.15",
+    }
     assert resp["meta"]["epss_source"] == "epss_curated.json"
     kev = kev_status_impl(ld, CURATED)
     assert kev["data"]["epss"]["score"] == 0.97
@@ -149,3 +151,38 @@ def test_daily_file_loaded_once(data_dir: Path) -> None:
     first = ld.epss_curated
     (data_dir / "epss_curated.json").unlink()
     assert ld.epss_curated is first
+
+
+# Newer score date wins; the daily file wins only on a tie or when newer.
+
+@pytest.mark.parametrize("weekly_date, daily_date, winner", [
+    ("2026-09-27", "2026-09-26", "entity_index.json"),  # daily older (e.g. after --cve-only)
+    ("2026-09-26", "2026-09-26", "epss_curated.json"),  # tie: daily wins
+    ("2026-09-20", "2026-09-26", "epss_curated.json"),  # daily newer
+])
+def test_newer_score_date_wins(data_dir: Path, weekly_date: str, daily_date: str, winner: str) -> None:
+    path = data_dir / "entity_index.json"
+    idx = json.loads(path.read_text())
+    idx["entities"][CURATED]["epss"] = {**WEEKLY, "date": weekly_date}
+    path.write_text(json.dumps(idx))
+    _daily(data_dir, {CURATED: {"score": 0.97, "percentile": 0.999}}, date=daily_date)
+    ld = _load(data_dir)
+    resp = lookup_entity_impl(ld, CURATED)
+    assert resp["meta"]["epss_source"] == winner
+    kev = kev_status_impl(ld, CURATED)
+    assert kev["meta"]["epss_source"] == winner
+
+
+def test_shard_value_newer_than_daily_wins(data_dir: Path) -> None:
+    _shard_with_epss(data_dir)  # shard value dated 2026-09-20
+    _daily(data_dir, {SHARD_ONLY: {"score": 0.97, "percentile": 0.999}}, date="2026-09-19")
+    ld = _load(data_dir)
+    resp = lookup_entity_impl(ld, SHARD_ONLY)
+    assert resp["data"]["epss"] == WEEKLY
+    assert resp["meta"]["epss_source"] == "shard"
+
+
+def test_daily_block_carries_model_version(data_dir: Path) -> None:
+    _daily(data_dir, {CURATED: {"score": 0.97, "percentile": 0.999}})
+    ld = _load(data_dir)
+    assert lookup_entity_impl(ld, CURATED)["data"]["epss"]["model_version"] == "v2026.06.15"

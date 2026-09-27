@@ -242,18 +242,24 @@ def _build_shard_record(
 def _resolve_epss(
     loader: IndexLoader, cve_id: str, weekly: Optional[dict], weekly_source: Optional[str]
 ) -> tuple[Optional[dict], Optional[str]]:
-    """EPSS {score, percentile, date} for a CVE and where it came from.
+    """EPSS {score, percentile, date, model_version?} for a CVE and where it
+    came from.
 
-    The daily epss_curated.json wins over the weekly value carried on the
-    entity record or shard, so the fresher score is served when both exist.
+    The value with the newer score date wins. The daily epss_curated.json
+    wins a tie, and it can lose to the weekly value on the entity record or
+    shard when it is older (a --cve-only run writes shards after the last
+    daily file). ISO dates compare correctly as strings.
     """
+    daily_block: Optional[dict] = None
     daily = loader.epss_curated
     if daily is not None:
         entry = daily["scores"].get(cve_id.upper())
         if isinstance(entry, dict):
-            block = cve_blocks.epss_block({"EPSS": {**entry, "date": daily["date"]}})
-            if block is not None:
-                return block, "epss_curated.json"
+            daily_block = cve_blocks.epss_block({"EPSS": {
+                **entry, "date": daily["date"], "model_version": daily.get("model_version"),
+            }})
+    if daily_block is not None and not (weekly and str(weekly.get("date", "")) > daily_block["date"]):
+        return daily_block, "epss_curated.json"
     if weekly:
         return weekly, weekly_source
     return None, None

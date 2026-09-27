@@ -99,9 +99,11 @@ path and the shard path.
 - **`epss`** (additive, I1): every CVE record from `lookup_entity` and every
   `kev_status` result carries `epss: {score, percentile, date}` from FIRST's
   EPSS, or `null` when FIRST has no score or TIP has none yet. `date` is the
-  score date, so a value is never shown without its age. The daily
-  `docs/data/epss_curated.json` (curated CVEs only) wins over the weekly value
-  on the entity record or shard; `meta.epss_source` names which one answered
+  score date, so a value is never shown without its age, and
+  `model_version` names the EPSS model when known. Between the daily
+  `docs/data/epss_curated.json` (curated CVEs only) and the weekly value on
+  the entity record or shard, the newer score date wins and the daily file
+  wins a tie; `meta.epss_source` names which one answered
   (`epss_curated.json`, `entity_index.json`, `shard`, or `null`). A missing or
   malformed daily file falls back without failing. Non-CVE entities carry no
   `epss` key.
