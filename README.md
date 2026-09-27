@@ -27,7 +27,7 @@ As of 2026-09-26:
 - MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
 - Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / EPSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / EPSS / CISA-override badges and clickable references on CVE pages
 - Technique links name their source (I21): MITRE CTID's analyst mappings for KEV CVEs (official), the CWE chain (derived), an inherited parent CWE (derived, flagged), or one exploitation technique inferred from the CVSS vector (inferred) when nothing else gives any; on CVE-2024 that raises technique coverage from 71.8% to 90.5% of records
-- 697 unit tests plus 68 Playwright smoke tests passing; mypy is clean across all 32 source files
+- 698 unit tests plus 68 Playwright smoke tests passing; mypy is clean across all 32 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -293,7 +293,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 697 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the alert script, and the workflow guards, plus 68 Playwright smoke tests; mypy is clean across all 32 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 698 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the alert script, and the workflow guards, plus 68 Playwright smoke tests; mypy is clean across all 32 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 
