@@ -148,3 +148,120 @@ def test_derive_is_pure_and_matches_processor():
     )
     for key, value in links.items():
         assert rec[key] == value
+
+
+# F2: entity index -------------------------------------------------------------
+
+import gzip  # noqa: E402
+import json  # noqa: E402
+
+from tip.core.entity_index_generator import generate_entity_index  # noqa: E402
+
+KEV_ENTRY = {"inKEV": True, "dateAdded": "2024-01-01", "vendorProject": "V", "product": "P"}
+
+NEW_RECORD = {
+    "CWE": ["CWE-79"], "CWE_INHERITED": ["CWE-74"],
+    "CAPEC": ["63"], "CAPEC_INHERITED": ["66"],
+    "TECHNIQUES": ["1059"], "TECHNIQUES_INHERITED": ["1190"],
+    "OWASP": ["A03:2021"], "OWASP_INHERITED": ["A05:2021"],
+    "DEFEND": [{"id": "D3-EAL"}, {"id": "D3-NTA", "inherited": True}],
+}
+LEGACY_RECORD = {"CWE": ["74", "CWE-79"], "CAPEC": ["63", "66"], "TECHNIQUES": ["1059", "1190"],
+                 "OWASP": ["A03:2021", "A05:2021"], "DEFEND": [{"id": "D3-EAL"}, {"id": "D3-NTA"}]}
+
+
+def _write(base: Path, records: dict) -> None:
+    data = base / "docs" / "data"
+    db = base / "docs" / "database"
+    data.mkdir(parents=True)
+    db.mkdir(parents=True)
+    (data / "cwe_db.json").write_text(json.dumps(CWE_DB))
+    (data / "capec_db.json").write_text(json.dumps({
+        k: {"name": f"CAPEC {k}", "techniques": "".join(f"::TAXONOMY NAME:ATTACK:ENTRY ID:{t}" for t in v) + "::"}
+        for k, v in CAPEC_TECH.items()}))
+    (data / "techniques_db.json").write_text(json.dumps(
+        {t: {"name": f"Tech {t}"} for t in ("1059", "1190", "1562", "1499", "1134")}))
+    (data / "groups_db.json").write_text(json.dumps({
+        "groups": {"G0007": {"name": "APT28", "aliases": [], "techniques": ["T1059"]},
+                   "G0016": {"name": "APT29", "aliases": [], "techniques": ["T1190"]}},
+        "technique_to_groups": {"T1059": ["G0007"], "T1190": ["G0016"]},
+    }))
+    (data / "campaigns_db.json").write_text("{}")
+    (data / "kev_db.json").write_text(json.dumps({k: KEV_ENTRY for k in records}))
+    (data / "vulnrichment_db.json").write_text("{}")
+    with open(data / "defend_db.jsonl", "w") as f:
+        for tech, defs in DEFEND.items():
+            f.write(json.dumps({tech: {"defensive_techniques": defs}}) + "\n")
+    with gzip.open(db / "CVE-2024.jsonl.gz", "wt") as f:
+        for k, v in records.items():
+            f.write(json.dumps({k: v}) + "\n")
+
+
+def _index(tmp_path, records):
+    _write(tmp_path, records)
+    ei, _, _ = generate_entity_index(tmp_path)
+    return ei
+
+
+def _dangling(entities):
+    return [(eid, rel, t) for eid, e in entities.items()
+            for rel, v in e["rels"].items() for t in v["ids"] if t not in entities]
+
+
+def test_isc6_cve_cwe_rels_are_assigned_only(tmp_path):
+    ents = _index(tmp_path, {"CVE-2024-0001": NEW_RECORD})["entities"]
+    cve = ents["CVE-2024-0001"]
+    assert cve["rels"]["cwe"]["ids"] == ["CWE-79"]
+    assert cve["rels"]["cwe"]["tier"] == "authoritative"
+    assert "inherited" not in cve["rels"]["cwe"]
+    assert cve["cwe_inherited"] == ["CWE-74"]
+    assert "cve" not in ents["CWE-74"]["rels"]
+    assert ents["CWE-79"]["rels"]["cve"]["ids"] == ["CVE-2024-0001"]
+
+
+def test_isc7_inherited_subsets_both_directions(tmp_path):
+    ei = _index(tmp_path, {"CVE-2024-0001": NEW_RECORD, "CVE-2024-0002": {
+        "CWE": ["CWE-74"], "CWE_INHERITED": [], "CAPEC": ["63", "66"], "CAPEC_INHERITED": [],
+        "TECHNIQUES": ["1059", "1190"], "TECHNIQUES_INHERITED": [], "OWASP": ["A05:2021"],
+        "OWASP_INHERITED": [], "DEFEND": [{"id": "D3-EAL"}, {"id": "D3-NTA"}]}})
+    ents = ei["entities"]
+    rels = ents["CVE-2024-0001"]["rels"]
+    assert rels["capec"]["ids"] == ["CAPEC-63", "CAPEC-66"] and rels["capec"]["inherited"] == ["CAPEC-66"]
+    assert rels["technique"]["ids"] == ["T1059", "T1190"] and rels["technique"]["inherited"] == ["T1190"]
+    assert rels["defend"]["ids"] == ["D3-EAL", "D3-NTA"] and rels["defend"]["inherited"] == ["D3-NTA"]
+    assert rels["owasp"]["ids"] == ["A03:2021", "A05:2021"] and rels["owasp"]["inherited"] == ["A05:2021"]
+    assert rels["apt_group"]["ids"] == ["G0007", "G0016"] and rels["apt_group"]["inherited"] == ["G0016"]
+    # Tier and source per rel type are unchanged (format constraint).
+    assert rels["technique"]["tier"] == "derived"
+    # Reverse edges: the other CVE reaches the same targets directly.
+    for target, rel in (("CAPEC-66", "cve"), ("T1190", "cve"), ("D3-NTA", "cve"),
+                        ("A05:2021", "cve"), ("G0016", "cve")):
+        body = ents[target]["rels"][rel]
+        assert body["ids"] == ["CVE-2024-0001", "CVE-2024-0002"], target
+        assert body["inherited"] == ["CVE-2024-0001"], target
+    assert "inherited" not in ents["CAPEC-63"]["rels"]["cve"]
+    assert "inherited" not in ents["CVE-2024-0002"]["rels"]["technique"]
+    assert _dangling(ents) == []
+    assert ei["meta"]["inherited_links"] is True
+
+
+def test_isc8_cwe_capec_rels_label_ancestor_capecs(tmp_path):
+    ents = _index(tmp_path, {"CVE-2024-0001": NEW_RECORD})["entities"]
+    c79 = ents["CWE-79"]["rels"]["capec"]
+    assert c79["ids"] == ["CAPEC-152", "CAPEC-63", "CAPEC-66"]
+    assert c79["inherited"] == ["CAPEC-152", "CAPEC-66"]
+    c74 = ents["CWE-74"]["rels"]["capec"]
+    assert c74["inherited"] == ["CAPEC-152"]
+    assert "inherited" not in ents["CWE-707"]["rels"]["capec"]
+
+
+def test_isc9_legacy_shard_generates_as_today(tmp_path):
+    ents = _index(tmp_path, {"CVE-2024-0001": LEGACY_RECORD})["entities"]
+    cve = ents["CVE-2024-0001"]
+    assert cve["rels"]["cwe"]["ids"] == ["CWE-74", "CWE-79"]
+    assert "cwe_inherited" not in cve
+    for rel, body in cve["rels"].items():
+        assert "inherited" not in body, rel
+    assert cve["rels"]["technique"]["ids"] == ["T1059", "T1190"]
+    assert cve["rels"]["defend"]["ids"] == ["D3-EAL", "D3-NTA"]
+    assert "CVE-2024-0001" in ents["CWE-74"]["rels"]["cve"]["ids"]
