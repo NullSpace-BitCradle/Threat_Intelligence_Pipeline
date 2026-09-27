@@ -71,7 +71,12 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
                 type: effectiveEntity.type || relType,
                 r: GRAPH_NODE_SIZES.primary,
                 inherited: inheritedIds.indexOf(relId) !== -1,
-                linkTier: linkTier
+                linkTier: linkTier,
+                // A technique (or CVE) link is the mapping itself; any other
+                // type was reached through such a technique.
+                linkNote: !linkTier ? '' : (relType === 'technique' || relType === 'cve'
+                    ? (linkTier === 'ctid' ? ' (MITRE CTID analyst mapping)' : ' (inferred from the CVSS vector)')
+                    : (linkTier === 'ctid' ? ' (via a MITRE CTID mapped technique)' : ' (via an inferred technique)'))
             });
             links.push({ source: entityId, target: relId, inherited: inheritedIds.indexOf(relId) !== -1, linkTier: linkTier });
         }
@@ -146,8 +151,7 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
     node.append('title')
         .text(d => d.id + (d.name !== d.id ? ' \u2014 ' + d.name : '') +
             (d.inherited ? ' (inherited via parent CWE)' : '') +
-            (d.linkTier === 'ctid' ? ' (MITRE CTID analyst mapping)' : '') +
-            (d.linkTier === 'inferred' ? ' (inferred from the CVSS vector)' : ''));
+            (d.linkNote || ''));
 
     simulation.on('tick', () => {
         // Keep nodes within bounds

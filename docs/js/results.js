@@ -369,8 +369,8 @@ function renderSummaryCards(container, entity, related) {
             label: relCfg.relLabel || relCfg.label,
             value: String(relData.ids.length),
             detail: relData.source || '',
-            inherited: [inhCount > 0 ? inhCount + ' inherited via parent CWE' : '', linkTierSummary(relData)]
-                .filter(Boolean).join('; '),
+            inherited: inhCount > 0 ? inhCount + ' inherited via parent CWE' : '',
+            tiers: linkTierSummary(relData),
             color: GRAPH_COLORS[relType] || 'var(--text-primary)'
         });
     }
@@ -429,6 +429,13 @@ function renderSummaryCards(container, entity, related) {
             inhEl.className = 'summary-card-inherited';
             inhEl.textContent = card.inherited;
             el.appendChild(inhEl);
+        }
+        // I21: how many of these links are CTID or inferred.
+        if (card.tiers) {
+            const tierEl = document.createElement('div');
+            tierEl.className = 'summary-card-tiers';
+            tierEl.textContent = card.tiers;
+            el.appendChild(tierEl);
         }
 
         grid.appendChild(el);

@@ -57,6 +57,11 @@ def _inject_index(page: Page) -> None:
                         "mapping_type": ["exploitation_technique"], "comment": COMMENT},
             INFERRED_TECH: {"source": INFERRED_SOURCE, "tier": "inferred", "rule": "network-no-interaction"},
         }
+        # A clean control: no other rel of this CVE carries per-link
+        # provenance, whatever the served index holds.
+        for rel_type, body in ent["rels"].items():
+            if rel_type != "technique" and isinstance(body, dict):
+                body.pop("link_prov", None)
         data["meta"]["link_provenance"] = True
         route.fulfill(response=resp, body=json.dumps(data))
 
@@ -119,6 +124,9 @@ def test_graph_and_sidebar_and_counts_mark_the_tiers(page: Page) -> None:
     assert "inferred from the CVSS vector" in (inferred_node.first.locator("title").text_content() or "")
     header = page.locator("#result-main .badge", has_text="1 CTID, 1 inferred")
     expect(header).to_have_count(1)
+    tiers = page.locator(".summary-card .summary-card-tiers")
+    expect(tiers).to_have_count(1)
+    expect(tiers).to_have_text("1 CTID, 1 inferred")
     sidebar = page.locator("#result-graph .related-section")
     expect(sidebar.locator(".related-item-tiered .ctid-badge")).to_have_count(1)
     expect(sidebar.locator(".related-item-tiered .inferred-badge")).to_have_count(1)
@@ -190,7 +198,7 @@ def test_legacy_data_renders_without_tier_markers(page: Page) -> None:
         assert page.locator(".ctid-badge, .inferred-badge").count() == 0
         assert page.locator(".entity-card-official, .entity-card-inferred, .related-item-tiered").count() == 0
         assert page.locator(".graph-node-ctid, .graph-node-inferred").count() == 0
-        assert page.locator(".prov-inferred").count() == 0
+        assert page.locator(".prov-inferred, .summary-card-tiers").count() == 0
         assert page.locator("#result-main .badge", has_text=re.compile(r"CTID|inferred\)")).count() == 0
 
 
