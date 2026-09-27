@@ -53,6 +53,7 @@ SOURCES: Dict[str, Source] = {
     "capec": Source("CAPEC", DAILY_HOURS),
     "attack": Source("MITRE ATT&CK", DAILY_HOURS),
     "d3fend": Source("D3FEND", DAILY_HOURS),
+    "ctid": Source("MITRE CTID KEV mappings", DAILY_HOURS),
 }
 
 # Source key -> reference database steps that must all have succeeded.
@@ -64,6 +65,7 @@ _DB_STEPS: Dict[str, tuple[str, ...]] = {
     "capec": ("capec",),
     "attack": ("techniques", "groups"),
     "d3fend": ("defend",),
+    "ctid": ("ctid",),
 }
 
 

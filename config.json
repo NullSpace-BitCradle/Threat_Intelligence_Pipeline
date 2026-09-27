@@ -48,6 +48,11 @@
             "url": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz",
             "file": "docs/data/epss_curated.json"
         },
+        "ctid": {
+            "tree_url": "https://api.github.com/repos/center-for-threat-informed-defense/mappings-explorer/git/trees/main?recursive=1",
+            "raw_base": "https://raw.githubusercontent.com/center-for-threat-informed-defense/mappings-explorer/main/",
+            "file": "docs/data/ctid_db.json"
+        },
         "groups": {
             "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json",
             "file": "docs/data/groups_db.json"

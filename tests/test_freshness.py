@@ -22,6 +22,7 @@ NOW_ISO = "2026-09-26T06:30:00Z"
 ALL_DB_OK = {
     "capec": True, "cwe": True, "techniques": True, "defend": True,
     "kev": True, "vulnrichment": True, "groups": True, "epss": True,
+    "ctid": True,
 }
 
 
@@ -57,10 +58,10 @@ def _load(path: Path) -> dict:
 
 def test_sources_cover_the_isa_list():
     """ISC-2: NVD shards, entity index, KEV, Vulnrichment, EPSS, CWE, CAPEC,
-    ATT&CK, D3FEND."""
+    ATT&CK, D3FEND; I21 adds the CTID KEV mappings."""
     assert set(fr.SOURCES) == {
         "nvd", "entity_index", "kev", "vulnrichment", "epss",
-        "cwe", "capec", "attack", "d3fend",
+        "cwe", "capec", "attack", "d3fend", "ctid",
     }
 
 
@@ -82,7 +83,7 @@ def test_full_success_records_every_source(tmp_path):
 DB_FAILURES = [
     ("capec", "capec"), ("cwe", "cwe"), ("defend", "d3fend"), ("kev", "kev"),
     ("vulnrichment", "vulnrichment"), ("epss", "epss"),
-    ("techniques", "attack"), ("groups", "attack"),
+    ("techniques", "attack"), ("groups", "attack"), ("ctid", "ctid"),
 ]
 
 
