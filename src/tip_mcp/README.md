@@ -87,10 +87,9 @@ path and the shard path.
   explained through its inherited parents, listed in `inherited_cwes`, with
   the CWE element flagged `inherited_parent` and the CVE derived. On current
   data that fallback does not fire (0 of 8,506 chain CVEs on the index
-  regenerated for I29), because an assigned CWE inherits its ancestors'
-  CAPECs and so always has a path when a parent does. A chain CVE whose
-  technique link is inherited carries `inherited: true`. `get_defenses` marks a CVE-side defense `inherited:
-  true` when every link that reaches it is inherited. Each flag appears only
+  regenerated for I29). A chain CVE whose technique link is inherited
+  carries `inherited: true`. `get_defenses` marks a CVE-side defense
+  `inherited: true` when every link that reaches it is inherited. Each flag appears only
   when true, so an older index or shard produces the same output as before.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
