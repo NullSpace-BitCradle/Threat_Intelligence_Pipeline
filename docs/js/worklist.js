@@ -1,8 +1,8 @@
 /**
- * TIP Worklist — triage mode (I28).
+ * TIP Worklist: triage mode (I28).
  *
  * Paste a list of entity IDs and get one sortable table across the cohort:
- * CVSS, KEV, ransomware use, SSVC exploit status, and remediation due date —
+ * CVSS, KEV, ransomware use, SSVC exploit status, and remediation due date:
  * the fields that answer "what do I work first?". CVEs are resolved from the
  * shard so the full intelligence is available even outside the curated graph;
  * non-CVE IDs resolve from the entity index. Safe DOM only (no innerHTML).
