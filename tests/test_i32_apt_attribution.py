@@ -11,14 +11,21 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Optional
 
-from tip.core import change_log as cl
-from tip.core.apt_processor import APTProcessor, extract_attributions
-from tip.core.cve_processor import CVEProcessor
-from tip.core.entity_index_generator import generate_entity_index, write_outputs
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+import run_pipeline  # noqa: E402
+from tip.core import change_log as cl  # noqa: E402
+from tip.core import pipeline_orchestrator as po  # noqa: E402
+from tip.core.apt_processor import APTProcessor, extract_attributions  # noqa: E402
+from tip.core.cve_processor import CVEProcessor  # noqa: E402
+from tip.core.entity_index_generator import generate_entity_index, write_outputs  # noqa: E402
 from tip_mcp.loader import IndexLoader
 from tip_mcp.tools import lookup_entity_impl, pivot_from_entity_impl
 
@@ -178,13 +185,41 @@ def test_collapsed_attributions_are_not_written(tmp_path):
     existing = dict(_groups_db(), attributions=_pairs(10))
     path.write_text(json.dumps(existing))
     manager, ok = _manager_write(path, dict(_groups_db(), attributions=_pairs(4)))
-    assert ok is True  # the step keeps the published file, it does not fail the run
+    assert ok is False  # T16.1: the step keeps the published file, but reports failure
     assert "groups" not in manager.fresh_writes
     assert json.loads(path.read_text()) == existing
     # Exactly half is not a collapse.
     manager, ok = _manager_write(path, dict(_groups_db(), attributions=_pairs(5)))
     assert "groups" in manager.fresh_writes
     assert len(json.loads(path.read_text())["attributions"]) == 5
+
+
+def test_collapsed_attributions_make_db_only_run_exit_1(tmp_path, monkeypatch):
+    """T16.1: a refused groups write is a failed step, so run_pipeline
+    --db-only exits 1 through the same path as any other database failure
+    (test_d3fend_error_makes_db_only_run_exit_1), and pipeline_alert.py's
+    ``run`` mode opens or comments on an issue for a non-zero job status.
+    The published file must still be untouched."""
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "groups_db.json"
+    existing = dict(_groups_db(), attributions=_pairs(10))
+    path.write_text(json.dumps(existing))
+    before = path.read_bytes()
+
+    import tip.core.database_manager as dm_mod
+    manager = dm_mod.DatabaseManager()
+    manager.databases["groups"]["file"] = str(path)
+    manager.databases["groups"]["processor"] = lambda *a: dict(_groups_db(), attributions=_pairs(4))
+
+    orch = po.PipelineOrchestrator()
+    orch.db_manager = manager
+    monkeypatch.setattr(manager, "update_all_databases",
+                        lambda: {"groups": manager.update_database("groups")})
+    monkeypatch.setattr(run_pipeline, "PipelineOrchestrator", lambda: orch)
+    monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--db-only"])
+
+    assert run_pipeline.main() == 1
+    assert path.read_bytes() == before
 
 
 def test_zero_attributions_are_not_written(tmp_path):

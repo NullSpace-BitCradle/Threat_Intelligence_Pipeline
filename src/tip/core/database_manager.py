@@ -525,11 +525,14 @@ class DatabaseManager:
             if db_name == 'groups':
                 # I32: the floor counts groups, not citations; refuse a
                 # file whose CVE attributions collapsed, and keep the
-                # published one. Not fresh, so freshness shows the age.
+                # published one. T16.1: a refusal is a failed step, not a
+                # quiet success, so it exits the run non-zero (same rule as
+                # every other failed database) and pipeline_alert.py opens
+                # an issue on it. The published file is still never touched.
                 refused = attributions_collapsed(data, db_config['file'])
                 if refused:
                     self.logger.warning(f"groups: not written: {refused}")
-                    return True
+                    return False
             counter = count_groups if db_name == 'groups' else count_records
             self._save_database(data, db_config['file'], counter)
             if db_name == 'defend' and self._d3fend_degraded:
