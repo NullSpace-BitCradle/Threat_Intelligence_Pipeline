@@ -37,9 +37,9 @@ def test_network_without_interaction_is_t1190(vector):
     v31(ui="R"), v31(av="L", ui="R"), v31(av="A", ui="R"),
     v40(ui="P"), v40(av="L", ui="A"),
 ])
-def test_user_interaction_is_t1203(vector):
+def test_user_interaction_is_t1204_user_execution(vector):
     assert ti.infer_rule(vector) == "user-interaction"
-    assert ti.inferred_links([], vector)[0]["id"] == "T1203"
+    assert ti.inferred_links([], vector)[0]["id"] == "T1204"
 
 
 @pytest.mark.parametrize("vector", [v31(av="L"), v40(av="L")])
@@ -58,9 +58,15 @@ def test_local_without_full_impact_gets_nothing(vector):
 
 
 def test_each_rule_names_its_technique_in_one_line():
-    for rule, (tech, name, cond) in ti.RULES.items():
+    for rule, (tech, name, cond, agreement) in ti.RULES.items():
         src = ti.rule_source(rule)
         assert tech in src and cond in src and "\n" not in src
+        # The measured agreement with CTID analysts travels with the link.
+        assert agreement in src and "%" in agreement
+
+
+def test_local_rule_says_ctid_records_it_as_the_impact():
+    assert "usually recorded by CTID analysts as the impact" in ti.rule_source("local-full-impact")
 
 
 # ── ISC-5: inference fills only an empty slot ───────────────────────
