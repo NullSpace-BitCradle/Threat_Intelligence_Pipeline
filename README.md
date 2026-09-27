@@ -34,10 +34,10 @@ Counts move on their own: the pipeline auto-commits fresh data daily and weekly.
 
 Search for any entity and TIP shows you its complete threat intelligence picture:
 
-- **CVEs**: weakness mappings, attack patterns, techniques, defensive measures, KEV status, SSVC risk, APT attribution, CVSS score and severity, disclosure dates, references
+- **CVEs**: weakness mappings (NVD-assigned apart from inferred parents), attack patterns, techniques, defensive measures, KEV status, SSVC risk, APT attribution, CVSS score and severity, disclosure dates, references
 - **ATT&CK techniques**: associated CVEs, APT groups that use them, D3FEND countermeasures
 - **APT groups**: aliases, descriptions, technique usage, linked CVEs and campaigns
-- **CWEs**: parent chain, related attack patterns, OWASP categories
+- **CWEs**: parent chain, related attack patterns (ancestor-inherited ones marked), OWASP categories
 - **Campaigns**: attribution, timelines, technique usage
 
 The pipeline builds the correlation chain automatically:
@@ -49,6 +49,8 @@ CVE -> CWE -> CAPEC -> ATT&CK Techniques -> D3FEND Countermeasures
     -> CISA KEV Status + Ransomware Use
     -> CISA SSVC Decision + CVSS Override
 ```
+
+**Assigned versus inherited weaknesses (I29).** A shard record's `CWE` list holds only the CWEs NVD assigned. `CWE_INHERITED` holds one level of MITRE ChildOf parents that NVD did not assign, never one of the ten CWE-1000 pillars (`CWE_PILLARS` in `src/tip/core/id_normalize.py`), which fan out into mappings nobody would defend. `CAPEC`, `TECHNIQUES`, and `OWASP` hold what the assigned CWEs reach; `CAPEC_INHERITED`, `TECHNIQUES_INHERITED`, and `OWASP_INHERITED` hold what only the inherited parents reach, and a `DEFEND` entry reached only through an inherited technique carries `"inherited": true`. In the entity index, `cve` and `cwe` rels name assigned CWEs only, a CVE entity carries `cwe_inherited`, and a rel body may carry an additive `inherited` list: the subset of its `ids` reached only through an inherited parent (for `cwe -> capec`, the CAPECs inherited from an ancestor rather than listed by MITRE for that CWE). `meta.inherited_links` marks an index that carries these fields. The site and the MCP mark every such link as inherited. Shards written before I29 have no `_INHERITED` fields and render exactly as before; the weekly run rewrites them.
 
 ## Web interface
 

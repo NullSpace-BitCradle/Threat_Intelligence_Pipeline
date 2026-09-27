@@ -73,6 +73,21 @@ path and the shard path.
   monitors, hardens, ...) comes from the CVE's shard when present. Read
   CVE-side defenses as leads through the CVE's techniques, not as MITRE
   mappings of the CVE.
+- **Inherited links (I29).** An index generated after I29 sets
+  `meta.inherited_links` and marks every link reached only through an
+  inherited parent CWE (a ChildOf parent NVD did not assign; pillars are
+  never inherited). `pivot_from_entity` hits and `lookup_entity` rels carry
+  `inherited: true` for such links, on the entity path and on the shard path
+  (from the shard's `_INHERITED` lists); a CVE record carries
+  `cwe_inherited`, and its `cwe` rels are the NVD-assigned CWEs only.
+  `build_attack_chain` reads each CWE's `inherited` CAPECs from the index
+  instead of recomputing them from `cwe_db.json`; a chain CVE that no
+  assigned CWE explains is explained through its inherited parents, listed
+  in `inherited_cwes`, with the CWE element flagged `inherited_parent` and
+  the CVE derived; a chain CVE whose technique link is inherited carries
+  `inherited: true`. `get_defenses` marks a CVE-side defense `inherited:
+  true` when every link that reaches it is inherited. Each flag appears only
+  when true, so an older index or shard produces the same output as before.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
