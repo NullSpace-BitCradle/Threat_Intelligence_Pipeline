@@ -107,7 +107,7 @@ def test_weekly_source_past_eight_days_is_stale(page: Page) -> None:
     (200, "not json {"),
     (200, "[]"),
     (200, '{"sources": 5}'),
-    (200, '{"sources": {"kev": {"label": "CISA KEV", "last_success": "yesterday"}}}'),
+    (200, '{"sources": {}}'),
 ])
 def test_missing_or_malformed_file_renders_as_today(page: Page, status: int, body: str) -> None:
     errors = _serve(page, body, status)
@@ -120,6 +120,60 @@ def test_missing_or_malformed_file_renders_as_today(page: Page, status: int, bod
     page.evaluate("() => { window.location.hash = '#/cve/CVE-2023-44487'; }")
     expect(page.locator("#result-main")).to_contain_text("KEV Date Added", timeout=TIMEOUT_MS)
     assert errors == []
+
+
+def test_utc_offset_form_is_accepted(page: Page) -> None:
+    """+00:00 reads the same as Z."""
+    doc = json.loads(_doc({}))
+    doc["sources"]["kev"]["last_success"] = "2026-09-27T10:00:00+00:00"
+    errors = _serve(page, json.dumps(doc))
+    page.goto(BASE_URL)
+    expect(page.locator("#data-freshness summary")).to_have_text("Data as of 2026-09-27 10:00 UTC", timeout=TIMEOUT_MS)
+    expect(page.locator("#stale-banner")).to_have_count(0)
+    assert errors == []
+
+
+@pytest.mark.parametrize("bad", ["yesterday", "", None, 12345, "2026-09-27"])
+def test_unreadable_last_success_is_shown_stale_not_dropped(page: Page, bad) -> None:
+    """Same rule as the canary: an entry whose time cannot be read is stale."""
+    doc = json.loads(_doc({"nvd": 2}))
+    doc["sources"]["kev"]["last_success"] = bad
+    errors = _serve(page, json.dumps(doc))
+    page.goto(BASE_URL)
+    banner = page.locator("#stale-banner")
+    expect(banner).to_contain_text("CISA KEV", timeout=TIMEOUT_MS)
+    expect(banner).to_contain_text("update time unreadable")
+    expect(page.locator("#data-freshness summary")).to_have_text("Data as of 2026-09-27 10:00 UTC")
+    kev = page.locator("#data-freshness li[data-source=kev]")
+    expect(kev).to_have_class("is-stale")
+    expect(kev).to_contain_text("unknown")
+    assert errors == []
+
+
+def test_only_unreadable_entries_still_warn(page: Page) -> None:
+    errors = _serve(page, '{"sources": {"kev": {"label": "CISA KEV", "last_success": "yesterday"}}}')
+    page.goto(BASE_URL)
+    expect(page.locator("#stale-banner")).to_contain_text("CISA KEV", timeout=TIMEOUT_MS)
+    expect(page.locator("#data-freshness summary")).to_have_text("Data age unknown")
+    assert errors == []
+
+
+@pytest.mark.parametrize("width, height", [(1280, 560), (800, 480), (390, 640)])
+def test_freshness_line_never_covers_the_last_landing_card(page: Page, width: int, height: int) -> None:
+    page.set_viewport_size({"width": width, "height": height})
+    _serve(page, _doc({}))
+    page.goto(BASE_URL)
+    card = page.locator("#quick-grid .quick-card").last
+    expect(card).to_be_visible(timeout=TIMEOUT_MS)
+    line = page.locator("#data-freshness")
+    expect(line).to_be_visible()
+    page.evaluate("() => window.scrollTo(0, document.documentElement.scrollHeight)")
+    card_box = card.bounding_box()
+    line_box = line.bounding_box()
+    assert card_box and line_box
+    # Clear by a margin, not by a hair: the line's height varies with font
+    # rendering and zoom.
+    assert card_box["y"] + card_box["height"] + 16 <= line_box["y"], (card_box, line_box)
 
 
 def test_served_freshness_file_renders_when_present(page: Page) -> None:
