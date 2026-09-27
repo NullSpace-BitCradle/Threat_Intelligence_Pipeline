@@ -119,8 +119,8 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 - **T13.2** · Visual polish (P13) · LATER · graph legend, zoom and pan, landing rotation, narrow viewports · ~1 day
 - **T13.1** · Worklist follow-ups (P13) · LATER · the MVP shipped as I28; open: column filters beyond KEV-only, CSV export of the worklist, a summary view for inputs over the 25-id cap · ~1 day
 - **T13.5** · MCP `pivot_from_entities(ids)` (P13, after T13.1) · LATER · intersection or union across several entities · ~half day
-- **I31** · Decide `docs/mitre/` · LATER, maintainer decision · a vendored ATT&CK Navigator 5.1.0 on end-of-life Angular 17, unused, served on the site origin outside the CSP; delete it or replace it with a Navigator layer export (T13.4) · decision, then ~1 hour
-- **I33** · Branch protection with required checks · LATER, maintainer decision · GitHub Actions cannot be a ruleset bypass actor, so requiring checks would block the bot's data pushes; option: a small GitHub App token for the data workflows plus a bypass for that App · decision first, then ~half day
+- **I31** · Remove `docs/mitre/` · DONE (branch `chore/i31-remove-navigator`) · decided 2026-09-27: deleted. The vendored ATT&CK Navigator 5.1.0 (Angular 17, end of life, 16 MB, 39 files) had no references anywhere and was served on the site origin outside the CSP, where it shared localStorage (and so the watchlist) with the site. Navigator views, if wanted, come from T13.4 as a layer export opened in MITRE's hosted Navigator
+- **I33** · Branch protection with required checks · DROPPED 2026-09-27 · decided: no required checks for now. The data workflows push `[skip ci]` commits as the Actions bot, so required checks would need a GitHub App token and bypass, a long-lived key that can push past the rules; for a solo repo that credential is the larger risk. The existing ruleset (no force push, no deletion, no bypass actors) stays, and every human change already merges only by PR on green CI after review. Revisit when a second contributor joins or before a Partner Network demo
 
 ### 4.4 PARKED
 
@@ -190,7 +190,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | Single maintainer; knowledge and review live in one head | High | This plan, ISC-backed PRs, CI gates; I33 would enforce checks |
 | Cross-vendor audits depend on a free Codex quota | Medium | T10.8 waits for the reset; no demo before it runs |
 | Wrong or noisy mappings ship with authoritative labels | Medium | I29 labels inherited links; I21 labels every technique link by source (CTID official, chain derived, inferred lowest); I30 and I32 fix APT linkage |
-| Unused third-party code served on the site origin outside the CSP (`docs/mitre/`) | Low to Medium | I31 |
+| Unused third-party code served on the site origin outside the CSP (`docs/mitre/`) | Closed | I31 removed it on 2026-09-27 |
 | Site size on Pages: `docs/` is 176.8 MB and grows with every run | Low | Watch with I17 monitoring |
 | Worklist graph unmanageable for large inputs | Low | Capped at 25 ids; a summary view is T13.1 follow-up work |
 | The roadmap derails focus | High if items run in parallel | P15 stays serial, one item at a time with its own criteria |
@@ -208,13 +208,13 @@ Rollback: every change lands on its own branch through a PR; data runs never for
 
 Still open:
 
-1. **I31:** delete `docs/mitre/` or replace it with a Navigator layer export.
-2. **I33:** required checks through a GitHub App token and bypass, or no required checks.
-3. **I17 migration trigger:** when to move shards off git history, and to where.
-4. **P15 order:** the order in §4 is a proposal; the maintainer may reorder.
+1. **I17 migration trigger:** when to move shards off git history, and to where.
+2. **P15 order:** the order in §4 is a proposal; the maintainer may reorder.
 
 Resolved:
 
+- `docs/mitre/`: deleted (I31, 2026-09-27).
+- Required checks on `main`: none for now; the no-force-push, no-deletion ruleset stays (I33, 2026-09-27).
 - Auto-pipeline status: healthy, no stall (2026-06-09).
 - CVE2CAPEC posture: rejected outright (2026-06-11).
 - Worklist entity cap: 25 ids (2026-09-26).
@@ -236,6 +236,7 @@ Task ISAs for P10, I29, and later work live in the maintainer's private workspac
 
 Append-only, newest first. Older entries are kept verbatim.
 
+- 2026-09-27: I31 and I33 decided by the maintainer. I31: `docs/mitre/` deleted (no references in code, tests, workflows, or README; same-origin with the watchlist's localStorage and outside the CSP). History is not rewritten, so only the published site shrinks. I33: dropped; no required checks, since the only clean route (a GitHub App token as ruleset bypass for the bot's `[skip ci]` data pushes) adds a long-lived key that outweighs the checks for a solo repo. Revisit on a second contributor.
 - 2026-09-27: T16.1 built on branch `fix/t16-1-guard-alert`. The collapse guard's refusal in `database_manager.py` (`update_database`, `groups`) now returns `False` instead of `True`: a refused write is a failed step, the same as any other database failure, so `_update_databases` reports `partial`, `freshness.py`'s `attack` source (gated on both `techniques` and `groups`) does not advance, `exit_code_for` sends the run out non-zero, and the existing `Alert on failure` step opens or comments on the `pipeline-failure` issue through `pipeline_alert.py`. No new mechanism: this reuses the degraded/failed/partial-means-exit-1 rule already carrying D3FEND and every other reference-data failure. Read both data workflows (`update-databases.yml` daily, `run-pipeline.yml` weekly): neither was changed; both gate their commit-and-push step on the default `if: success()`, so a run this guard fails commits nothing in either. On the weekly full pipeline a groups refusal is not one of the early-abort checks (only an EPSS failure skips the NVD crawl), so a refused week still runs the full crawl and publishes nothing at the end; that is already true today for a KEV, Vulnrichment, or D3FEND failure, so it is not a new failure mode, just one more trigger for it. The published `groups_db.json` is still never touched on a refusal (unit-tested byte-identical). The bootstrap case (no previous attributions) and a normal write are unchanged, both still tested. The exit-1 to issue link itself is `test_failure_opens_issue_with_label_title_and_run_url` in `test_pipeline_alert.py`, unchanged by this work; the `if: failure() || cancelled()` step trigger was read, not re-tested.
 - 2026-09-27: I30 and I32 merged as PR #16 after the fix re-review returned SHIP; the weekly pipeline was dispatched by hand at once so the site did not go a week with no CVE to APT links. First run: `groups_db.json` carries 199 attribution pairs over 118 CVEs, the index is flagged `apt_attribution`, 117 of 1,734 curated CVEs carry official cited links, and the change log recorded exactly 6 `curated_added` events, matching the review's simulation. The MCP demo recaptured: T1499's chain grows from 23 to 24 CVEs. Follow-ups T16.1 (alert on a refused attributions write) and T16.2 (software two-hop) added.
 - 2026-09-27: I30 and I32 review (SHIP WITH FIXES) applied. The CVE pattern is now `CVE[- ]\d{4}-\d{4,}`, case-insensitive, normalized to CVE-YYYY-NNNN: ATT&CK prose writes "CVE 2012-0158" and reference URLs carry lowercase ids. That recovers 6 pairs on the live bundle (G0089 and CVE-2012-0158; G0007 and CVE-2020-0688 and CVE-2020-17144; G0125, G0143, and G1021 with CVE-2021-44228), giving 118 CVEs, 74 groups, 199 pairs, 111 in KEV; on the committed shards the index holds 198 of them (CVE-2019-19871 is not in NVD) across 117 CVEs, and the curated tier is still 1,728 to 1,734, since every recovered CVE is in KEV. Evidence ranking has four tiers: the group's ATT&CK entry or its references, an attributed campaign, the group's own relationship, a campaign's relationship, ties by id (CVE-2019-0604 now keeps G1055's own relationship over its campaign's). The earlier choice not to guard citations is reversed: before groups_db.json is written, a new attribution pair count under half the existing file's refuses the write with a warning, the published file stays, and the step is not marked fresh; an existing file without attributions is a bootstrap and writes. Links on T1595.002 (the 4 Magic Hound Exchange pairs, and G0143 with CVE-2021-44228 after the regex fix) say the group scanned for the CVE; the badge names the technique. The 5 intrusion-set citations all sit in reference titles, so the site's wording is "the group's ATT&CK entry or its references".
