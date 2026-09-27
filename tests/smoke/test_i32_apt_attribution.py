@@ -136,7 +136,9 @@ def test_shard_page_shows_attributed_groups_only(page: Page) -> None:
     page.locator(".detail-tab", has_text="APT").click()
     cards = page.locator("#tab-apt_group .entity-card")
     expect(cards).to_have_count(1, timeout=TIMEOUT_MS)
-    expect(_card(page, "apt_group", GROUP).locator(".cited-badge")).to_have_text("ATT&CK: G0007")
+    badge = _card(page, "apt_group", GROUP).locator(".cited-badge")
+    expect(badge).to_have_text("ATT&CK: G0007")
+    assert "ATT&CK entry or its references" in (badge.get_attribute("title") or "")
 
 
 def test_served_attribution_renders_when_present(page: Page) -> None:

@@ -735,7 +735,7 @@ function citedLabel(prov) {
 function citedTooltip(prov) {
     var via = String(prov.via || '');
     if (prov.via_type === 'intrusion-set') {
-        return 'MITRE ATT&CK cites this CVE in the description of group ' + via + '.';
+        return 'MITRE ATT&CK cites this CVE in the group\'s ATT&CK entry or its references (' + via + ').';
     }
     if (prov.via_type === 'campaign') {
         return 'MITRE ATT&CK cites this CVE in campaign ' + via + ', which it attributes to the group.';
