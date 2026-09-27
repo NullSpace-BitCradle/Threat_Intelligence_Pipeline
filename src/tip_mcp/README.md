@@ -5,9 +5,10 @@ and per-year CVE shards to Claude agents over stdio.
 
 ## Status
 
-Phase B (P10). Six read-only tools over the pre-built entity graph, the CISA
-KEV catalog, and a shard fallback that serves any ingested CVE. A recorded
-session of all of them on real data is in [DEMO.md](DEMO.md).
+Phase B (P10). Seven read-only tools over the pre-built entity graph, the
+CISA KEV catalog, the change log, and a shard fallback that serves any
+ingested CVE. A recorded session of the first six on real data is in
+[DEMO.md](DEMO.md).
 
 ## Tools
 
@@ -19,6 +20,7 @@ session of all of them on real data is in [DEMO.md](DEMO.md).
 | `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus D3FEND defenses; every element carries the tier of its weakest hop and its link's own source and tier | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
 | `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for exactly one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb when known; CVE-side defenses take the weakest tier on their path | "Which D3FEND countermeasures map to T1499?" |
 | `kev_status(cve_id)` | KEV membership, date added, due date, ransomware use, required action, vendor, product, SSVC when known, and EPSS | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
+| `recent_changes(entity_id?, type?, limit?)` | Change events from the last 30 days, newest first, each with date, before, after, and related ids; filtered to one entity (a CVE, CWE, technique, APT group id, or KEV vendor or product) and one event type | "What changed this week for CWE-79?" |
 
 Every tool returns an envelope: `{ok: true, data, meta}` or
 `{ok: false, error: {code, message, hint?}}`. Error codes: `not_found`,
@@ -143,6 +145,12 @@ path and the shard path.
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
   KEV fields. SSVC comes from the entity record, else the shard, else null.
   If `kev_db.json` is missing, the graph's flag is used and `meta.note` says so.
+- **`recent_changes`** (I8) reads `docs/data/changes.json.gz`, the event log
+  the data runs write (event types and rules in the top-level README). An
+  `entity_id` matches an event's CVE, any id in its `related` lists, or its
+  KEV vendor or product, case-insensitively. A missing or unreadable log
+  returns `ok` with no events and `meta.note` saying why; an unknown `type`
+  or a bad `limit` is `bad_param`.
 - **`epss`** (additive, I1): every CVE record from `lookup_entity` and every
   `kev_status` result carries `epss: {score, percentile, date}` from FIRST's
   EPSS, or `null` when FIRST has no score or TIP has none yet. `date` is the

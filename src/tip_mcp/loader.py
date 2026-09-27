@@ -133,6 +133,10 @@ class IndexLoader:
         # epss_curated.json as {"date", "scores"}; False means "tried and
         # unavailable".
         self._epss: "Optional[dict] | bool" = None
+        # changes.json.gz as {"since", "window_days", "events"}; False means
+        # "tried and unavailable", with the reason in _changes_error.
+        self._changes: "Optional[dict] | bool" = None
+        self._changes_error: Optional[str] = None
         # entity_index.json "meta" object ({} when absent).
         self._meta: dict = {}
 
@@ -184,6 +188,8 @@ class IndexLoader:
         self._kev_db = None
         self._cwe_capecs = None
         self._epss = None
+        self._changes = None
+        self._changes_error = None
 
     @property
     def reverse_adjacency(self) -> dict[str, dict[str, list[tuple[str, str, Any, Any]]]]:
@@ -274,6 +280,38 @@ class IndexLoader:
                         },
                     }
         return self._epss if isinstance(self._epss, dict) else None
+
+    @property
+    def changes(self) -> Optional[dict]:
+        """The change event log (changes.json.gz, I8) as {"since",
+        "window_days", "events"}, events newest first; malformed events are
+        dropped. None when the file is absent or unreadable, with the reason
+        in changes_error. Loaded once per load()."""
+        if self._changes is None:
+            self._changes = False
+            path = self.data_dir / "changes.json.gz"
+            if not path.is_file():
+                self._changes_error = "changes.json.gz not found"
+            else:
+                try:
+                    doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
+                except _READ_ERRORS as exc:
+                    doc = None
+                    self._changes_error = f"changes.json.gz unreadable: {exc}"
+                events = doc.get("events") if isinstance(doc, dict) else None
+                if isinstance(events, list):
+                    self._changes = {
+                        "since": doc.get("since") if isinstance(doc.get("since"), str) else None,
+                        "window_days": doc.get("window_days") if isinstance(doc.get("window_days"), int) else None,
+                        "events": [e for e in events if _valid_event(e)],
+                    }
+                elif self._changes_error is None:
+                    self._changes_error = "changes.json.gz has the wrong shape: expected an object with an 'events' list"
+        return self._changes if isinstance(self._changes, dict) else None
+
+    @property
+    def changes_error(self) -> Optional[str]:
+        return self._changes_error
 
     @property
     def cwe_related_capecs(self) -> Optional[dict[str, frozenset[str]]]:
@@ -488,6 +526,14 @@ class IndexLoader:
                 )
             return None
         return _parse_hit(blob, canonical_id, shard_name), shard_name
+
+
+def _valid_event(ev: Any) -> bool:
+    return (
+        isinstance(ev, dict)
+        and all(isinstance(ev.get(k), str) for k in ("date", "type", "cve"))
+        and (ev.get("related") is None or isinstance(ev.get("related"), dict))
+    )
 
 
 def _parse_hit(blob: bytes, canonical_id: str, shard_name: str) -> dict:

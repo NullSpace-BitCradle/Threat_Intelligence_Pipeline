@@ -43,6 +43,7 @@ async def _session() -> tuple[list, dict, dict, dict, dict, dict]:
             chain = await client.call_tool("build_attack_chain", {"technique_id": "T1548"})
             defenses = await client.call_tool("get_defenses", {"cve_id": "CVE-2002-0367"})
             kev = await client.call_tool("kev_status", {"cve_id": "CVE-2002-0367"})
+            changes = await client.call_tool("recent_changes", {"entity_id": "CWE-79"})
     tools = [(t.name, t.input_schema) for t in listed.tools]
     return (
         tools,
@@ -51,11 +52,12 @@ async def _session() -> tuple[list, dict, dict, dict, dict, dict]:
         chain.structured_content,
         defenses.structured_content,
         kev.structured_content,
+        changes.structured_content,
     )
 
 
 def test_stdio_server_lists_tools_and_answers_lookup():
-    tools, entity, pivot, chain, defenses, kev = anyio.run(_session)
+    tools, entity, pivot, chain, defenses, kev, changes = anyio.run(_session)
 
     by_name = dict(tools)
     assert set(by_name) == {
@@ -65,6 +67,7 @@ def test_stdio_server_lists_tools_and_answers_lookup():
         "build_attack_chain",
         "get_defenses",
         "kev_status",
+        "recent_changes",
     }
     assert by_name["lookup_entity"]["required"] == ["entity_id"]
     assert set(by_name["search_threat_intel"]["properties"]) == {"query", "limit", "types"}
@@ -84,6 +87,10 @@ def test_stdio_server_lists_tools_and_answers_lookup():
     assert [c["id"] for c in chain["data"]["cwes"]] == ["CWE-269"]
     assert defenses["ok"] is True and defenses["meta"]["count"] == 5
     assert kev["ok"] is True and kev["data"]["in_kev"] is True
+    # The fixtures predate I8: no change log is ok and empty, with a note.
+    assert set(by_name["recent_changes"]["properties"]) == {"entity_id", "type", "limit"}
+    assert changes["ok"] is True and changes["data"]["events"] == []
+    assert "not found" in changes["meta"]["note"]
 
 
 def _expand(value: str, env: dict) -> str:
@@ -120,4 +127,4 @@ def test_repo_mcp_json_is_portable_and_launches_server():
             async with mcp.Client(params) as client:
                 return {t.name for t in (await client.list_tools()).tools}
 
-    assert len(anyio.run(listed)) == 6
+    assert len(anyio.run(listed)) == 7
