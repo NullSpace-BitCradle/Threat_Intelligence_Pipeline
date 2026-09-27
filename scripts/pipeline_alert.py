@@ -99,6 +99,9 @@ def open_or_comment(gh: Gh, label: str, title: str, body: str) -> None:
 
 
 def close_if_open(gh: Gh, label: str, title: str, comment: str) -> None:
+    # The label may not exist yet on a repo that has never failed; create it
+    # first so the list below never errors on an unknown label.
+    ensure_label(gh, label)
     number = find_open_issue(gh, label, title)
     if number is None:
         print(f"No open issue to close: {title}")

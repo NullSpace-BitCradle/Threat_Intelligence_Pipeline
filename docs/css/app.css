@@ -307,6 +307,7 @@
 
 .result-main {
     padding: 24px;
+    padding-bottom: 48px; /* clear the fixed "Data as of" line */
     overflow-y: auto;
 }
 

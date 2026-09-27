@@ -115,7 +115,9 @@ def test_success_closes_open_issue_with_recovery_comment():
 def test_success_without_open_issue_does_nothing():
     gh = FakeGh()
     _main(["run"], _run_env("success"), gh)
-    assert gh.verbs() == [["issue", "list"]]
+    # The label is ensured first, so listing never errors on a repo that has
+    # never failed; nothing else happens.
+    assert gh.verbs() == [["label", "create"], ["issue", "list"]]
 
 
 # ISC-9: the canary over the live freshness.json.
