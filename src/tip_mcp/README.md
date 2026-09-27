@@ -250,12 +250,12 @@ Once configured, try a prompt like:
 
 [DEMO.md](DEMO.md) is the recorded tool sequence on this repo's data:
 
-1. `lookup_entity("CVE-2023-44487")` returns the KEV record with `kev_detail` and 83 relationships
-2. `pivot_from_entity("CVE-2023-44487", "technique")` returns 9 ATT&CK techniques, including T1499
-3. `build_attack_chain("T1499")` returns the CVEs linked to T1499 ranked KEV first, each explained by its CWE and CAPEC path, the 3 CAPECs and the CWEs those CVEs go through (inherited links flagged and derived), and 11 D3FEND defenses
+1. `lookup_entity("CVE-2023-44487")` returns the KEV record with `kev_detail`, SSVC, EPSS, and 21 relationships
+2. `pivot_from_entity("CVE-2023-44487", "technique")` returns 2 ATT&CK techniques, T1190 and T1499, both MITRE CTID mappings at tier official
+3. `build_attack_chain("T1499")` returns the 24 CVEs linked to T1499 ranked KEV first, each explained by its CWE and CAPEC path where it has one (6 have none), the 3 CAPECs and the 5 CWEs those CVEs go through (inherited links flagged and derived), and 11 D3FEND defenses
 4. `get_defenses(technique_id="T1499")` returns 11 D3FEND defenses, MITRE D3FEND mappings at tier official
-5. `get_defenses(cve_id="CVE-2023-44487")` returns 44 D3FEND defenses reached through its 9 techniques, each with its relationship verb and tier derived
-6. `kev_status("CVE-2023-44487")` returns in KEV since 2023-10-10, due 2023-10-31
+5. `get_defenses(cve_id="CVE-2023-44487")` returns 14 D3FEND defenses reached through its 2 techniques, 11 with a relationship verb, all at tier derived
+6. `kev_status("CVE-2023-44487")` returns in KEV since 2023-10-10, due 2023-10-31, with its EPSS score
 
 `scripts/mcp_demo.py` produced it: a real MCP client session over stdio (the
 mcp SDK client, as the smoke test uses). Run it to regenerate the file, or
@@ -267,14 +267,15 @@ CVE-2023-44487 maps to; T1498 has no CAPEC link in TIP data.
 
 Three layers, all served:
 
-- **Entity graph** (`docs/data/entity_index.json`): 5,585 entities, including
-  2,971 curated CVEs (KEV, CISA vulnrichment, or APT-linked) with their CWE,
-  CAPEC, technique, D3FEND, APT group, OWASP, and campaign links. CVE records
+- **Entity graph** (`docs/data/entity_index.json`): 4,348 entities on
+  2026-09-27, including 1,734 curated CVEs (KEV, APT-linked because MITRE
+  ATT&CK cites the CVE for the group, or SSVC exploitation `active`) with
+  their CWE, CAPEC, technique, D3FEND, APT group, OWASP, and campaign links. CVE records
   carry description, CVSS, dates, references, and the `tip_intel` blocks
   (`kev_detail`, `ssvc`, `cisa_cvss`, `cvss_version`, `cvss_source`, `epss`) when the
   pipeline captured them, so these survive without the shards.
-- **All-IDs index** (`docs/data/cve_ids_index.json`): all 395,617 ingested CVE
-  IDs. A CVE ID not listed there returns `not_found` without reading a shard.
+- **All-IDs index** (`docs/data/cve_ids_index.json`): all 398,520 ingested CVE
+  IDs on 2026-09-27. A CVE ID not listed there returns `not_found` without reading a shard.
 - **Year shards** (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`):
   any ingested CVE outside the curated graph is served from its year shard
   (`meta.source` is `shard`). Curated CVEs also read the shard to add D3FEND
@@ -282,12 +283,15 @@ Three layers, all served:
 
 ### Shard cache
 
-The first lookup in a year streams that shard once (about 2.4 s for
-CVE-2026, the largest at 24.6 MB gzipped and 303 MB decompressed) and keeps
-each line zlib-compressed in memory, keyed by CVE ID (about 100 MB for
-CVE-2026). Later lookups in that year take well under a millisecond. The
-cache keeps the 3 most recently used years (`IndexLoader(shard_cache_years=)`),
-so memory stays around 200 to 300 MB in the worst case.
+The first lookup in a year streams that shard once (about 3 s for
+CVE-2026, the largest at 29.8 MB gzipped and 325 MB decompressed, measured on
+2026-09-27) and keeps each line zlib-compressed in memory, keyed by CVE ID
+(about 106 MB for CVE-2026). Later lookups in that year take well under a
+millisecond. The cache keeps at most the 3 most recently used years
+(`IndexLoader(shard_cache_years=)`) and at most 400 MiB of compressed lines
+(`shard_cache_bytes=`), evicting the least recently used year until both
+hold; a year too large for the byte budget is streamed on every lookup
+instead of cached.
 
 ## Tests
 

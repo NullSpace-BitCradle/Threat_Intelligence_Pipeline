@@ -2,33 +2,38 @@
 
 > **A note from the author:** I'm not a developer by trade. I'm a hybrid IT and cybersecurity professional who enjoys tinkering, learning, and building useful things along the way. This project is under active development and may break from time to time as I experiment and improve it. Once I'm confident everything is working reliably, I'll remove this notice.
 
-A search-first threat intelligence tool that correlates CVEs across 8 security frameworks. Search any CVE, technique, APT group, or weakness and instantly see its relationships: attack patterns, defensive countermeasures, threat actors, CISA KEV status, and more.
+Correlates every NVD CVE with CWE, CAPEC, ATT&CK, D3FEND, OWASP, CISA KEV, Vulnrichment SSVC, and EPSS, with APT links only where MITRE ATT&CK cites the CVE. Search-first web app, MCP server, daily fail-closed updates via GitHub Actions.
+
+Search any CVE, technique, APT group, or weakness and see its relationships: attack patterns, defensive countermeasures, the APT groups ATT&CK cites it for, CISA KEV status, SSVC, EPSS, and more.
 
 **Live demo:** [nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline](https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/)
 
 ![Landing Page](docs/images/landing.png)
 
-![APT Group Result](docs/images/result-apt.png)
+![APT group page listing the CVEs MITRE ATT&CK cites for the group](docs/images/result-apt.png)
 
 ![CVE Result](docs/images/result-cve.png)
 
 ## Status snapshot
 
-As of 2026-09-26:
+As of 2026-09-27, after today's weekly run:
 
-- 395,617 raw CVEs ingested from NVD (published index as of the last pipeline run); every one is searchable by ID via the tiered all-CVE index
+- APT links are now attribution, not guesswork (I30, I32). A CVE links to an APT group only where MITRE ATT&CK cites that CVE for the group: 199 group to CVE pairs over 118 CVEs and 74 groups, 111 of those CVEs in KEV. 117 of the 1,734 curated CVEs carry such a link, each with the ATT&CK object that cites it; the old technique-overlap links are gone from the shards, the index, the site, and the MCP
+- The curated entity graph holds 1,734 CVEs under the rule KEV, APT-linked (cited by ATT&CK), or SSVC exploitation `active`: all 1,726 KEV CVEs, 6 attributed CVEs outside KEV that joined in today's run, and 2 non-KEV CVEs with SSVC `active`. Every other ingested CVE stays reachable by ID through the per-year shard fallback on the site and in the MCP
+- 4,348 entities of 8 types in the entity index (13.2 MB): 1,734 CVEs, 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 176 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
+- 398,520 CVEs ingested from NVD across 28 per-year shards; every one is searchable by ID via the tiered all-CVE index
+- Technique links name their source (I21): MITRE CTID's analyst mappings for KEV CVEs (official; 419 CVEs, 1,177 links), the CWE chain (derived), an inherited parent CWE (derived, flagged), or one exploitation technique inferred from the CVSS vector (inferred) when nothing else gives any. Measured on the published CVE-2024 shard: 90.5% of its 39,250 records carry a technique, 72.7% through the CWE chain, 6,978 (17.8%) only by inference, and 61 carry a CTID link
+- Assigned and inherited weaknesses are kept apart (I29) in all 398,520 shard records, the index, the site, and the MCP
+- EPSS on every scored CVE (I1): FIRST's score and percentile, refreshed daily for the 1,734 curated CVEs and weekly in the shards
 - CVSS coverage is corpus-wide: 75,945 historical CVEs backfilled from NVD on 2026-06-11 (the 1999 shard went from 2.4% to 98% scored); extraction falls back v4.0 -> v3.1 -> v3.0 -> v2, so every CVE NVD has ever scored carries a severity
-- MITRE sources track always-latest (version pins removed 2026-06-11); ATT&CK reference data is at v19.1 (697 techniques)
-- Curated entity graph currently holds 2,971 enriched CVEs under the prior inclusion rule (as published). The corrected rule is KEV, APT-linked, or SSVC exploitation status active; on the next pipeline run the curated set rebuilds to every KEV CVE (1,726 today), and the entity index shrinks to about 4,340 entities (~7.6 MB). Every other ingested CVE stays reachable by ID through the per-year shard fallback on the site and in the MCP, curated or not.
-- 5,585 total entities across 8 frameworks (currently published; drops to ~4,340 on the next pipeline run per the curated-CVE rule above): 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 176 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
+- MITRE sources track always-latest (version pins removed 2026-06-11); the enterprise ATT&CK bundle is at 19.2 as fetched on 2026-09-27 (697 techniques)
 - 1,726 CISA KEV entries tracked with daily refresh
-- Fail-closed by design, and loud about it: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes, and a failed data run or data past its expected age opens a GitHub issue that closes itself on recovery; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
-- Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
-- MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status, plus `recent_changes` for the change log) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
+- What changed and watchlists (I7, I8): every data run records what it observed changing (KEV adds and removals, SSVC exploitation, EPSS jumps, CVSS, the curated set) in a 30-day log, `docs/data/changes.json.gz`; the site lists it, lets a reader watch CVEs, CWEs, techniques, APT groups, and KEV vendors and products, and shows the changes that touch them. Today's log holds the 6 `curated_added` events from the attributed CVEs joining the curated graph
+- Fail-closed by design, and loud about it: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes, and a failed data run or data past its expected age opens a GitHub issue that closes itself on recovery (I16); reference-database writes are atomic and refuse to shrink an existing file below half its record count, and a `groups_db.json` write that would lose more than half its attribution pairs is refused and fails the run (T16.1); shards write atomically with deterministic gzip
+- Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy + MCP coverage gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
+- MCP server with seven read-only tools: the six Phase B tools (including attack chain, defenses, and KEV status) plus `recent_changes` for the change log, with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, EPSS, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP, plus cited APT links with their ATT&CK evidence
 - Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / EPSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / EPSS / CISA-override badges and clickable references on CVE pages
-- Technique links name their source (I21): MITRE CTID's analyst mappings for KEV CVEs (official), the CWE chain (derived), an inherited parent CWE (derived, flagged), or one exploitation technique inferred from the CVSS vector (inferred) when nothing else gives any. This reaches the published site with the next weekly run, which rewrites the shards and the index; until then the site shows chain links only. Measured on CVE-2024 re-derived with the I29 approximation (probe in the I21 record, MASTER_PLAN I21): technique coverage 71.8% to 90.5% of records, of which 18.6 points are inferred links (7,319 CVEs), 0.2% CTID and the rest the chain as before
-- What changed and watchlists (I7, I8): every data run records what it observed changing (KEV adds and removals, SSVC exploitation, EPSS jumps, CVSS, the curated set) in a 30-day log, `docs/data/changes.json.gz`; the site lists it, lets a reader watch CVEs, CWEs, techniques, APT groups, and KEV vendors and products, and shows the changes that touch them. The log starts with the first data run after merge
-- 803 unit tests plus 101 Playwright smoke tests passing; mypy is clean across all 33 source files
+- 834 unit tests plus 107 Playwright smoke tests; mypy is clean across all 33 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -52,7 +57,7 @@ CVE -> CWE -> CAPEC -> ATT&CK Techniques -> D3FEND Countermeasures
     -> CISA SSVC Decision + CVSS Override
 ```
 
-**Assigned versus inherited weaknesses (I29).** A shard record's `CWE` list holds only the CWEs NVD assigned. `CWE_INHERITED` holds one level of MITRE ChildOf parents that NVD did not assign, never one of the ten CWE-1000 pillars (`CWE_PILLARS` in `src/tip/core/id_normalize.py`), which fan out into mappings nobody would defend. `CAPEC`, `TECHNIQUES`, and `OWASP` hold what the assigned CWEs reach; `CAPEC_INHERITED`, `TECHNIQUES_INHERITED`, and `OWASP_INHERITED` hold what only the inherited parents reach, and a `DEFEND` entry reached only through an inherited technique carries `"inherited": true`. In the entity index, `cve` and `cwe` rels name assigned CWEs only, a CVE entity carries `cwe_inherited`, and a rel body may carry an additive `inherited` list: the subset of its `ids` reached only through an inherited parent (for `cwe -> capec`, the CAPECs inherited from an ancestor rather than listed by MITRE for that CWE). `meta.inherited_links` marks an index that carries these fields. The site and the MCP mark every such link as inherited. Shards written before I29 have no `_INHERITED` fields and render exactly as before; the weekly run rewrites them.
+**Assigned versus inherited weaknesses (I29).** A shard record's `CWE` list holds only the CWEs NVD assigned. `CWE_INHERITED` holds one level of MITRE ChildOf parents that NVD did not assign, never one of the ten CWE-1000 pillars (`CWE_PILLARS` in `src/tip/core/id_normalize.py`), which fan out into mappings nobody would defend. `CAPEC`, `TECHNIQUES`, and `OWASP` hold what the assigned CWEs reach; `CAPEC_INHERITED`, `TECHNIQUES_INHERITED`, and `OWASP_INHERITED` hold what only the inherited parents reach, and a `DEFEND` entry reached only through an inherited technique carries `"inherited": true`. In the entity index, `cve` and `cwe` rels name assigned CWEs only, a CVE entity carries `cwe_inherited`, and a rel body may carry an additive `inherited` list: the subset of its `ids` reached only through an inherited parent (for `cwe -> capec`, the CAPECs inherited from an ancestor rather than listed by MITRE for that CWE). `meta.inherited_links` marks an index that carries these fields. The site and the MCP mark every such link as inherited. Shards written before I29 have no `_INHERITED` fields and render exactly as before; since the 2026-09-27 weekly run every published shard record carries them.
 
 **Where a technique link comes from (I21).** A CVE's ATT&CK techniques come from four places, strongest first, and every link says which:
 
@@ -75,7 +80,7 @@ The rule text and its agreement travel with every inferred link (its `source` in
 
 **Which APT groups a CVE is linked to (I32).** A CVE links to an APT group only when MITRE ATT&CK itself cites that CVE for that group. The enterprise ATT&CK STIX bundle the pipeline already downloads is searched for CVE ids, however ATT&CK writes them (`CVE[- ]\d{4}-\d{4,}`, case-insensitive, so "CVE 2012-0158" in prose and lowercase ids in reference URLs count; every match is normalized to `CVE-YYYY-NNNN`), in each object's description and in its external references (external id, description, and URL), in three places: the group's own intrusion-set object (its ATT&CK entry or its references); a relationship whose source is the group (most citations sit in the descriptions of group to technique `uses` relationships, and group to software `uses` relationships count too); and a campaign, or a relationship whose source is a campaign, where that campaign is `attributed-to` the group. Revoked and deprecated objects are skipped. A CVE cited only on a piece of software a group uses (two hops) is not linked. Technique overlap is not attribution: that a group uses a technique a CVE maps to links nothing, since one technique such as T1190 is used by dozens of groups.
 
-Every link is tier `official`, source `MITRE ATT&CK`, and carries its evidence: `via` (the ATT&CK id of the group or campaign the citing object belongs to), `via_type` (`intrusion-set`, `campaign`, or `relationship`), and for a relationship `via_target` (the technique or software id at its other end, since a relationship has no ATT&CK id of its own). When several objects cite the same pair, the link keeps one, in this order: the group's ATT&CK entry or its references, then an attributed campaign, then the group's own relationship, then a campaign's relationship, ties by id within each. `extract_attributions` in `src/tip/core/apt_processor.py` writes the pairs into `groups_db.json` under `attributions`, refreshed daily with the rest of that file (atomic write, the groups floor check, ATT&CK freshness); the weekly run writes them into each shard's `APT_GROUPS` (`{id, name, via, via_type, via_target?}`), and the entity index reads `groups_db.json` first, like CTID, since it is fresher than the shards. In the index both directions carry the evidence in `link_prov`, and `meta.apt_attribution` marks an index built this way. The site shows the citing object on each CVE to group link (for example "ATT&CK: C0051", or "ATT&CK: G0007 → T1068" for a relationship), and the MCP returns `via`, `via_type`, and `via_target` on every such rel. A link whose `via_target` is T1595.002 (Vulnerability Scanning) means ATT&CK says the group scanned for the CVE, not that it exploited it (the 4 Magic Hound Exchange pairs, and G0143 with CVE-2021-44228); the badge shows the technique, so a reader can tell. An index or shard from before I32 linked CVEs to groups by technique overlap; the site, the MCP, and the change log drop those links, and an `APT_GROUPS` entry without `via` gives no link. Measured on the live bundle (ATT&CK 19.2) on 2026-09-27: 118 CVEs, 74 groups, 199 pairs, 111 of the CVEs in KEV. "APT-linked" in the curated-tier rule now means attributed, so the non-KEV attributed CVEs join the curated graph on the next weekly run (6 of 7; the seventh, CVE-2019-19871, is not in NVD).
+Every link is tier `official`, source `MITRE ATT&CK`, and carries its evidence: `via` (the ATT&CK id of the group or campaign the citing object belongs to), `via_type` (`intrusion-set`, `campaign`, or `relationship`), and for a relationship `via_target` (the technique or software id at its other end, since a relationship has no ATT&CK id of its own). When several objects cite the same pair, the link keeps one, in this order: the group's ATT&CK entry or its references, then an attributed campaign, then the group's own relationship, then a campaign's relationship, ties by id within each. `extract_attributions` in `src/tip/core/apt_processor.py` writes the pairs into `groups_db.json` under `attributions`, refreshed daily with the rest of that file (atomic write, the groups floor check, ATT&CK freshness); the weekly run writes them into each shard's `APT_GROUPS` (`{id, name, via, via_type, via_target?}`), and the entity index reads `groups_db.json` first, like CTID, since it is fresher than the shards. In the index both directions carry the evidence in `link_prov`, and `meta.apt_attribution` marks an index built this way. The site shows the citing object on each CVE to group link (for example "ATT&CK: C0051", or "ATT&CK: G0007 → T1068" for a relationship), and the MCP returns `via`, `via_type`, and `via_target` on every such rel. A link whose `via_target` is T1595.002 (Vulnerability Scanning) means ATT&CK says the group scanned for the CVE, not that it exploited it (the 4 Magic Hound Exchange pairs, and G0143 with CVE-2021-44228); the badge shows the technique, so a reader can tell. An index or shard from before I32 linked CVEs to groups by technique overlap; the site, the MCP, and the change log drop those links, and an `APT_GROUPS` entry without `via` gives no link. Measured on the live bundle (ATT&CK 19.2) and the published `groups_db.json` on 2026-09-27: 118 CVEs, 74 groups, 199 pairs, 111 of the CVEs in KEV. "APT-linked" in the curated-tier rule means attributed, so the 2026-09-27 weekly run added the non-KEV attributed CVEs to the curated graph (6 of 7, logged as 6 `curated_added` events; the seventh, CVE-2019-19871, is not in NVD). In the published index 117 curated CVEs carry a cited link, against 985 that carried an overlap link before.
 
 A second check, alongside the groups floor, refuses the write when the new file's attribution-pair count falls under half the published file's (a bootstrap file with no previous attributions is never refused). A refusal keeps the existing `groups_db.json` byte for byte and never publishes the collapsed one, but it is a failed step, the same as any other database failure: `freshness.json`'s `attack` entry does not advance, `database_updates` is reported partial, and the daily workflow exits non-zero, which routes to the `Alert on failure` step below and opens or comments on the `pipeline-failure` issue.
 
@@ -108,12 +113,12 @@ Features:
 | Source | What it provides | Update frequency |
 |--------|------------------|------------------|
 | NVD API 2.0 | CVE records, CVSS scores, CWE assignments, descriptions, references | Weekly (Actions) |
-| MITRE ATT&CK | Attack techniques (enterprise, mobile, ICS) | Weekly (Actions) |
-| MITRE ATT&CK Groups | 176 threat groups with aliases, technique usage, and the CVEs ATT&CK cites for each | Weekly (Actions) |
+| MITRE ATT&CK | Attack techniques from the enterprise bundle (697 in ATT&CK 19.2) | Daily (Actions) |
+| MITRE ATT&CK Groups | 176 threat groups with aliases, technique usage, and the CVEs ATT&CK cites for each | Daily (Actions) |
 | MITRE ATT&CK Campaigns | 56 named campaigns with attribution and timelines | Weekly (Actions) |
-| MITRE D3FEND | Defensive countermeasure mappings per technique | Weekly (Actions) |
-| MITRE CWE | Weakness definitions and parent relationships | Weekly (Actions) |
-| MITRE CAPEC | Attack pattern definitions and technique mappings | Weekly (Actions) |
+| MITRE D3FEND | Defensive countermeasure mappings per technique | Daily (Actions) |
+| MITRE CWE | Weakness definitions and parent relationships | Daily (Actions) |
+| MITRE CAPEC | Attack pattern definitions and technique mappings | Daily (Actions) |
 | OWASP Top 10 | CWE to OWASP category mappings | Bundled |
 | CISA KEV | Known exploited vulnerabilities, ransomware use, remediation deadlines | Daily (Actions) |
 | MITRE CTID Mappings Explorer (KEV) | Analyst-mapped ATT&CK techniques for KEV CVEs (exploitation technique, primary and secondary impact) with comments; the newest enterprise KEV file is picked from the repository tree (`docs/data/ctid_db.json`) | Daily (Actions) |
@@ -169,12 +174,12 @@ Four automated workflows keep the code honest, the data fresh, and the site work
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) plus `mypy` |
+| Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) with a 90% coverage floor on `src/tip_mcp`, plus `mypy` |
 | Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, the MITRE CTID KEV mappings, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
-| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 101-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
+| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 107-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
 
-The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Both data workflows pass the built-in `GITHUB_TOKEN` to the pipeline step so the CTID tree listing is not rate limited per IP; it is sent as a request header only. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; there is no branch protection configured yet, so these are CI gates a maintainer checks before merging, not enforced required checks.
+The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Both data workflows pass the built-in `GITHUB_TOKEN` to the pipeline step so the CTID tree listing is not rate limited per IP; it is sent as a request header only. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; a ruleset on `main` blocks force push and deletion but requires no status checks (decided 2026-09-27, I33), so these are CI gates a maintainer checks before merging, not enforced required checks.
 
 ### Data freshness and failure alerting
 
@@ -218,18 +223,19 @@ Rules the log keeps:
 
 Expose TIP's threat intelligence graph to Claude agents via the Model Context Protocol (MCP). Claude agents can ground threat reasoning in TIP's real data instead of hallucinating CVE IDs or MITRE relationships.
 
-**Status:** Phase B (P10) shipped 2026-09-26: six read-only tools, a JSONL shard fallback so any ingested CVE is queryable by ID, and a recorded end-to-end demo in [src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md).
+**Status:** Phase B (P10) shipped 2026-09-26 with six read-only tools, a JSONL shard fallback so any ingested CVE is queryable by ID, and a recorded end-to-end demo in [src/tip_mcp/DEMO.md](src/tip_mcp/DEMO.md). I8 added a seventh, `recent_changes`. The demo was recaptured on 2026-09-27 (T10.7, then again after I32) and `python scripts/mcp_demo.py --check` matches today's data.
 
 | Tool | What it returns | Example prompt |
 |---|---|---|
-| `lookup_entity(entity_id)` | One entity record and its relationships; any of the 395,617 ingested CVEs via the shard fallback | "What is CVE-2023-44487?" |
+| `lookup_entity(entity_id)` | One entity record and its relationships; any of the 398,520 ingested CVEs via the shard fallback | "What is CVE-2023-44487?" |
 | `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type, with the same shard fallback | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
 | `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus its D3FEND defenses; every element carries the tier of its weakest hop and its link's own source and tier (a CTID or inferred CVE is labeled by that link), inherited CWE links are flagged, and an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
 | `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for one technique or CVE, with mapping source, tier, the technique each was reached through (with that link's source and tier), and the relationship verb; CVE-side defenses are leads through the CVE's techniques and take the weakest tier on the path | "Which D3FEND countermeasures map to T1499?" |
 | `kev_status(cve_id)` | CISA KEV membership, dates, ransomware use, required action, vendor, product, SSVC when known, and EPSS (null when unscored) | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
+| `recent_changes(entity_id?, type?, limit?)` | Change events from the last 30 days, newest first, optionally filtered to one entity (a CVE, CWE, technique, APT group, or KEV vendor or product) and one event type | "What changed this week for CWE-79?" |
 
-CVE lookups carry the full intelligence the pipeline stores in the shards: KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics, projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
+CVE lookups carry the full intelligence the pipeline stores in the shards: KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, EPSS, and D3FEND relationship semantics, projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
 
 ### Install
 
@@ -271,7 +277,7 @@ See [src/tip_mcp/README.md](src/tip_mcp/README.md) for full install and tool det
 src/tip/
   core/
     pipeline_orchestrator.py  # Pipeline execution and CLI
-    cve_processor.py          # CVE enrichment chain (CWE, CAPEC, technique, D3FEND, OWASP, KEV, SSVC, APT)
+    cve_processor.py          # CVE enrichment chain (CWE, CAPEC, technique, D3FEND, OWASP, KEV, SSVC, cited APT groups)
     database_manager.py       # Downloads and manages all data sources
     entity_index_generator.py # Builds entity_index.json and search_index.json
     campaign_fetcher.py       # MITRE ATT&CK campaigns ingestion
@@ -282,7 +288,9 @@ src/tip/
     epss_processor.py         # FIRST EPSS bulk file (fail-closed; curated-tier file + shard enrichment)
     vulnrichment_processor.py # CISA SSVC decisions and CVSS overrides
     apt_processor.py          # ATT&CK Groups, their techniques, and the CVEs ATT&CK cites for them
-  utils/                      # Config, error handling, validation, atomic writes, performance
+    change_log.py             # The 30-day "what changed" event log (changes.json.gz)
+    id_normalize.py           # ID normalization; assigned vs inherited CWE split (I29)
+  utils/                      # Config, error handling, validation, atomic writes, freshness.json, performance
   database/                   # JSONL file manager
 src/tip_intel/
   cve_blocks.py               # Shared CVE intelligence contract (KEV/SSVC/CVSS/EPSS/D3FEND) for generator + MCP
@@ -332,7 +340,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 803 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the change log, the alert script, and the workflow guards, plus 101 Playwright smoke tests; mypy is clean across all 33 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 834 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the change log, the alert script, and the workflow guards, plus 107 Playwright smoke tests; mypy is clean across all 33 source files. Unit tests (with the 90% `src/tip_mcp` coverage floor) and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 
@@ -355,23 +363,36 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | Always-latest MITRE sources | 2026-06-11 | ATT&CK STIX de-pinned (was frozen at v16.1); techniques refreshed to v19.1; dead XLSX config removed; CodeQL alerts at zero |
 | Enrichment direction decided | 2026-06-11 | CVE2CAPEC adoption rejected (P11 closed); enrichment stays in-house; CWE-gap closure tracked as I21 |
 | P9.5 surface-gap closure | 2026-06-20 | MCP now passes full KEV/SSVC/CVSS/D3FEND detail (I22); schema-driven shared contract `tip_intel.cve_blocks` with cross-seam parity test (I24); web triage badges + clickable references (I23); worklist/triage mode (I28); graph node-label and `/health` 404 fixes (I25/I26) |
+| P9.6 review remediation | 2026-09-26 | Fail-closed writes, honest exit codes, atomic writes, zero dangling rels, MCP on `mcp` 2.x, frontend hardening, pinned CI, dead code removed; PR #1 |
+| P10 MCP Phase B | 2026-09-26 | `build_attack_chain`, `get_defenses`, `kev_status` complete the six-tool Phase B surface; project `.mcp.json`; recorded CVE-2023-44487 demo in `src/tip_mcp/DEMO.md`; PR #4 |
+| I29 assigned vs inherited CWEs | 2026-09-27 | NVD-assigned CWEs kept apart from one level of inherited parents across shards, index, site, and MCP; CWE-1000 pillars never inherited; PR #5 |
+| I1 EPSS | 2026-09-27 | Fail-closed bulk processor; daily curated-tier file, weekly shard enrichment with score date and model; site badge and worklist column; MCP `epss` block; the full daily set is never committed; PR #8 |
+| I16 failure alerting and freshness | 2026-09-27 | `docs/data/freshness.json` advances per source only on a fresh success; "Data as of" on every page with a stale banner; `pipeline-failure` and `pipeline-stale` issues that close on recovery; PR #10 |
 | I21 technique coverage | 2026-09-27 | MITRE CTID KEV mappings (official) and one technique inferred from the CVSS vector (inferred), each link labeled by source and tier; PR #11 |
-| P10 MCP Phase B | 2026-09-26 | `build_attack_chain`, `get_defenses`, `kev_status` complete the six-tool MCP surface; project `.mcp.json`; recorded CVE-2023-44487 demo in `src/tip_mcp/DEMO.md` |
+| I7, I8 watchlists and what changed | 2026-09-27 | 30-day change event log (`docs/data/changes.json.gz`), watch toggles, `#/watching`, `#/changes`, and MCP `recent_changes`; PR #12 |
+| T15.1 change log slack | 2026-09-27 | Addition slack lowered from 500 to 250 records, so a recovery from a suppressed shrink no longer reads as hundreds of new KEV entries; PR #14 |
+| T10.7 MCP demo recapture | 2026-09-27 | `src/tip_mcp/DEMO.md` recaptured on the first weekly data with I29 and EPSS shards (PR #15), then again on the attributed data after I32; `mcp_demo.py --check` matches today's data |
+| I30, I32 APT links by ATT&CK citation | 2026-09-27 | A CVE links to a group only where the enterprise ATT&CK bundle cites it, each link official with its citing object; technique-overlap linking removed; first run: 199 pairs, 118 CVEs, 74 groups, curated 1,728 to 1,734; PR #16 |
+| T16.1 refused attributions write fails the run | 2026-09-27 | A `groups_db.json` write refused by the attribution collapse guard is a failed step: the run exits non-zero, publishes nothing, and opens the `pipeline-failure` issue; PR #18 |
+| I31 remove vendored ATT&CK Navigator | 2026-09-27 | The unused Navigator 5.1.0 copy (16 MB, 139 files) under `docs/` deleted; it was served outside the site CSP and shared the watchlist's `localStorage`; PR #19 |
 
 ### Next
 
-| Phase | Item | Notes |
+| ID | Item | Notes |
 |-------|------|-------|
-| P13 | Visual polish, extended exports, worklist follow-ups | Multi-entity worklist MVP shipped 2026-06-20; remaining: graph legend/zoom, worklist filters + CSV export, ATT&CK Navigator export |
+| T10.8 | Cross-vendor (Forge/GPT) audit of P10 and I29 | Required before any Partner Network demo; blocked until 2026-09-29 by the free Codex quota |
 
 ### Later
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P14 | Pipeline observability and hardening | Run summaries, data-quality checks; failure alerting and the freshness banner (I16) shipped in PR #10 |
-| P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 shipped in PR #11; I7 (watchlists) and I8 (what changed) are in review |
+| P13 | UI, exports, and worklist follow-ups | CSV export from pinning (T13.3), ATT&CK Navigator layer export (T13.4), visual polish: graph legend, zoom and pan, narrow viewports (T13.2), worklist filters, CSV export, and a summary view past 25 ids (T13.1), MCP `pivot_from_entities` (T13.5) |
+| P14 | Pipeline observability and hardening | Move shards off git history (I17 / T14.3; the repo is about 2.6 GB against GitHub's 5 GB guidance), pipeline health JSON (I5 / T14.1), NVD 429 and retry counts (I19 / T14.5), a coverage floor for `src/tip/` (I20 / T14.4), `mypy --strict` (I9 / T14.6), content-hash cache busting on Pages (I18) |
+| P15 | Improvements grab-bag | One at a time, each with its own acceptance criteria: software two-hop APT attribution as a lower tier (T16.2), STIX 2.1 export (I15), MITRE ATLAS (I2), CWE Top 25 (I3), Sigma rules pivot (I4), private notes (I14), DISARM (I11), NIST CSF mapping (I12) |
 
-P11 (CVE2CAPEC parity check) closed 2026-06-11 by decision: enrichment stays in-house. P12 (ctibutler) deferred indefinitely per its conditional.
+Parked until a trigger fires: embedding similarity (I10), RSS or webhook outputs (I13), and a live pipeline trigger from the search bar (T13.6), which need product validation or a server-mode deployment.
+
+Dropped by decision: P11 (CVE2CAPEC parity check) on 2026-06-11, since enrichment stays in-house; P12 (ctibutler) on 2026-06-11, since its conditional can no longer fire; I33 (required status checks on `main`) on 2026-09-27, since the bot token it needs would be the larger risk for a solo repo. The no-force-push, no-deletion ruleset stays.
 
 ## License
 
