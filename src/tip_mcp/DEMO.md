@@ -16,7 +16,7 @@ and launches the `tip-mcp` server.
 lookup_entity({"entity_id": "CVE-2023-44487"})
 ```
 
-CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 83 relationships.
+CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 22 relationships.
 
 ```json
 {
@@ -51,7 +51,23 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 83 relationships.
       "vendorProject": "IETF",
       "product": "HTTP/2"
     },
+    "ssvc": {
+      "ssvcExploitStatus": "active",
+      "ssvcAutomatable": "yes",
+      "ssvcTechnicalImpact": "partial"
+    },
+    "cisa_cvss": {
+      "baseScore": 7.5,
+      "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    },
+    "epss": {
+      "score": 0.99999,
+      "percentile": 0.99998,
+      "date": "2026-09-26",
+      "model_version": "v2026.06.15"
+    },
     "cvss_version": "3.1",
+    "cwe_inherited": [],
     "prov": {
       "source": "NVD",
       "tier": "authoritative"
@@ -59,60 +75,65 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 83 relationships.
     "kev": true,
     "rels": [
       {
-        "target_id": "G0007",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
-        "target_id": "G0010",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
-        "target_id": "G0016",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
-        "target_id": "G0030",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
-        "target_id": "G0032",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
         "target_id": "G0034",
         "rel_type": "apt_group",
         "source": "Pipeline (technique overlap)",
         "tier": "derived"
       },
       {
-        "target_id": "G0037",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
+        "target_id": "CAPEC-147",
+        "rel_type": "capec",
+        "source": "Pipeline (CWE→CAPEC chain)",
         "tier": "derived"
       },
       {
-        "target_id": "G0061",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
+        "target_id": "CAPEC-227",
+        "rel_type": "capec",
+        "source": "Pipeline (CWE→CAPEC chain)",
         "tier": "derived"
       },
-      "... 75 more"
+      {
+        "target_id": "CAPEC-492",
+        "rel_type": "capec",
+        "source": "Pipeline (CWE→CAPEC chain)",
+        "tier": "derived"
+      },
+      {
+        "target_id": "CWE-400",
+        "rel_type": "cwe",
+        "source": "NVD Enrichment",
+        "tier": "authoritative"
+      },
+      {
+        "target_id": "D3-APCA",
+        "rel_type": "defend",
+        "source": "Pipeline (Technique→D3FEND chain)",
+        "tier": "derived",
+        "relationship": "monitors",
+        "name": "Application Protocol Command Analysis"
+      },
+      {
+        "target_id": "D3-CSPP",
+        "rel_type": "defend",
+        "source": "Pipeline (Technique→D3FEND chain)",
+        "tier": "derived",
+        "relationship": "analyzes",
+        "name": "Client-server Payload Profiling"
+      },
+      {
+        "target_id": "D3-DQSA",
+        "rel_type": "defend",
+        "source": "CTID technique, then D3FEND",
+        "tier": "derived"
+      },
+      "... 14 more"
     ]
   },
   "meta": {
     "source": "entity_index.json",
-    "rel_count": 83,
-    "enriched_from_shard": true
+    "rel_count": 22,
+    "enriched_from_shard": true,
+    "epss_source": "epss_curated.json"
   }
 }
 ```
@@ -123,81 +144,40 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 83 relationships.
 pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
 ```
 
-9 techniques: T1134, T1134.001, T1134.002, T1134.003, T1499, T1528, T1539, T1550.004, T1606. Tiers of these links: 9 derived.
+2 techniques: T1190, T1499. Tiers of these links: 2 official.
 
 ```json
 {
   "ok": true,
   "data": [
     {
-      "id": "T1134",
+      "id": "T1190",
       "type": "technique",
-      "name": "Access Token Manipulation",
+      "name": "Exploit Public-Facing Application",
       "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1134.001",
-      "type": "technique",
-      "name": "Token Impersonation/Theft",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1134.002",
-      "type": "technique",
-      "name": "Create Process with Token",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1134.003",
-      "type": "technique",
-      "name": "Make and Impersonate Token",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
+      "source": "MITRE CTID Mappings Explorer (KEV)",
+      "tier": "official",
+      "mapping_type": [
+        "exploitation_technique"
+      ],
+      "comment": "This vulnerability is exploited through a 'Rapid Reset' flaw in HTTP/2 endpoints. Attackers initiate this vulnerability by sending a crafted sequence of HTTP requests using HEADERS followed by RST_STREAM frames. This allows them to generate... (375 chars)"
     },
     {
       "id": "T1499",
       "type": "technique",
       "name": "Endpoint Denial of Service",
       "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1528",
-      "type": "technique",
-      "name": "Steal Application Access Token",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1539",
-      "type": "technique",
-      "name": "Steal Web Session Cookie",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    {
-      "id": "T1550.004",
-      "type": "technique",
-      "name": "Web Session Cookie",
-      "rel_type": "technique",
-      "source": "Pipeline (CAPEC→Technique chain)",
-      "tier": "derived"
-    },
-    "... 1 more"
+      "source": "MITRE CTID Mappings Explorer (KEV)",
+      "tier": "official",
+      "mapping_type": [
+        "primary_impact"
+      ],
+      "comment": "This vulnerability is exploited through a 'Rapid Reset' flaw in HTTP/2 endpoints. Attackers initiate this vulnerability by sending a crafted sequence of HTTP requests using HEADERS followed by RST_STREAM frames. This allows them to generate... (375 chars)"
+    }
   ],
   "meta": {
     "source": "entity_index.json",
-    "count": 9
+    "count": 2
   }
 }
 ```
@@ -208,7 +188,7 @@ pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
 build_attack_chain({"technique_id": "T1499", "limit": 10})
 ```
 
-98 CVEs linked to the technique (each explained by its CWE and CAPEC path; 0 without one), through 3 CAPEC patterns and 11 weaknesses (8 of the 10 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 10 derived; of the weaknesses shown: 2 official, 8 derived.
+23 CVEs linked to the technique (each explained by its CWE and CAPEC path; 6 without one), through 3 CAPEC patterns and 5 weaknesses (3 of the 5 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 4 official, 6 derived; of the weaknesses shown: 2 official, 3 derived.
 
 ```json
 {
@@ -239,21 +219,6 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
       }
     ],
     "cwes": [
-      {
-        "id": "CWE-226",
-        "name": "Sensitive Information in Resource Not Removed Before Reuse",
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "inherited": true,
-        "inherited_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
-        "tier": "derived"
-      },
       {
         "id": "CWE-400",
         "name": "Uncontrolled Resource Consumption",
@@ -293,49 +258,6 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
         "tier": "official"
       },
       {
-        "id": "CWE-409",
-        "name": "Improper Handling of Highly Compressed Data (Data Amplification)",
-        "via_capecs": [
-          "CAPEC-227"
-        ],
-        "inherited": true,
-        "inherited_capecs": [
-          "CAPEC-227"
-        ],
-        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
-        "tier": "derived"
-      },
-      {
-        "id": "CWE-459",
-        "name": "Incomplete Cleanup",
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "inherited": true,
-        "inherited_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
-        "tier": "derived"
-      },
-      {
-        "id": "CWE-763",
-        "name": "Release of Invalid Pointer or Reference",
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "inherited": true,
-        "inherited_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
-        "tier": "derived"
-      },
-      {
         "id": "CWE-770",
         "name": "Allocation of Resources Without Limits or Throttling",
         "via_capecs": [
@@ -349,7 +271,21 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
         "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
         "tier": "derived"
       },
-      "... 2 more"
+      {
+        "id": "CWE-772",
+        "name": "Missing Release of Resource after Effective Lifetime",
+        "via_capecs": [
+          "CAPEC-125",
+          "CAPEC-131"
+        ],
+        "inherited": true,
+        "inherited_capecs": [
+          "CAPEC-125",
+          "CAPEC-131"
+        ],
+        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
+        "tier": "derived"
+      }
     ],
     "cves": [
       {
@@ -365,7 +301,77 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
           "CAPEC-227"
         ],
         "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
+        "tier": "derived",
+        "link_source": "Pipeline (CAPEC→Technique chain)",
+        "link_tier": "derived"
+      },
+      {
+        "id": "CVE-2024-54085",
+        "name": "AMI’s SPx contains\na vulnerability in the BMC where an Attacker may bypass authentication remotely through the Redfish Host Interface",
+        "kev": true,
+        "cvss_score": 10.0,
+        "severity": "CRITICAL",
+        "via_cwes": [],
+        "via_capecs": [],
+        "source": "MITRE CTID Mappings Explorer (KEV)",
+        "tier": "official",
+        "link_source": "MITRE CTID Mappings Explorer (KEV)",
+        "link_tier": "official",
+        "mapping_type": [
+          "primary_impact"
+        ],
+        "comment": "By sending a malicious request to the Redfish Host Interface, an attacker can manipulate the HTTP header, tricking the Baseboard Management Controller (BMC) into thinking that the request originates from a trusted source, leading to authent... (367 chars)"
+      },
+      {
+        "id": "CVE-2021-35394",
+        "name": "Realtek Jungle SDK version v2.x up to v3.4.14B provides a diagnostic tool called 'MP Daemon' that is usually compiled as 'UDPServer' binary",
+        "kev": true,
+        "cvss_score": 9.8,
+        "severity": "CRITICAL",
+        "via_cwes": [],
+        "via_capecs": [],
+        "source": "MITRE CTID Mappings Explorer (KEV)",
+        "tier": "official",
+        "link_source": "MITRE CTID Mappings Explorer (KEV)",
+        "link_tier": "official",
+        "mapping_type": [
+          "secondary_impact"
+        ],
+        "comment": "The vulnerability in Realtek Jungle chipsets is exploited by remote, unauthenticated attackers using UDP packets to a server on port 9034, enabling remote execution of arbitrary commands. The attack involves injecting a shell command that d... (1078 chars)"
+      },
+      {
+        "id": "CVE-2025-42599",
+        "name": "Active! mail 6 BuildInfo: 6.60.05008561 and earlier contains a stack-based buffer overflow vulnerability",
+        "kev": true,
+        "cvss_score": 9.8,
+        "severity": "CRITICAL",
+        "via_cwes": [],
+        "via_capecs": [],
+        "source": "MITRE CTID Mappings Explorer (KEV)",
+        "tier": "official",
+        "link_source": "MITRE CTID Mappings Explorer (KEV)",
+        "link_tier": "official",
+        "mapping_type": [
+          "primary_impact"
+        ],
+        "comment": "This stack-based buffer overflow vulnerability in Active! mail allows an unauthenticated attacker to achieve remote code execution, as well as execute a denial of service attack by crashing the server."
+      },
+      {
+        "id": "CVE-2020-5735",
+        "name": "Amcrest cameras and NVR are vulnerable to a stack-based buffer overflow over port 37777",
+        "kev": true,
+        "cvss_score": 8.8,
+        "severity": "HIGH",
+        "via_cwes": [],
+        "via_capecs": [],
+        "source": "MITRE CTID Mappings Explorer (KEV)",
+        "tier": "official",
+        "link_source": "MITRE CTID Mappings Explorer (KEV)",
+        "link_tier": "official",
+        "mapping_type": [
+          "secondary_impact"
+        ],
+        "comment": "CVE-2020-5735 is a stack-based buffer overflow vulnerability in Amcrest cameras and NVR that allows an authenticated remote attacker to possibly execute unauthorized code over port 37777 and crash the device."
       },
       {
         "id": "CVE-2018-0158",
@@ -381,7 +387,10 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
           "CAPEC-131"
         ],
         "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
+        "tier": "derived",
+        "link_source": "Pipeline (CAPEC→Technique chain)",
+        "link_tier": "derived",
+        "inherited": true
       },
       {
         "id": "CVE-2020-3566",
@@ -398,7 +407,9 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
           "CAPEC-227"
         ],
         "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
+        "tier": "derived",
+        "link_source": "Pipeline (CAPEC→Technique chain)",
+        "link_tier": "derived"
       },
       {
         "id": "CVE-2020-3569",
@@ -415,71 +426,9 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
           "CAPEC-227"
         ],
         "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
-      },
-      {
-        "id": "CVE-2018-8405",
-        "name": "An elevation of privilege vulnerability exists when the DirectX Graphics Kernel (DXGKRNL) driver improperly handles objects in memory, aka \"DirectX Graphics Kernel Elevation of Privilege Vulnerability.\" This affects Windows Server 2012 R2, ... (320 chars)",
-        "kev": true,
-        "cvss_score": 7.8,
-        "severity": "HIGH",
-        "via_cwes": [
-          "CWE-404"
-        ],
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
-      },
-      {
-        "id": "CVE-2018-8406",
-        "name": "An elevation of privilege vulnerability exists when the DirectX Graphics Kernel (DXGKRNL) driver improperly handles objects in memory, aka \"DirectX Graphics Kernel Elevation of Privilege Vulnerability.\" This affects Windows Server 2016, Win... (267 chars)",
-        "kev": true,
-        "cvss_score": 7.8,
-        "severity": "HIGH",
-        "via_cwes": [
-          "CWE-404"
-        ],
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
-      },
-      {
-        "id": "CVE-2018-8611",
-        "name": "An elevation of privilege vulnerability exists when the Windows kernel fails to properly handle objects in memory, aka \"Windows Kernel Elevation of Privilege Vulnerability.\" This affects Windows 7, Windows Server 2012 R2, Windows RT 8.1, Wi... (390 chars)",
-        "kev": true,
-        "cvss_score": 7.8,
-        "severity": "HIGH",
-        "via_cwes": [
-          "CWE-404"
-        ],
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
-      },
-      {
-        "id": "CVE-2018-8639",
-        "name": "An elevation of privilege vulnerability exists in Windows when the Win32k component fails to properly handle objects in memory, aka \"Win32k Elevation of Privilege Vulnerability.\" This affects Windows 7, Windows Server 2012 R2, Windows RT 8.... (394 chars)",
-        "kev": true,
-        "cvss_score": 7.8,
-        "severity": "HIGH",
-        "via_cwes": [
-          "CWE-404"
-        ],
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "source": "Pipeline (CAPEC→Technique chain)",
-        "tier": "derived"
+        "tier": "derived",
+        "link_source": "Pipeline (CAPEC→Technique chain)",
+        "link_tier": "derived"
       },
       "... 2 more"
     ],
@@ -537,16 +486,21 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
   },
   "meta": {
     "source": "entity_index.json",
-    "walk": "cves: the technique's own cve rels; each explained by cve -> cwe -> capec -> technique; defenses: technique -> defend",
+    "walk": "cves: the technique's own cve rels; each explained by cve -> cwe -> capec -> technique; defenses: technique -> defend. A CVE linked by MITRE CTID (official) or by inference (inferred) is labeled by that link.",
     "totals": {
       "capecs": 3,
-      "cwes": 11,
-      "cves": 98,
+      "cwes": 5,
+      "cves": 23,
       "defenses": 11
     },
-    "cves_without_path": 0,
+    "cves_without_path": 6,
     "limit": 10,
-    "truncated": true
+    "truncated": true,
+    "link_tiers": {
+      "derived": 16,
+      "official": 7
+    },
+    "note": "6 of the 23 CVEs linked to T1499 have no CWE path to its CAPEC patterns; their via lists are empty."
   }
 }
 ```
@@ -653,134 +607,245 @@ get_defenses({"technique_id": "T1499"})
 get_defenses({"cve_id": "CVE-2023-44487"})
 ```
 
-44 D3FEND defenses reached through 9 techniques; 44 carry a relationship verb. Tiers: 44 derived, because TIP derives the CVE to technique links (CAPEC to technique chain), so these are leads, not MITRE mappings of the CVE.
+14 D3FEND defenses reached through 2 techniques; 11 carry a relationship verb. Tiers: 14 derived, because TIP derives the CVE to technique links (CAPEC to technique chain), so these are leads, not MITRE mappings of the CVE.
 
 ```json
 {
   "ok": true,
   "data": [
     {
-      "id": "D3-ABPI",
-      "name": "Application-based Process Isolation",
-      "via_techniques": [
-        "T1550.004"
-      ],
-      "relationship": "isolates",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
-    },
-    {
-      "id": "D3-AEM",
-      "name": "Application Exception Monitoring",
-      "via_techniques": [
-        "T1134",
-        "T1134.002",
-        "T1134.003"
-      ],
-      "relationship": "monitors",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
-    },
-    {
-      "id": "D3-AM",
-      "name": "Access Modeling",
-      "via_techniques": [
-        "T1134"
-      ],
-      "relationship": "maps",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
-    },
-    {
-      "id": "D3-ANCI",
-      "name": "Authentication Cache Invalidation",
-      "via_techniques": [
-        "T1134",
-        "T1134.001",
-        "T1134.002",
-        "T1134.003",
-        "T1528",
-        "T1539",
-        "T1550.004",
-        "T1606"
-      ],
-      "relationship": "deletes",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
-    },
-    {
       "id": "D3-APCA",
       "name": "Application Protocol Command Analysis",
       "via_techniques": [
-        "T1499",
-        "T1550.004"
+        "T1190",
+        "T1499"
       ],
       "relationship": "monitors",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
     },
     {
-      "id": "D3-CCSA",
-      "name": "Credential Compromise Scope Analysis",
+      "id": "D3-CSPP",
+      "name": "Client-server Payload Profiling",
       "via_techniques": [
-        "T1134",
-        "T1134.001",
-        "T1134.002",
-        "T1134.003",
-        "T1528",
-        "T1539",
-        "T1550.004",
-        "T1606"
+        "T1190",
+        "T1499"
       ],
       "relationship": "analyzes",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
     },
     {
-      "id": "D3-CH",
-      "name": "Credential Hardening",
+      "id": "D3-DQSA",
+      "name": "Database Query String Analysis",
       "via_techniques": [
-        "T1134",
-        "T1134.001",
-        "T1134.002",
-        "T1134.003",
-        "T1528",
-        "T1539",
-        "T1550.004",
-        "T1606"
+        "T1190"
       ],
-      "relationship": "hardens",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        }
+      ]
     },
     {
-      "id": "D3-CI",
-      "name": "Configuration Inventory",
+      "id": "D3-ISVA",
+      "name": "Inbound Session Volume Analysis",
       "via_techniques": [
-        "T1134"
+        "T1190",
+        "T1499"
       ],
-      "relationship": "inventories",
-      "mapping_source": "CVE→technique: Pipeline (CAPEC→Technique chain); technique→D3FEND: MITRE D3FEND",
-      "tier": "derived"
+      "relationship": "analyzes",
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
     },
-    "... 36 more"
+    {
+      "id": "D3-ITF",
+      "name": "Inbound Traffic Filtering",
+      "via_techniques": [
+        "T1190",
+        "T1499"
+      ],
+      "relationship": "filters",
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D3-NTCD",
+      "name": "Network Traffic Community Deviation",
+      "via_techniques": [
+        "T1190",
+        "T1499"
+      ],
+      "relationship": "analyzes",
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D3-NTF",
+      "name": "Network Traffic Filtering",
+      "via_techniques": [
+        "T1190",
+        "T1499"
+      ],
+      "relationship": "filters",
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D3-NTSA",
+      "name": "Network Traffic Signature Analysis",
+      "via_techniques": [
+        "T1190",
+        "T1499"
+      ],
+      "relationship": "analyzes",
+      "mapping_source": "CVE→technique: MITRE CTID Mappings Explorer (KEV); technique→D3FEND: MITRE D3FEND (CTID technique, then D3FEND: derived)",
+      "tier": "derived",
+      "technique_links": [
+        {
+          "id": "T1190",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "exploitation_technique"
+          ]
+        },
+        {
+          "id": "T1499",
+          "source": "MITRE CTID Mappings Explorer (KEV)",
+          "tier": "official",
+          "mapping_type": [
+            "primary_impact"
+          ]
+        }
+      ]
+    },
+    "... 6 more"
   ],
   "meta": {
     "query": {
       "cve_id": "CVE-2023-44487"
     },
     "source": "entity_index.json",
-    "count": 44,
+    "count": 14,
     "techniques": [
-      "T1134",
-      "T1134.001",
-      "T1134.002",
-      "T1134.003",
-      "T1499",
-      "T1528",
-      "T1539",
-      "T1550.004",
-      "... 1 more"
+      "T1190",
+      "T1499"
     ],
     "path": "cve -> technique -> defend; each defense carries the weakest tier on its path"
   }
@@ -807,11 +872,22 @@ In KEV: True; added 2023-10-10, due 2023-10-31, ransomware use Unknown.
     "required_action": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
     "vendor_project": "IETF",
     "product": "HTTP/2",
-    "ssvc": null
+    "ssvc": {
+      "ssvcExploitStatus": "active",
+      "ssvcAutomatable": "yes",
+      "ssvcTechnicalImpact": "partial"
+    },
+    "epss": {
+      "score": 0.99999,
+      "percentile": 0.99998,
+      "date": "2026-09-26",
+      "model_version": "v2026.06.15"
+    }
   },
   "meta": {
     "kev_source": "kev_db.json",
-    "ssvc_source": null,
+    "ssvc_source": "entity_index.json",
+    "epss_source": "epss_curated.json",
     "in_entity_graph": true
   }
 }
