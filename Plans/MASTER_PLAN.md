@@ -59,7 +59,7 @@ Measured on `main` at `8848172` on 2026-09-27.
 
 **All-CVE tier.** `docs/data/cve_ids_index.json` holds 398,446 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 114.7 MB in total. `docs/` is 176.8 MB.
 
-**Reference data.** KEV: 1,726 entries. Vulnrichment: 188,261 entries, after a full resync on 2026-09-27 that followed the truncated-compare fix (it held 2,567 before).
+**Reference data.** KEV: 1,726 entries. Vulnrichment: 188,261 entries, after a full resync on 2026-09-27 that followed the truncated-compare fix (`536b805`, PR #1); it held 2,567 before.
 
 **Tests.** 396 unit tests and 33 Playwright smoke tests. `mypy` is clean on 27 source files. CI gates `src/tip_mcp` coverage at 90% (measured 96.8%).
 
@@ -84,7 +84,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 ### 4.1 NOW
 
 - **T10.7** · Re-capture `src/tip_mcp/DEMO.md` after the first weekly run with I29 shards · NOW · the committed demo predates the new shard format, and `scripts/mcp_demo.py --check` will flag the drift · minutes, after the Sunday run
-- **I1** · EPSS scoring (P15) · NOW · adds a fourth severity axis beside CVSS, KEV, and SSVC; next feature · ~2 to 4 hours
+- **I1** · EPSS scoring (P15) · NOW · adds a fourth severity axis beside CVSS, KEV, and SSVC; next feature. Source: the free daily FIRST bulk file (2.5 MB gz, 379,842 CVEs on 2026-09-26). Constraint: the full score set is 12.4 MB as JSON and nearly every score changes daily, so it must not be committed daily (about 1 GB a year of history); shards carry EPSS with its score date and a small daily file covers the curated tier · ~1 day
 
 ### 4.2 NEXT
 
@@ -162,8 +162,8 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | I20 (partial) | Unit tests in CI (PR #1); 90% coverage floor on `src/tip_mcp` (PR #4); `src/tip/` floor stays open | 2026-09-26 | PR #1, PR #4 |
 | P10 (T10.1, T10.2, T10.3, T10.4, T10.5, T10.6) | `build_attack_chain`, `get_defenses`, `kev_status`; `.mcp.json`; scripted CVE-2023-44487 demo; six-tool READMEs | 2026-09-26 | PR #4 |
 | (no ID) | Dependabot: `actions/checkout` 7.0.1, `actions/setup-python` 7.0.0 | 2026-09-26 | PR #2, PR #3 |
-| (no ID) | Data runs build on the latest `main` (stale-base conflict) | 2026-09-26 | PR #6 |
-| I29 | NVD-assigned CWEs kept apart from inherited parents across shards, index, site, and MCP; pillars skipped | 2026-09-26 | PR #5 |
+| (no ID) | Data runs build on the latest `main` (stale-base conflict) | 2026-09-27 | PR #6 |
+| I29 | NVD-assigned CWEs kept apart from inherited parents across shards, index, site, and MCP; pillars skipped | 2026-09-27 | PR #5 |
 
 ## 6. Dropped
 
