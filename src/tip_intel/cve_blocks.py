@@ -77,7 +77,13 @@ def epss_block(payload: dict) -> Optional[dict]:
     score, pct, date = epss.get("score"), epss.get("percentile"), epss.get("date")
     if not (_probability(score) and _probability(pct) and isinstance(date, str) and date):
         return None
-    return {"score": score, "percentile": pct, "date": date}
+    out = {"score": score, "percentile": pct, "date": date}
+    # Additive: the EPSS model that produced the score, so a reader can tell
+    # when a daily and a weekly value come from different models.
+    model = epss.get("model_version")
+    if isinstance(model, str) and model:
+        out["model_version"] = model
+    return out
 
 
 def cvss_meta(payload: dict) -> dict:
