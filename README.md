@@ -36,9 +36,9 @@ Counts move on their own: the pipeline auto-commits fresh data daily and weekly.
 
 Search for any entity and TIP shows you its complete threat intelligence picture:
 
-- **CVEs**: weakness mappings (NVD-assigned apart from inferred parents), attack patterns, techniques, defensive measures, KEV status, SSVC risk, APT attribution, CVSS score and severity, disclosure dates, references
+- **CVEs**: weakness mappings (NVD-assigned apart from inferred parents), attack patterns, techniques, defensive measures, KEV status, SSVC risk, APT groups ATT&CK attributes the CVE to (with the citing object), CVSS score and severity, disclosure dates, references
 - **ATT&CK techniques**: associated CVEs, APT groups that use them, D3FEND countermeasures
-- **APT groups**: aliases, descriptions, technique usage, linked CVEs and campaigns
+- **APT groups**: aliases, descriptions, technique usage, the CVEs ATT&CK cites for them, and campaigns
 - **CWEs**: parent chain, related attack patterns (ancestor-inherited ones marked), OWASP categories
 - **Campaigns**: attribution, timelines, technique usage
 
@@ -46,7 +46,7 @@ The pipeline builds the correlation chain automatically:
 
 ```
 CVE -> CWE -> CAPEC -> ATT&CK Techniques -> D3FEND Countermeasures
-                                          -> APT Groups (reverse lookup)
+    -> APT Groups (only where ATT&CK cites the CVE for the group)
     -> OWASP Top 10 Category
     -> CISA KEV Status + Ransomware Use
     -> CISA SSVC Decision + CVSS Override
@@ -71,7 +71,11 @@ The inference rules live in `src/tip/core/technique_inference.py`, one line per 
 | user interaction required (v3 `UI:R`, v4 `UI:P` or `UI:A`), not physical | T1204 User Execution | 49 | 24 (49%) T1204 or a sub-technique, 1 of them exact | 25 (51%) T1204 or a sub-technique, 1 exact |
 | `AV:L`, `UI:N`, high confidentiality and integrity impact | T1068 Exploitation for Privilege Escalation (privilege escalation, usually recorded by CTID analysts as the impact) | 30 | 13 (43%) | 26 (87%) |
 
-The rule text and its agreement travel with every inferred link (its `source` in shards, the index, and the MCP), so an inferred technique reads as a starting point, not a mapping. Shards keep these links apart: `TECHNIQUES_CTID` (each entry with `mapping_type`, the analyst `comment`, and `source`) and `TECHNIQUES_INFERRED` (each with its `rule` and `source`); CTID mappings in `ctid_db.json` win over a shard written before them. In the entity index a rel body may carry an additive `link_prov` map, id to `{source, tier, ...}`, in both directions: CTID links (official, with `mapping_type`, and the comment on the CVE side), inferred links (inferred, with `rule`), and D3FEND defenses reached through them ("CTID technique, then D3FEND", derived, like the chain's defend links; "Inferred technique, then D3FEND", inferred). A rel body's own `source` and `tier` describe its links, so a reader that ignores `link_prov` under-claims: one source present gives that source, CTID and inferred together give a source naming both (joined by ` + `) at tier inferred, and a body that also holds chain links keeps the chain source at the weakest tier present, with the chain label for those links in `default_prov`. A CTID statement outranks an inherited chain path to the same technique. `meta.link_provenance` marks an index that carries these fields. APT group linkage stays on the chain techniques, so the curated CVE set does not move. CTID's file (ATT&CK 16.1) names three techniques that ATT&CK 19.2 revoked (T1562 and T1562.001, revoked by T1685 Disable or Modify Tools; T1070.001, revoked by T1685.005 Clear Windows Event Logs); those 6 CVE links are not linked and are counted in `meta.ctid_unknown_techniques`. The site marks CTID links (the analyst comment on hover) and inferred links (the rule on hover) apart from chain and inherited links, and each relationship card names the sources its links have (for example "3 CTID" or "2 chain, 1 inferred").
+The rule text and its agreement travel with every inferred link (its `source` in shards, the index, and the MCP), so an inferred technique reads as a starting point, not a mapping. Shards keep these links apart: `TECHNIQUES_CTID` (each entry with `mapping_type`, the analyst `comment`, and `source`) and `TECHNIQUES_INFERRED` (each with its `rule` and `source`); CTID mappings in `ctid_db.json` win over a shard written before them. In the entity index a rel body may carry an additive `link_prov` map, id to `{source, tier, ...}`, in both directions: CTID links (official, with `mapping_type`, and the comment on the CVE side), inferred links (inferred, with `rule`), and D3FEND defenses reached through them ("CTID technique, then D3FEND", derived, like the chain's defend links; "Inferred technique, then D3FEND", inferred). A rel body's own `source` and `tier` describe its links, so a reader that ignores `link_prov` under-claims: one source present gives that source, CTID and inferred together give a source naming both (joined by ` + `) at tier inferred, and a body that also holds chain links keeps the chain source at the weakest tier present, with the chain label for those links in `default_prov`. A CTID statement outranks an inherited chain path to the same technique. `meta.link_provenance` marks an index that carries these fields. No technique, from any source, links a CVE to an APT group (see below). CTID's file (ATT&CK 16.1) names three techniques that ATT&CK 19.2 revoked (T1562 and T1562.001, revoked by T1685 Disable or Modify Tools; T1070.001, revoked by T1685.005 Clear Windows Event Logs); those 6 CVE links are not linked and are counted in `meta.ctid_unknown_techniques`. The site marks CTID links (the analyst comment on hover) and inferred links (the rule on hover) apart from chain and inherited links, and each relationship card names the sources its links have (for example "3 CTID" or "2 chain, 1 inferred").
+
+**Which APT groups a CVE is linked to (I32).** A CVE links to an APT group only when MITRE ATT&CK itself cites that CVE for that group. The enterprise ATT&CK STIX bundle the pipeline already downloads is searched for CVE ids (`CVE-\d{4}-\d{4,}`) in each object's description and in its external references (external id, description, and URL), in three places: the group's own intrusion-set object; a relationship whose source is the group (most citations sit in the descriptions of group to technique `uses` relationships, and group to software `uses` relationships count too); and a campaign, or a relationship whose source is a campaign, where that campaign is `attributed-to` the group. Revoked and deprecated objects are skipped. A CVE cited only on a piece of software a group uses (two hops) is not linked. Technique overlap is not attribution: that a group uses a technique a CVE maps to links nothing, since one technique such as T1190 is used by dozens of groups.
+
+Every link is tier `official`, source `MITRE ATT&CK`, and carries its evidence: `via` (the ATT&CK id of the group or campaign the citing object belongs to), `via_type` (`intrusion-set`, `campaign`, or `relationship`), and for a relationship `via_target` (the technique or software id at its other end, since a relationship has no ATT&CK id of its own). When several objects cite the same pair, the link keeps one: the group's own description first, then a campaign, then a relationship, ties by id. `extract_attributions` in `src/tip/core/apt_processor.py` writes the pairs into `groups_db.json` under `attributions`, refreshed daily with the rest of that file (atomic write, the groups floor check, ATT&CK freshness); the weekly run writes them into each shard's `APT_GROUPS` (`{id, name, via, via_type, via_target?}`), and the entity index reads `groups_db.json` first, like CTID, since it is fresher than the shards. In the index both directions carry the evidence in `link_prov`, and `meta.apt_attribution` marks an index built this way. The site shows the citing object on each CVE to group link (for example "ATT&CK: C0051", or "ATT&CK: G0007 → T1068" for a relationship), and the MCP returns `via`, `via_type`, and `via_target` on every such rel. An index or shard from before I32 linked CVEs to groups by technique overlap; the site, the MCP, and the change log drop those links, and an `APT_GROUPS` entry without `via` gives no link. Measured on the live bundle (ATT&CK 19.2) on 2026-09-27: 117 CVEs, 70 groups, 193 pairs, 110 of the CVEs in KEV. "APT-linked" in the curated-tier rule now means attributed, so the non-KEV attributed CVEs join the curated graph on the next weekly run (6 of 7; the seventh, CVE-2019-19871, is not in NVD).
 
 ## Web interface
 
@@ -103,7 +107,7 @@ Features:
 |--------|------------------|------------------|
 | NVD API 2.0 | CVE records, CVSS scores, CWE assignments, descriptions, references | Weekly (Actions) |
 | MITRE ATT&CK | Attack techniques (enterprise, mobile, ICS) | Weekly (Actions) |
-| MITRE ATT&CK Groups | 176 threat groups with aliases and technique usage | Weekly (Actions) |
+| MITRE ATT&CK Groups | 176 threat groups with aliases, technique usage, and the CVEs ATT&CK cites for each | Weekly (Actions) |
 | MITRE ATT&CK Campaigns | 56 named campaigns with attribution and timelines | Weekly (Actions) |
 | MITRE D3FEND | Defensive countermeasure mappings per technique | Weekly (Actions) |
 | MITRE CWE | Weakness definitions and parent relationships | Weekly (Actions) |
@@ -275,7 +279,7 @@ src/tip/
     technique_inference.py    # CTID and inferred technique links; the CVSS inference rules
     epss_processor.py         # FIRST EPSS bulk file (fail-closed; curated-tier file + shard enrichment)
     vulnrichment_processor.py # CISA SSVC decisions and CVSS overrides
-    apt_processor.py          # ATT&CK Groups with reverse technique index
+    apt_processor.py          # ATT&CK Groups, their techniques, and the CVEs ATT&CK cites for them
   utils/                      # Config, error handling, validation, atomic writes, performance
   database/                   # JSONL file manager
 src/tip_intel/

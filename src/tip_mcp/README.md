@@ -136,10 +136,19 @@ path and the shard path.
     stated the defense for the CVE), matching the index. Each defense lists
     `technique_links`: `{id, source, tier}` (with `mapping_type` or `rule`)
     for every technique in `via_techniques`.
-  - APT groups stay on chain techniques only.
+  - No technique links a CVE to an APT group (I32, below).
   - These fields appear only for I21 data (`meta.link_provenance`, or a
     shard with the I21 lists). An older index or shard returns exactly the
     output it returned before I21; a recorded fixture of 88 calls pins it.
+- **CVE to APT group rels** (I32) exist only where MITRE ATT&CK cites the
+  CVE for the group. Each is tier `official`, source `MITRE ATT&CK`, and
+  carries `via` (the group or campaign whose ATT&CK object cites it),
+  `via_type` (`intrusion-set`, `campaign`, or `relationship`), and for a
+  relationship `via_target` (its technique or software id), on the entity
+  path and the shard path. The loader drops CVE to group rels from an index
+  without `meta.apt_attribution` (they were technique overlap), and a shard
+  `APT_GROUPS` entry without `via` gives no rel. Technique and campaign
+  links to groups are unchanged.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
