@@ -42,26 +42,28 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from tip.utils.atomic_io import PathLike, atomic_write_bytes, deterministic_gzip
+from tip.utils.error_handler import log_warning
 
 SCHEMA_VERSION = 1
 WINDOW_DAYS = 30
 
-# Hard cap on events kept after the window prune; the oldest go first. Sized
-# on the stacked worst case (a replayed week with the curated set rebuilding,
-# a heavy EPSS week, 30 days of first SSVC decisions, and an EPSS model
-# release moving every curated CVE): 8,288 events, 155 KB gzipped; capped at
-# 6,500 it is 135 KB, under the 150 KB bar. A count, not a byte limit: events
-# with much longer related lists than the probe's would weigh more.
+# Backstops on the log's size, applied after the window prune. The count cap
+# keeps the newest events (within a day, KEV and SSVC outrank curated churn);
+# the byte cap then drops whole days, oldest first, while the gzipped file is
+# over MAX_BYTES. The stacked worst-case probe stays under both without
+# truncation; they exist for cases the probe did not foresee.
 MAX_EVENTS = 6500
+MAX_BYTES = 150_000
 
 # EPSS: a move of at least this much, or a crossing of EPSS_LINE, is a jump.
 EPSS_JUMP = 0.1
 EPSS_LINE = 0.5
 
 # SSVC exploitation values that make a first-seen decision worth an event.
-# A CVE whose first decision is "none" is the daily norm (most records), so
-# it is not a change anyone watches for.
-SSVC_NOTABLE = ("poc", "active")
+# A first "none" or "poc" is the daily norm for newly enriched CVEs (about 48
+# first poc or active decisions a day), so only a first "active" is news.
+# Changes between values, poc to active included, are always events.
+SSVC_NOTABLE = ("active",)
 
 EVENT_TYPES = (
     "kev_added",
@@ -75,10 +77,16 @@ EVENT_TYPES = (
 
 # "Added" events (kev_added, a first SSVC decision, curated_added) need a
 # before-state that was a full baseline. One under this fraction of the
-# after-state was partial (a wiped or half-built file, then a full rebuild),
-# so its missing records cannot be told from backfill and add no events.
-# Changes on records present in both states are still observed facts.
+# after-state, and short of it by more than BASELINE_SLACK records, was
+# partial (a wiped or half-built file, then a full rebuild), so its missing
+# records cannot be told from backfill and add no events. The slack lets a
+# small set grow by a normal week's worth (the curated tier from 1,728 to
+# 1,950). Symmetrically, an after-state under the fraction of the before-state
+# emits no removal events (kev_removed, curated_removed): a set that shrank
+# that far is more likely a bad build than news. Changes on records present
+# in both states are always observed facts.
 BASELINE_RATIO = 0.9
+BASELINE_SLACK = 500
 
 # Event sources, keyed as the orchestrator names the steps behind them.
 SOURCES = ("kev", "vulnrichment", "epss", "entity_index")
@@ -201,19 +209,32 @@ def _kev_value(entry: Mapping[str, str]) -> Dict[str, str]:
 def is_baseline(before: Mapping[str, Any], after: Mapping[str, Any]) -> bool:
     """True when ``before`` is complete enough that a record missing from it
     and present in ``after`` is new, not backfill."""
-    return len(before) >= BASELINE_RATIO * len(after)
+    return len(before) >= BASELINE_RATIO * len(after) or len(after) - len(before) <= BASELINE_SLACK
+
+
+def removals_trusted(before: Mapping[str, Any], after: Mapping[str, Any], what: str) -> bool:
+    """False, with a warning, when ``after`` shrank under the baseline
+    fraction of ``before``; the caller then emits no removal events."""
+    if len(after) >= BASELINE_RATIO * len(before):
+        return True
+    log_warning(
+        f"Change log: {what} shrank from {len(before)} to {len(after)} records; "
+        "no removal events recorded for it this run"
+    )
+    return False
 
 
 def diff_kev(before: Mapping[str, Any], after: Mapping[str, Any], day: str) -> List[Event]:
     events: List[Event] = []
     if is_baseline(before, after):
         events += [_event(day, "kev_added", c, None, _kev_value(after[c])) for c in after if c not in before]
-    events += [_event(day, "kev_removed", c, _kev_value(before[c]), None) for c in before if c not in after]
+    if removals_trusted(before, after, "KEV"):
+        events += [_event(day, "kev_removed", c, _kev_value(before[c]), None) for c in before if c not in after]
     return events
 
 
 def diff_ssvc(before: Mapping[str, str], after: Mapping[str, str], day: str) -> List[Event]:
-    """A changed exploitation value, or a first decision of poc or active."""
+    """A changed exploitation value, or a first decision of active."""
     events: List[Event] = []
     baseline = is_baseline(before, after)
     for cve, value in after.items():
@@ -250,7 +271,8 @@ def diff_entities(before: Mapping[str, Any], after: Mapping[str, Any], day: str)
                 events.append(_event(day, "curated_added", cve, False, True))
         elif old.get("cvss") != rec.get("cvss"):
             events.append(_event(day, "cvss_changed", cve, old.get("cvss"), rec.get("cvss")))
-    events += [_event(day, "curated_removed", c, True, False) for c in before if c not in after]
+    if removals_trusted(before, after, "the curated CVE set"):
+        events += [_event(day, "curated_removed", c, True, False) for c in before if c not in after]
     return events
 
 
@@ -357,8 +379,35 @@ def merge_events(existing: Iterable[Event], new: Iterable[Event], today: str) ->
                 del merged[key]
                 continue
         merged[key] = ev
-    events = sorted(merged.values(), key=lambda e: (e["type"], e["cve"]))
+    # Within a day, EVENT_TYPES order, so a cut at the end of a day drops
+    # curated churn before KEV and SSVC news.
+    events = sorted(merged.values(), key=lambda e: (_type_rank(e["type"]), e["cve"]))
     return sorted(events, key=lambda e: e["date"], reverse=True)
+
+
+def _type_rank(etype: str) -> int:
+    return EVENT_TYPES.index(etype) if etype in EVENT_TYPES else len(EVENT_TYPES)
+
+
+def backfill_related(events: List[Event], graph: Optional[Mapping[str, Any]]) -> int:
+    """Fill missing CWE, technique, and APT group ids on events whose CVE is
+    in the entity index now (a daily KEV add curated by a later weekly run).
+    Existing keys are never overwritten. Returns the events changed."""
+    if not graph:
+        return 0
+    changed = 0
+    for ev in events:
+        rec = graph.get(ev["cve"])
+        if not rec:
+            continue
+        related = ev.get("related")
+        if not isinstance(related, dict):
+            related = {}
+        missing = {k: list(rec[k]) for k in RELATED_TYPES if rec.get(k) and k not in related}
+        if missing:
+            ev["related"] = {**related, **missing}
+            changed += 1
+    return changed
 
 
 def window_start(today: str) -> str:
@@ -371,32 +420,48 @@ def cap_events(events: List[Event]) -> Tuple[List[Event], List[Event]]:
     return events[:MAX_EVENTS], events[MAX_EVENTS:]
 
 
-def carry_truncation(
-    existing: Optional[Mapping[str, Any]], dropped: List[Event], today: str
-) -> Tuple[int, Optional[str]]:
-    """Truncation count and date after this write: the previous file's, while
-    its date is still inside the window, plus the events dropped now."""
-    count, through = 0, None
-    if existing:
-        old_count, old_through = existing.get("truncated"), existing.get("truncated_through")
-        if isinstance(old_count, int) and isinstance(old_through, str) and old_through >= window_start(today):
-            count, through = old_count, old_through
-    if dropped:
-        count += len(dropped)
-        newest = max(e["date"] for e in dropped)
-        through = newest if through is None else max(through, newest)
-    return count, through
+def carry_drops(
+    existing: Optional[Mapping[str, Any]], dropped: Iterable[Event], today: str
+) -> Dict[str, int]:
+    """Events dropped by a cap, per event date, for the days still inside the
+    window: the previous file's counts plus this write's. Counting per day
+    keeps the total honest when the log sits at the cap for weeks."""
+    cutoff = window_start(today)
+    days: Dict[str, int] = {}
+    old = existing.get("truncated_days") if existing else None
+    if isinstance(old, dict):
+        for day, n in old.items():
+            if isinstance(day, str) and day >= cutoff and isinstance(n, int) and not isinstance(n, bool) and n > 0:
+                days[day] = n
+    for ev in dropped:
+        if ev["date"] >= cutoff:
+            days[ev["date"]] = days.get(ev["date"], 0) + 1
+    return days
 
 
-def render_log(
-    events: List[Event], since: str, truncated: int = 0, truncated_through: Optional[str] = None
-) -> bytes:
+def render_log(events: List[Event], since: str, drops: Optional[Mapping[str, int]] = None) -> bytes:
     doc: Dict[str, Any] = {"schema": SCHEMA_VERSION, "window_days": WINDOW_DAYS, "since": since, "events": events}
-    if truncated and truncated_through:
-        doc["truncated"] = truncated
-        doc["truncated_through"] = truncated_through
+    if drops:
+        doc["truncated"] = sum(drops.values())
+        doc["truncated_through"] = max(drops)
+        doc["truncated_days"] = dict(sorted(drops.items()))
     text = json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return deterministic_gzip(text.encode("utf-8"))
+
+
+def fit_log(
+    events: List[Event], since: str, existing: Optional[Mapping[str, Any]], today: str
+) -> Tuple[bytes, List[Event], List[Event]]:
+    """Apply the count cap, then drop whole days, oldest first, while the
+    rendered file is over MAX_BYTES. Returns (bytes, kept, dropped)."""
+    kept, dropped = cap_events(events)
+    while True:
+        data = render_log(kept, since, carry_drops(existing, dropped, today))
+        if len(data) <= MAX_BYTES or not kept:
+            return data, kept, dropped
+        oldest = kept[-1]["date"]
+        dropped = dropped + [e for e in kept if e["date"] == oldest]
+        kept = [e for e in kept if e["date"] != oldest]
 
 
 def today_utc(now: Optional[datetime] = None) -> str:
@@ -431,11 +496,13 @@ def record_changes(
     since = existing.get("since") if existing else None
     if not isinstance(since, str) or not since:
         since = day
-    events, dropped = cap_events(merge_events((existing or {}).get("events", []), new, day))
-    truncated, through = carry_truncation(existing, dropped, day)
+    merged = merge_events((existing or {}).get("events", []), new, day)
+    backfilled = backfill_related(merged, after.get("entity_index"))
+    if backfilled:
+        summary["related_backfilled"] = backfilled
+    data, events, dropped = fit_log(merged, since, existing, day)
     if dropped:
         summary["truncated"] = len(dropped)
-    data = render_log(events, since, truncated, through)
     target = Path(log_path)
     if target.exists() and ok and target.read_bytes() == data:
         return summary

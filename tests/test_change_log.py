@@ -8,7 +8,7 @@ state, adds nothing. No network and no git: states are fixture files.
 import gzip
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -98,7 +98,7 @@ def test_ssvc_other_fields_changing_is_no_event():
     assert _events({"vulnrichment": BASE_SSVC}, {"vulnrichment": after}) == []
 
 
-@pytest.mark.parametrize("value, expected", [("poc", 1), ("active", 1), ("none", 0)])
+@pytest.mark.parametrize("value, expected", [("active", 1), ("poc", 0), ("none", 0)])
 def test_first_ssvc_decision_is_an_event_only_when_notable(value, expected):
     after = dict(BASE_SSVC, **_ssvc(**{"CVE-2026-0001": value}))
     events = _events({"vulnrichment": BASE_SSVC}, {"vulnrichment": after})
@@ -182,11 +182,59 @@ def test_partial_baseline_adds_no_added_events_but_keeps_changes():
     """2026-09-27: vulnrichment_db.json went from a partial 2,567 records to
     a full 188,261 rebuild. The missing records were backfill, not news."""
     before = _ssvc(**{"CVE-2025-0001": "poc"})
-    after = dict(_ssvc(**{f"CVE-2020-{i:04d}": "active" for i in range(1, 50)}), **_ssvc(**{"CVE-2025-0001": "active"}))
+    after = dict(_ssvc(**{f"CVE-2020-{i:04d}": "active" for i in range(1, 700)}), **_ssvc(**{"CVE-2025-0001": "active"}))
     events = _events({"vulnrichment": before}, {"vulnrichment": after})
     assert [(e["cve"], e["before"], e["after"]) for e in events] == [("CVE-2025-0001", "poc", "active")]
-    kev_events = _events({"kev": _kev(**{"CVE-2024-0001": ("a", "b", "c", "d")})}, {"kev": BASE_KEV})
+    big_kev = _kev(**{f"CVE-2024-{i:04d}": ("a", "b", "c", "d") for i in range(1, 700)})
+    kev_events = _events({"kev": _kev(**{"CVE-2024-0001": ("a", "b", "c", "d")})}, {"kev": big_kev})
     assert kev_events == []
+
+
+def test_first_poc_is_not_an_event_but_poc_to_active_is():
+    after = dict(BASE_SSVC, **_ssvc(**{"CVE-2026-0001": "poc", "CVE-2025-0001": "poc"}))
+    assert [(e["cve"], e["after"]) for e in _events({"vulnrichment": BASE_SSVC}, {"vulnrichment": after})] == [
+        ("CVE-2025-0001", "poc")]
+    later = dict(after, **_ssvc(**{"CVE-2026-0001": "active"}))
+    ev = _one(_events({"vulnrichment": after}, {"vulnrichment": later}), "ssvc_exploitation_changed")
+    assert (ev["cve"], ev["before"], ev["after"]) == ("CVE-2026-0001", "poc", "active")
+
+
+def _curated(n: int, start: int = 0) -> dict:
+    return _index(**{f"CVE-2024-{i:05d}": (7.0, {}) for i in range(start, start + n)})
+
+
+def test_small_set_growing_within_the_slack_is_news():
+    """The curated tier growing from 1,728 to 1,950 is under the 90% ratio
+    but within the 500-record slack, so its new CVEs are events."""
+    events = _events({"entity_index": _curated(1728)}, {"entity_index": _curated(1950)})
+    assert len(events) == 222 and {e["type"] for e in events} == {"curated_added"}
+    # Past the slack and the ratio it is still a rebuild, not news.
+    assert _events({"entity_index": _curated(1728)}, {"entity_index": _curated(2300)}) == []
+
+
+def test_curated_set_shrinking_past_the_ratio_emits_no_removals(monkeypatch):
+    warned = []
+    monkeypatch.setattr(cl, "log_warning", warned.append)
+    before = _curated(100)
+    after = json.loads(json.dumps(_curated(80)))
+    after["entities"]["CVE-2024-00001"]["cvss_score"] = 9.9
+    events = _events({"entity_index": before}, {"entity_index": after})
+    assert [e["type"] for e in events] == ["cvss_changed"]
+    assert warned and "curated CVE set shrank from 100 to 80" in warned[0]
+    warned.clear()
+    kept = _events({"entity_index": before}, {"entity_index": _curated(95)})
+    assert len(kept) == 5 and {e["type"] for e in kept} == {"curated_removed"} and warned == []
+
+
+def test_kev_shrinking_past_the_ratio_emits_no_removals(monkeypatch):
+    warned = []
+    monkeypatch.setattr(cl, "log_warning", warned.append)
+    base = _kev(**{f"CVE-2020-{i:04d}": ("a", "b", "V", "P") for i in range(100)})
+    shrunk = {k: v for i, (k, v) in enumerate(base.items()) if i < 80}
+    assert _events({"kev": base}, {"kev": shrunk}) == []
+    assert warned and "KEV shrank from 100 to 80" in warned[0]
+    fine = {k: v for i, (k, v) in enumerate(base.items()) if i < 95}
+    assert len(_events({"kev": base}, {"kev": fine})) == 5
 
 
 def _write(path: Path, obj) -> None:
@@ -356,11 +404,10 @@ WORST_CASE = Path(__file__).parent / "fixtures" / "changes_worst_case.json.gz"
 SIZE_BAR = 150_000
 
 
-def _kev_days(root: Path, n: int):
-    """A KEV before/after pair adding n CVEs, and the paths. The base is large
-    enough that the adds pass the baseline rule."""
+def _kev_days(root: Path, n: int, base_n: int = 100):
+    """A KEV before/after pair adding n CVEs, and the paths."""
     paths = _paths(root)
-    base = _kev(**{f"CVE-2020-{i:04d}": ("a", "b", "V", "P") for i in range(100)})
+    base = _kev(**{f"CVE-2020-{i:04d}": ("a", "b", "V", "P") for i in range(base_n)})
     _write(paths["kev"], base)
     before = cl.snapshot_sources(paths)
     added = _kev(**{f"CVE-2026-{i:05d}": ("x", "y", "V", "P") for i in range(n)})
@@ -380,54 +427,149 @@ def test_cap_drops_the_oldest_events_and_says_so(tmp_path, monkeypatch):
     # Three new events today plus the newer of the two old ones.
     assert [e["cve"] for e in doc["events"]] == ["CVE-2026-00000", "CVE-2026-00001", "CVE-2026-00002", "CVE-OLD"]
     assert summary["truncated"] == 1
-    assert (doc["truncated"], doc["truncated_through"]) == (1, "2026-09-20")
+    assert (doc["truncated"], doc["truncated_through"], doc["truncated_days"]) == (1, "2026-09-20", {"2026-09-20": 1})
 
 
-def test_truncation_carries_while_in_window_then_expires(tmp_path, monkeypatch):
-    monkeypatch.setattr(cl, "MAX_EVENTS", 2)
+def test_within_a_day_the_cap_keeps_kev_and_ssvc_over_curated_churn(monkeypatch):
+    monkeypatch.setattr(cl, "MAX_EVENTS", 3)
+    day = [_ev(DAY, t, cve=f"CVE-2026-000{i}") for i, t in enumerate(
+        ["curated_removed", "curated_added", "kev_added", "cvss_changed", "ssvc_exploitation_changed"])]
+    kept, dropped = cl.cap_events(cl.merge_events([], day, DAY))
+    assert [e["type"] for e in kept] == ["kev_added", "ssvc_exploitation_changed", "cvss_changed"]
+    assert {e["type"] for e in dropped} == {"curated_added", "curated_removed"}
+
+
+def test_steady_state_at_the_cap_counts_only_in_window_drops(tmp_path, monkeypatch):
+    """60 days of 3 KEV adds a day at a cap of 5: the log always holds the 5
+    newest, and truncated counts only the dropped events whose dates are
+    still inside the 30-day window, not every drop since day one."""
+    monkeypatch.setattr(cl, "MAX_EVENTS", 5)
+    paths = _paths(tmp_path)
     log = tmp_path / "docs" / "data" / "changes.json.gz"
-    before, paths = _kev_days(tmp_path, 3)
-    cl.record_changes(before, paths, ["kev"], log, now=NOW)
-    assert (_read_log(log)["truncated"], _read_log(log)["truncated_through"]) == (1, DAY)
-    # Two more on a later day push today's two out: the count adds up.
-    later = cl.snapshot_sources(paths)
-    _write(paths["kev"], dict(json.loads(paths["kev"].read_text()),
-                              **_kev(**{"CVE-2026-90001": ("x", "y", "V", "P"), "CVE-2026-90002": ("x", "y", "V", "P")})))
-    cl.record_changes(later, paths, ["kev"], log, now=datetime(2026, 10, 1, tzinfo=timezone.utc))
+    kev = _kev(**{f"CVE-2020-{i:04d}": ("a", "b", "V", "P") for i in range(100)})
+    _write(paths["kev"], kev)
+    start = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    for d in range(60):
+        before = cl.snapshot_sources(paths)
+        kev.update(_kev(**{f"CVE-2026-{d:03d}{j}": ("x", "y", "V", "P") for j in range(3)}))
+        _write(paths["kev"], kev)
+        cl.record_changes(before, paths, ["kev"], log, now=start + timedelta(days=d))
     doc = _read_log(log)
-    assert [e["cve"] for e in doc["events"]] == ["CVE-2026-90001", "CVE-2026-90002"]
-    assert (doc["truncated"], doc["truncated_through"]) == (3, DAY)
-    # Once the dropped days leave the window, so does the note.
-    assert cl.carry_truncation(doc, [], "2026-10-28") == (0, None)
-    assert cl.carry_truncation(doc, [], "2026-10-27") == (3, DAY)
+    assert len(doc["events"]) == 5
+    # 30 days in the window at 3 a day is 90 events, 5 of them kept.
+    assert doc["truncated"] == 85 == sum(doc["truncated_days"].values())
+    assert min(doc["truncated_days"]) == cl.window_start("2026-10-30")
+    # The cut lands inside 10-29: two of its three events kept, one dropped.
+    assert doc["truncated_through"] == "2026-10-29" and doc["truncated_days"]["2026-10-29"] == 1
 
 
-@pytest.mark.parametrize("meta", [{"truncated": "3", "truncated_through": DAY}, {"truncated": 3}, {}])
+@pytest.mark.parametrize("meta", [
+    {"truncated_days": {DAY: "3"}}, {"truncated_days": {DAY: True}}, {"truncated_days": {DAY: -1}},
+    {"truncated_days": [DAY]}, {"truncated": 3, "truncated_through": DAY}, {},
+])
 def test_malformed_truncation_meta_is_not_carried(meta):
-    assert cl.carry_truncation(meta, [], DAY) == (0, None)
+    assert cl.carry_drops(meta, [], DAY) == {}
 
 
-def test_worst_case_probe_is_under_the_bar_once_capped(tmp_path):
-    """The stacked worst case, built by this writer from the 2026-09-20 to
-    2026-09-27 data commits plus a heavy EPSS week, 30 days of first SSVC
-    decisions, and an EPSS model release (8,288 events). Uncapped it is over
-    150 KB; through record_changes it is under."""
-    assert len(WORST_CASE.read_bytes()) > SIZE_BAR
-    doc = _read_log(WORST_CASE)
-    assert len(doc["events"]) == 8288
+def test_drop_counts_leave_with_their_days():
+    meta = {"truncated_days": {"2026-08-30": 4, "2026-09-10": 2}}
+    assert cl.carry_drops(meta, [], DAY) == {"2026-08-30": 4, "2026-09-10": 2}
+    assert cl.carry_drops(meta, [], "2026-09-29") == {"2026-09-10": 2}
+    assert cl.carry_drops(meta, [_ev("2026-09-10"), _ev("2026-08-01")], "2026-09-29") == {"2026-09-10": 3}
+
+
+def _fat_events(days: int, per_day: int) -> list:
+    """Events whose random related lists barely compress: under the count
+    cap, over the byte cap."""
+    import random
+    rng = random.Random(3)
+    out = []
+    for d in range(days):
+        day = (datetime(2026, 9, 28, tzinfo=timezone.utc) - timedelta(days=d)).date().isoformat()
+        for i in range(per_day):
+            out.append({"date": day, "type": "curated_added", "cve": f"CVE-2026-{d:02d}{i:03d}", "before": False,
+                        "after": True, "related": {"apt_group": [f"G{rng.randrange(10000):04d}" for _ in range(60)]}})
+    return out
+
+
+def test_byte_cap_drops_whole_oldest_days_and_counts_them(tmp_path):
+    events = cl.merge_events([], _fat_events(30, 40), DAY)
+    assert len(events) < cl.MAX_EVENTS
+    assert len(cl.render_log(events, DAY)) > cl.MAX_BYTES
+    data, kept, dropped = cl.fit_log(events, DAY, None, DAY)
+    assert len(data) <= cl.MAX_BYTES and dropped
+    kept_days, dropped_days = {e["date"] for e in kept}, {e["date"] for e in dropped}
+    assert not kept_days & dropped_days and max(dropped_days) < min(kept_days)
+    doc = json.loads(gzip.decompress(data))
+    assert doc["truncated"] == len(dropped) == 40 * len(dropped_days)
+    assert doc["truncated_through"] == max(dropped_days)
+    # Through record_changes too, with the count in the summary.
     log = tmp_path / "docs" / "data" / "changes.json.gz"
     log.parent.mkdir(parents=True, exist_ok=True)
-    log.write_bytes(WORST_CASE.read_bytes())
+    log.write_bytes(cl.render_log(events, DAY))
     before, paths = _kev_days(tmp_path, 1)
-    summary = cl.record_changes(before, paths, ["kev"], log, now=datetime(2026, 9, 27, tzinfo=timezone.utc))
-    capped = _read_log(log)
-    assert len(capped["events"]) == cl.MAX_EVENTS
-    assert summary["truncated"] == 8288 + 1 - cl.MAX_EVENTS == capped["truncated"]
-    assert len(log.read_bytes()) < SIZE_BAR
-    # The newest events survived and only older ones went.
-    newest = max(e["date"] for e in doc["events"])
-    assert capped["events"][0]["date"] == newest
-    assert capped["truncated_through"] <= min(e["date"] for e in capped["events"])
+    summary = cl.record_changes(before, paths, ["kev"], log, now=NOW)
+    assert len(log.read_bytes()) <= cl.MAX_BYTES and summary["truncated"] >= 40
+
+
+def test_worst_case_probe_fits_without_truncation(tmp_path):
+    """The stacked worst case under the current rules, built by this writer
+    from the 2026-09-20 to 2026-09-27 data commits plus a heavy EPSS week, 30
+    days of first SSVC decisions, and an EPSS model release moving every
+    curated CVE. The caps are backstops: this case trips neither."""
+    raw = WORST_CASE.read_bytes()
+    doc = _read_log(WORST_CASE)
+    assert len(raw) < SIZE_BAR and len(doc["events"]) < cl.MAX_EVENTS
+    log = tmp_path / "docs" / "data" / "changes.json.gz"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_bytes(raw)
+    before, paths = _kev_days(tmp_path, 1)
+    summary = cl.record_changes(before, paths, ["kev"], log, now=datetime(2026, 9, 28, tzinfo=timezone.utc))
+    out = _read_log(log)
+    assert "truncated" not in summary and "truncated" not in out
+    assert len(out["events"]) == len(doc["events"]) + 1 and len(log.read_bytes()) < SIZE_BAR
+
+
+# ── Related ids backfilled after a weekly run (review fix 3) ────
+
+def test_weekly_run_backfills_related_on_a_daily_kev_add(tmp_path):
+    from tip_mcp.loader import IndexLoader
+    from tip_mcp.tools import recent_changes_impl
+
+    paths = _paths(tmp_path)
+    log = tmp_path / "docs" / "data" / "changes.json.gz"
+    # Daily: CVE-2026-1234 enters KEV while outside the curated graph.
+    _write(paths["kev"], BASE_KEV)
+    _write(paths["entity_index"], BASE_INDEX)
+    before = cl.snapshot_sources(paths)
+    _write(paths["kev"], dict(BASE_KEV, **_kev(**{"CVE-2026-1234": ("2026-09-27", "2026-10-17", "Ivanti", "ICS")})))
+    cl.record_changes(before, paths, ["kev"], log, now=datetime(2026, 9, 27, tzinfo=timezone.utc))
+    first = _read_log(log)["events"][0]
+    assert first["related"] == {"vendor": "Ivanti", "product": "ICS"}
+    ld = IndexLoader(log.parent)
+    assert recent_changes_impl(ld, entity_id="CWE-22")["data"]["events"] == []
+    # Weekly: the index now curates it with a CWE and a technique.
+    before = cl.snapshot_sources(paths)
+    index = json.loads(json.dumps(BASE_INDEX))
+    index["entities"].update(_index(**{"CVE-2026-1234": (9.8, {"cwe": ["CWE-22"], "technique": ["T1190"]})})["entities"])
+    _write(paths["entity_index"], index)
+    summary = cl.record_changes(before, paths, ["entity_index"], log, now=NOW)
+    assert summary["related_backfilled"] == 1
+    kev_ev = next(e for e in _read_log(log)["events"] if e["type"] == "kev_added")
+    assert kev_ev["related"] == {"vendor": "Ivanti", "product": "ICS", "cwe": ["CWE-22"], "technique": ["T1190"]}
+    hits = recent_changes_impl(IndexLoader(log.parent), entity_id="CWE-22")["data"]["events"]
+    assert {e["type"] for e in hits} == {"kev_added", "curated_added"}
+
+
+def test_backfill_never_overwrites_existing_related():
+    events = [_ev(DAY, cve="CVE-1"), dict(_ev(DAY, cve="CVE-2"), related={"cwe": ["CWE-1"]}), _ev(DAY, cve="CVE-3")]
+    graph = {"CVE-1": {"cwe": ["CWE-9"], "technique": []}, "CVE-2": {"cwe": ["CWE-9"], "technique": ["T1"]}}
+    assert cl.backfill_related(events, graph) == 2
+    assert events[0]["related"] == {"cwe": ["CWE-9"]}
+    assert events[1]["related"] == {"cwe": ["CWE-1"], "technique": ["T1"]}
+    assert "related" not in events[2]
+    assert cl.backfill_related(events, graph) == 0
+    assert cl.backfill_related(events, None) == 0
 
 
 # ── Through the real orchestrator ──────────────────────────────

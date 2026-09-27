@@ -134,7 +134,7 @@ def test_log_is_read_once_and_reset_by_load(fixture_data_dir, tmp_path):
 
 
 def test_truncated_log_says_so_in_meta(tmp_path):
-    ld = _loader(tmp_path, change_log.render_log(EVENTS, "2026-09-01", 12, "2026-09-02"))
+    ld = _loader(tmp_path, change_log.render_log(EVENTS, "2026-09-01", {"2026-09-01": 10, "2026-09-02": 2}))
     res = recent_changes_impl(ld, entity_id="CWE-22")
     assert _cves(res) == ["CVE-2026-1234"]
     assert res["meta"]["truncated"] == 12 and res["meta"]["truncated_through"] == "2026-09-02"
