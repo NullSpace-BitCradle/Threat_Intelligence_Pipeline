@@ -175,9 +175,11 @@ function renderWorklistTable(container) {
             var epssCell = document.createElement('td');
             epssCell.className = 'worklist-epss';
             if (row.epssInfo) {
-                epssCell.textContent = String(row.epssInfo.score);
-                epssCell.title = formatEpssPercentile(row.epssInfo.percentile) + ', scored ' +
-                    row.epssInfo.date + ' (' + row.epssInfo.cadence + ')';
+                // Visible age: the score, its score date (MM-DD), and a
+                // "weekly" marker when it came from the shard, not the daily file.
+                epssCell.textContent = row.epssInfo.score + ' · ' + row.epssInfo.date.slice(5) +
+                    (row.epssInfo.cadence === 'weekly' ? ' weekly' : '');
+                epssCell.title = epssTitle(row.epssInfo);
             }
             tr.appendChild(epssCell);
             appendCell(tr, row.kev ? 'KEV' : '');

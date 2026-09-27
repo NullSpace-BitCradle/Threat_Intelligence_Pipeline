@@ -26,15 +26,15 @@ SHARD_1999 = "**/database/CVE-1999.jsonl.gz"
 SHARD_ONLY_CVE = "CVE-1999-0095"
 
 
-def _daily(scores: dict) -> str:
+def _daily(scores: dict, date: str = "2026-09-26") -> str:
     return json.dumps({
-        "meta": {"date": "2026-09-26", "model_version": "v2026.06.15", "total_count": 379842},
+        "meta": {"date": date, "model_version": "v2026.06.15", "total_count": 379842},
         "scores": scores,
     })
 
 
-def _serve_daily(page: Page, scores: dict) -> None:
-    page.route(EPSS_FILE, lambda r: r.fulfill(status=200, content_type="application/json", body=_daily(scores)))
+def _serve_daily(page: Page, scores: dict, date: str = "2026-09-26") -> None:
+    page.route(EPSS_FILE, lambda r: r.fulfill(status=200, content_type="application/json", body=_daily(scores, date)))
 
 
 def _no_daily(page: Page) -> None:
@@ -74,6 +74,8 @@ def test_cve_page_shows_daily_epss(page: Page) -> None:
     expect(main).to_contain_text("99.998th percentile")
     expect(main).to_contain_text("EPSS Score Date")
     expect(main).to_contain_text("2026-09-26 (daily)")
+    badge = main.locator(".badge", has_text="EPSS")
+    assert "model v2026.06.15" in (badge.get_attribute("title") or "")
     assert errors == []
 
 
@@ -105,20 +107,63 @@ def test_cve_page_renders_without_epss_file(page: Page) -> None:
     assert errors == []
 
 
-def test_worklist_sorts_by_epss(page: Page) -> None:
-    _serve_daily(page, {
-        "CVE-1999-0001": {"score": 0.03351, "percentile": 0.88243},
-        SHARD_ONLY_CVE: {"score": 0.5, "percentile": 0.6},
-    })
+def test_worklist_sorts_by_epss_and_shows_score_age(page: Page) -> None:
+    """One daily-sourced row and one shard-sourced (weekly) row: the cell shows
+    the score date as visible text and marks the weekly one."""
+    _serve_weekly_shard(page)
+    _serve_daily(page, {"CVE-1999-0001": {"score": 0.03351, "percentile": 0.88243}})
     page.goto(f"{BASE_URL}#/list/CVE-1999-0001,CVE-1999-0095")
     table = page.locator("#worklist-table table")
     expect(table).to_be_visible(timeout=TIMEOUT_MS)
     header = table.locator("th", has_text="EPSS")
     expect(header).to_have_count(1)
-    first_id = table.locator("tbody tr").first.locator("td").first
+    rows = table.locator("tbody tr")
+    first_id = rows.first.locator("td").first
 
     header.click()  # EPSS, highest first
     expect(first_id).to_have_text(SHARD_ONLY_CVE)
-    expect(table.locator("tbody tr").first.locator("td.worklist-epss")).to_have_text("0.5")
+    expect(rows.nth(0).locator("td.worklist-epss")).to_have_text("0.1 · 09-20 weekly")
+    expect(rows.nth(1).locator("td.worklist-epss")).to_have_text("0.03351 · 09-26")
     table.locator("th", has_text="EPSS").click()  # ascending
     expect(first_id).to_have_text("CVE-1999-0001")
+
+
+def test_weekly_value_newer_than_daily_wins(page: Page) -> None:
+    """After a --cve-only run the shard can be newer than the daily file."""
+    _serve_weekly_shard(page)  # weekly value dated 2026-09-20
+    _serve_daily(page, {SHARD_ONLY_CVE: {"score": 0.5, "percentile": 0.6}}, date="2026-09-19")
+    page.goto(f"{BASE_URL}#/cve/{SHARD_ONLY_CVE}")
+    main = page.locator("#result-main")
+    expect(main).to_contain_text("EPSS 0.1", timeout=TIMEOUT_MS)
+    expect(main).to_contain_text("2026-09-20 (weekly)")
+
+
+def _ordinal(n: int) -> str:
+    if 11 <= n % 100 <= 13:
+        return f"{n}th"
+    return f"{n}" + {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+
+
+def test_percentile_ordinals(page: Page) -> None:
+    page.goto(BASE_URL)
+    expect(page.locator("#stats-bar")).not_to_be_empty(timeout=TIMEOUT_MS)
+    got = page.evaluate("[...Array(101).keys()].map(i => formatEpssPercentile(i / 100))")
+    assert got == [f"{_ordinal(i)} percentile" for i in range(101)]
+    assert page.evaluate("formatEpssPercentile(0.99998)") == "99.998th percentile"
+
+
+def test_failed_daily_fetch_is_not_repeated(page: Page) -> None:
+    hits: list[str] = []
+
+    def handler(route: Route) -> None:
+        hits.append(route.request.url)
+        route.fulfill(status=404, body="not found")
+
+    page.route(EPSS_FILE, handler)
+    page.goto(f"{BASE_URL}#/cve/CVE-2023-44487")
+    expect(page.locator("#result-main")).to_contain_text("KEV Date Added", timeout=TIMEOUT_MS)
+    page.evaluate("() => { window.location.hash = '#/cve/CVE-2021-44228'; }")
+    expect(page.locator("#result-main")).to_contain_text("CVE-2021-44228", timeout=TIMEOUT_MS)
+    page.evaluate("() => { window.location.hash = '#/cve/CVE-2023-44487'; }")
+    expect(page.locator("#result-main")).to_contain_text("KEV Date Added", timeout=TIMEOUT_MS)
+    assert len(hits) == 1, hits

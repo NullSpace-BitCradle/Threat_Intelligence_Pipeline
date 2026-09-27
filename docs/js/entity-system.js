@@ -19,6 +19,7 @@ let cveIdsLoading = null;  // promise-of-load to dedupe concurrent calls
 // loaded once. Resolves to null when absent (older deployments) or broken.
 let epssCurated = null;
 let epssLoading = null;
+let epssFailed = false;
 
 // Layer 3: per-year shard cache (parsed Map<cve_id, payload>)
 const shardCache = new Map();
@@ -95,16 +96,23 @@ async function loadCveIdsIndex() {
 
 async function loadEpssCurated() {
     if (epssCurated) return epssCurated;
+    // A failed load (absent on older deployments, or broken) is remembered
+    // for the page lifetime so every render does not refetch it.
+    if (epssFailed) return null;
     if (epssLoading) return epssLoading;
     epssLoading = (async function() {
         try {
             const res = await fetch('data/epss_curated.json');
-            if (!res.ok) return null;
+            if (!res.ok) { epssFailed = true; return null; }
             const data = await res.json();
-            if (!data || !data.meta || typeof data.meta.date !== 'string' || !data.scores) return null;
+            if (!data || !data.meta || typeof data.meta.date !== 'string' || !data.scores) {
+                epssFailed = true;
+                return null;
+            }
             epssCurated = data;
             return epssCurated;
         } catch (e) {
+            epssFailed = true;
             return null;
         } finally {
             epssLoading = null;
@@ -117,22 +125,47 @@ function isProbability(x) {
     return typeof x === 'number' && x >= 0 && x <= 1;
 }
 
-// EPSS for a CVE: the daily curated file wins over the weekly value carried
-// on the entity record or shard ({score, percentile, date}). Returns
-// {score, percentile, date, cadence} or null. Every value carries its date.
+// EPSS for a CVE from the daily curated file or the weekly value carried on
+// the entity record or shard ({score, percentile, date, model_version?}).
+// The newer score date wins; the daily file wins a tie. Returns {score,
+// percentile, date, cadence, model} or null. Every value carries its date.
 function pickEpss(cveId, weekly) {
-    var daily = epssCurated && epssCurated.scores ? epssCurated.scores[cveId] : null;
-    if (daily && isProbability(daily.score) && isProbability(daily.percentile)) {
-        return { score: daily.score, percentile: daily.percentile, date: epssCurated.meta.date, cadence: 'daily' };
-    }
-    if (weekly && isProbability(weekly.score) && isProbability(weekly.percentile) && weekly.date) {
-        return { score: weekly.score, percentile: weekly.percentile, date: String(weekly.date), cadence: 'weekly' };
-    }
-    return null;
+    var d = epssCurated && epssCurated.scores ? epssCurated.scores[cveId] : null;
+    var daily = (d && isProbability(d.score) && isProbability(d.percentile))
+        ? { score: d.score, percentile: d.percentile, date: epssCurated.meta.date, cadence: 'daily',
+            model: epssCurated.meta.model_version || '' }
+        : null;
+    var week = (weekly && isProbability(weekly.score) && isProbability(weekly.percentile) && weekly.date)
+        ? { score: weekly.score, percentile: weekly.percentile, date: String(weekly.date), cadence: 'weekly',
+            model: weekly.model_version || '' }
+        : null;
+    if (daily && week) return (week.date > daily.date) ? week : daily;
+    return daily || week;
 }
 
+// English ordinal of the percentile as displayed (rounded to 3 decimals).
+// Whole numbers take their proper suffix (1st, 2nd, 3rd, 11th, 21st, ...);
+// a fractional percentile reads as "th".
 function formatEpssPercentile(p) {
-    return (Math.round(p * 100000) / 1000) + 'th percentile';
+    var v = Math.round(p * 100000) / 1000;
+    var suffix = 'th';
+    if (Number.isInteger(v)) {
+        var mod100 = v % 100;
+        var mod10 = v % 10;
+        if (mod100 < 11 || mod100 > 13) {
+            if (mod10 === 1) suffix = 'st';
+            else if (mod10 === 2) suffix = 'nd';
+            else if (mod10 === 3) suffix = 'rd';
+        }
+    }
+    return v + suffix + ' percentile';
+}
+
+// Tooltip text naming source cadence, score date, and model.
+function epssTitle(epss) {
+    return 'FIRST EPSS: probability of exploitation in the next 30 days. ' +
+        formatEpssPercentile(epss.percentile) + ', scored ' + epss.date + ' (' + epss.cadence +
+        (epss.model ? ', model ' + epss.model : '') + ')';
 }
 
 // ── Search ──────────────────────────────────────────────────────

@@ -296,8 +296,7 @@ function renderEntityHeader(container, entity, related, detail) {
             epssBadge.style.background = '#e8430025';
             epssBadge.style.color = '#e84300';
             epssBadge.textContent = 'EPSS ' + epss.score + ' (' + formatEpssPercentile(epss.percentile) + ')';
-            epssBadge.title = 'FIRST EPSS: probability of exploitation in the next 30 days, scored ' +
-                epss.date + ' (' + epss.cadence + ')';
+            epssBadge.title = epssTitle(epss);
             badges.appendChild(epssBadge);
         }
         if (ssvc && ssvc.cisaCVSS && typeof ssvc.cisaCVSS.baseScore === 'number') {
@@ -758,6 +757,7 @@ function renderOverviewContent(panel, entity, detail, related) {
         addOverviewField(content, 'EPSS Score', String(detail.epss.score));
         addOverviewField(content, 'EPSS Percentile', formatEpssPercentile(detail.epss.percentile));
         addOverviewField(content, 'EPSS Score Date', detail.epss.date + ' (' + detail.epss.cadence + ')');
+        if (detail.epss.model) addOverviewField(content, 'EPSS Model', detail.epss.model);
     }
 
     if (entity.type === 'cve' && detail && detail.kev) {
