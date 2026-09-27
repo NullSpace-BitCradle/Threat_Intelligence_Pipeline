@@ -731,7 +731,7 @@ class CVEProcessor:
 
     def _load_ctid(self) -> None:
         """Read ctid_db.json as the database step left it this run."""
-        self.ctid_db = load_ctid_db(self.config.get_database_path('ctid'))
+        self.ctid_db = load_ctid_db(config.get('database.ctid.file', 'docs/data/ctid_db.json'))
         if self.ctid_db is None:
             self.logger.warning(
                 "ctid_db.json unavailable; CVE records are written without CTID "

@@ -228,3 +228,24 @@ def test_curated_set_is_identical_with_and_without_ctid(tmp_path):
     without = _build(tmp_path / "b", records, ctid_db=None)["entities"]
     curated = lambda ents: {k for k, v in ents.items() if v["type"] == "cve"}  # noqa: E731
     assert curated(with_ctid) == curated(without)
+
+
+def test_process_file_reads_ctid_db_after_the_database_step(tmp_path, monkeypatch):
+    """ctid_db.json is read in process_file, not at construction, so the
+    orchestrator's processor sees the file the database step just wrote."""
+    import tip.core.cve_processor as cve_mod
+
+    path = tmp_path / "ctid_db.json"
+    path.write_text(json.dumps({"meta": {}, "cves": CTID_DB}))
+
+    class _Cfg:
+        def get(self, key, default=None):
+            return str(path) if key == "database.ctid.file" else default
+
+    monkeypatch.setattr(cve_mod, "config", _Cfg())
+    proc, _ = _processor(ctid_db=None)
+    proc._load_ctid()
+    assert proc.ctid_db == CTID_DB
+    path.unlink()
+    proc._load_ctid()
+    assert proc.ctid_db is None
