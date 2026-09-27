@@ -313,11 +313,23 @@ function renderEntityHeader(container, entity, related, detail) {
         badge.style.background = (GRAPH_COLORS[relType] || '#888') + '20';
         badge.style.color = GRAPH_COLORS[relType] || 'var(--text-secondary)';
         badge.textContent = relData.ids.length + ' ' + (relCfg.label || relType);
+        const inhCount = inheritedCount(relData);
+        if (inhCount > 0) {
+            badge.textContent += ' (' + inhCount + ' inherited)';
+            badge.title = inhCount + ' reached only through an inherited parent CWE';
+        }
         badges.appendChild(badge);
     }
 
     header.appendChild(badges);
     container.appendChild(header);
+}
+
+// I29: how many of a rel type's ids were reached only through an inherited
+// parent CWE (0 for indexes and shards without the field).
+function inheritedCount(relData) {
+    const inh = relData.inherited || [];
+    return relData.ids.filter(id => inh.indexOf(id) !== -1).length;
 }
 
 function renderSummaryCards(container, entity, related) {
@@ -328,10 +340,12 @@ function renderSummaryCards(container, entity, related) {
     for (const [relType, relData] of Object.entries(related)) {
         if (relData.ids.length === 0) continue;
         const relCfg = TYPE_CONFIG[relType] || { label: relType, relLabel: relType };
+        const inhCount = inheritedCount(relData);
         cards.push({
             label: relCfg.relLabel || relCfg.label,
             value: String(relData.ids.length),
             detail: relData.source || '',
+            inherited: inhCount > 0 ? inhCount + ' inherited via parent CWE' : '',
             color: GRAPH_COLORS[relType] || 'var(--text-primary)'
         });
     }
@@ -384,6 +398,13 @@ function renderSummaryCards(container, entity, related) {
         detailEl.className = 'summary-card-detail';
         detailEl.textContent = card.detail;
         el.appendChild(detailEl);
+
+        if (card.inherited) {
+            const inhEl = document.createElement('div');
+            inhEl.className = 'summary-card-inherited';
+            inhEl.textContent = card.inherited;
+            el.appendChild(inhEl);
+        }
 
         grid.appendChild(el);
     }
@@ -545,14 +566,47 @@ function renderMarkdownText(container, text) {
 // through such a parent carries a visible "inherited" marker whose tooltip
 // names the parent. Indexes and shards without these fields render as before.
 
+function relIds(ent, relType) {
+    var body = ent && ent.rels && ent.rels[relType];
+    return (body && Array.isArray(body.ids)) ? body.ids : [];
+}
+
+// The inherited parent CWEs that lead to itemId (of itemType) through the
+// index: parent -> capec, parent -> capec -> technique, and on to defend.
+// Empty when the index cannot tell (shard-only entities, OWASP).
+function inheritedParentsLeadingTo(parents, itemType, itemId) {
+    return parents.filter(function(pid) {
+        var capecs = relIds(getEntity(pid), 'capec');
+        if (itemType === 'capec') return capecs.indexOf(itemId) !== -1;
+        if (itemType !== 'technique' && itemType !== 'defend') return false;
+        return capecs.some(function(cid) {
+            return relIds(getEntity(cid), 'technique').some(function(tid) {
+                if (itemType === 'technique') return tid === itemId;
+                return relIds(getEntity(tid), 'defend').indexOf(itemId) !== -1;
+            });
+        });
+    });
+}
+
+function uniqueIds(ids) {
+    return ids.filter(function(id, i) { return ids.indexOf(id) === i; });
+}
+
 function inheritedTooltip(entity, relType, relEntity, detail) {
     if (entity.type === 'cwe' && relType === 'capec') {
-        var parents = (detail && detail.parents && detail.parents.length) ? detail.parents.join(', ') : 'its parent';
+        var via = (detail && detail.capecParents && detail.capecParents[relEntity.id]) || [];
+        if (via.length === 0 && detail && detail.parents) via = detail.parents;
+        via = uniqueIds(via);
+        var parents = via.length ? via.join(', ') : 'its parent';
         return 'Inherited: a CAPEC of an ancestor weakness (via ' + parents + '), not one MITRE lists for ' + entity.id + '.';
     }
     var cve = entity.type === 'cve' ? entity : relEntity;
-    var names = (cve && Array.isArray(cve.cwe_inherited) && cve.cwe_inherited.length)
-        ? cve.cwe_inherited.join(', ') : 'an inherited parent weakness';
+    var item = entity.type === 'cve' ? relEntity : entity;
+    var itemType = entity.type === 'cve' ? relType : entity.type;
+    var all = (cve && Array.isArray(cve.cwe_inherited)) ? uniqueIds(cve.cwe_inherited) : [];
+    var leading = inheritedParentsLeadingTo(all, itemType, item && item.id);
+    var shown = leading.length ? leading : all;
+    var names = shown.length ? shown.join(', ') : 'an inherited parent weakness';
     return 'Inherited: ' + (cve && cve.id ? cve.id : 'the CVE') + ' reaches this only through parent ' +
         names + ', not through a CWE NVD assigned.';
 }

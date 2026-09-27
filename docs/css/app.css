@@ -588,6 +588,23 @@
 .entity-card-inherited { border-style: dashed; }
 .inherited-chip { border-style: dashed; }
 
+/* I29: graph node and edge reached only through an inherited parent CWE.
+   CSS rules override the presentation attributes graph.js sets. */
+.graph-node-inherited circle {
+    stroke: var(--severity-medium);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+    fill-opacity: 0.45;
+}
+.graph-link-inherited { stroke-dasharray: 4 3; }
+
+/* I29: inherited share of a relationship count */
+.summary-card-inherited {
+    font-size: 11px;
+    color: var(--severity-medium);
+    margin-top: 2px;
+}
+
 /* ===== GRAPH PANEL ===== */
 .graph-header {
     font-size: 11px;

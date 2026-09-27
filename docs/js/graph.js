@@ -49,6 +49,9 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
     const MAX_PER_TYPE = 8;
     for (const [relType, relData] of Object.entries(related)) {
         const ids = relData.ids.slice(0, MAX_PER_TYPE);
+        // I29: ids reached only through an inherited parent CWE. Older
+        // indexes and shards have none, so no node is marked.
+        const inheritedIds = relData.inherited || [];
         for (const relId of ids) {
             if (nodeSet.has(relId)) continue;
             const relEntity = getEntity(relId);
@@ -61,9 +64,10 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
                 id: relId,
                 name: effectiveEntity.name || relId,
                 type: effectiveEntity.type || relType,
-                r: GRAPH_NODE_SIZES.primary
+                r: GRAPH_NODE_SIZES.primary,
+                inherited: inheritedIds.indexOf(relId) !== -1
             });
-            links.push({ source: entityId, target: relId });
+            links.push({ source: entityId, target: relId, inherited: inheritedIds.indexOf(relId) !== -1 });
         }
     }
 
@@ -97,6 +101,7 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
         .selectAll('line')
         .data(links)
         .join('line')
+        .attr('class', d => d.inherited ? 'graph-link-inherited' : null)
         .attr('stroke', 'var(--border)')
         .attr('stroke-width', 1)
         .attr('stroke-opacity', 0.6);
@@ -105,6 +110,7 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
         .selectAll('g')
         .data(nodes)
         .join('g')
+        .attr('class', d => d.inherited ? 'graph-node-inherited' : null)
         .style('cursor', 'pointer')
         .on('click', (event, d) => {
             if (!d.isCenter) {
@@ -132,7 +138,8 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
 
     // Tooltip on hover
     node.append('title')
-        .text(d => d.id + (d.name !== d.id ? ' \u2014 ' + d.name : ''));
+        .text(d => d.id + (d.name !== d.id ? ' \u2014 ' + d.name : '') +
+            (d.inherited ? ' (inherited via parent CWE)' : ''));
 
     simulation.on('tick', () => {
         // Keep nodes within bounds
