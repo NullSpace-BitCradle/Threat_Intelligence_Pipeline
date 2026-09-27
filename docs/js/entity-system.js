@@ -15,6 +15,11 @@ let indexLoadError = null;
 let cveIdsIndex = null;
 let cveIdsLoading = null;  // promise-of-load to dedupe concurrent calls
 
+// Daily FIRST EPSS scores for the curated tier (epss_curated.json); lazily
+// loaded once. Resolves to null when absent (older deployments) or broken.
+let epssCurated = null;
+let epssLoading = null;
+
 // Layer 3: per-year shard cache (parsed Map<cve_id, payload>)
 const shardCache = new Map();
 const shardLoading = new Map();  // year -> in-flight promise
@@ -86,6 +91,48 @@ async function loadCveIdsIndex() {
         }
     })();
     return cveIdsLoading;
+}
+
+async function loadEpssCurated() {
+    if (epssCurated) return epssCurated;
+    if (epssLoading) return epssLoading;
+    epssLoading = (async function() {
+        try {
+            const res = await fetch('data/epss_curated.json');
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (!data || !data.meta || typeof data.meta.date !== 'string' || !data.scores) return null;
+            epssCurated = data;
+            return epssCurated;
+        } catch (e) {
+            return null;
+        } finally {
+            epssLoading = null;
+        }
+    })();
+    return epssLoading;
+}
+
+function isProbability(x) {
+    return typeof x === 'number' && x >= 0 && x <= 1;
+}
+
+// EPSS for a CVE: the daily curated file wins over the weekly value carried
+// on the entity record or shard ({score, percentile, date}). Returns
+// {score, percentile, date, cadence} or null. Every value carries its date.
+function pickEpss(cveId, weekly) {
+    var daily = epssCurated && epssCurated.scores ? epssCurated.scores[cveId] : null;
+    if (daily && isProbability(daily.score) && isProbability(daily.percentile)) {
+        return { score: daily.score, percentile: daily.percentile, date: epssCurated.meta.date, cadence: 'daily' };
+    }
+    if (weekly && isProbability(weekly.score) && isProbability(weekly.percentile) && weekly.date) {
+        return { score: weekly.score, percentile: weekly.percentile, date: String(weekly.date), cadence: 'weekly' };
+    }
+    return null;
+}
+
+function formatEpssPercentile(p) {
+    return (Math.round(p * 100000) / 1000) + 'th percentile';
 }
 
 // ── Search ──────────────────────────────────────────────────────

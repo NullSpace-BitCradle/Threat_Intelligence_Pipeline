@@ -52,8 +52,11 @@ async function renderResultPage(entityId, gen) {
     }
 
     const related = getRelatedEntities(entityId);
-    const detail = await fetchEntityDetail(entityId);
+    const fetched = await Promise.all([fetchEntityDetail(entityId), loadEpssCurated()]);
     if (!isCurrentRender(gen)) return;
+    // Copy so the cached detail is never mutated.
+    const detail = Object.assign({}, fetched[0] || {});
+    if (entity.type === 'cve') detail.epss = pickEpss(entity.id, entity.epss);
 
     main.textContent = '';
     renderEntityHeader(main, entity, related, detail);
@@ -76,7 +79,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
 
     var payload;
     try {
-        payload = await fetchCveFromShard(cveId);
+        payload = (await Promise.all([fetchCveFromShard(cveId), loadEpssCurated()]))[0];
     } catch (err) {
         if (!isCurrentRender(gen)) return;
         main.textContent = '';
@@ -158,7 +161,8 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     var shardDetail = {
         description: description,
         kev: (payload.KEV && typeof payload.KEV === 'object') ? payload.KEV : null,
-        ssvc: (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') ? payload.VULNRICHMENT : null
+        ssvc: (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') ? payload.VULNRICHMENT : null,
+        epss: pickEpss(cveId, payload.EPSS)
     };
     renderEntityHeader(main, synthEntity, related, shardDetail);
     // Add a clear "from shard" provenance badge below the header so users
@@ -284,6 +288,17 @@ function renderEntityHeader(container, entity, related, detail) {
             if (ssvc.ssvcTechnicalImpact) ssvcBits.push('impact=' + ssvc.ssvcTechnicalImpact);
             if (ssvcBits.length) ssvcBadge.title = ssvcBits.join(', ');
             badges.appendChild(ssvcBadge);
+        }
+        const epss = (detail && detail.epss) ? detail.epss : null;
+        if (epss) {
+            const epssBadge = document.createElement('span');
+            epssBadge.className = 'badge';
+            epssBadge.style.background = '#e8430025';
+            epssBadge.style.color = '#e84300';
+            epssBadge.textContent = 'EPSS ' + epss.score + ' (' + formatEpssPercentile(epss.percentile) + ')';
+            epssBadge.title = 'FIRST EPSS: probability of exploitation in the next 30 days, scored ' +
+                epss.date + ' (' + epss.cadence + ')';
+            badges.appendChild(epssBadge);
         }
         if (ssvc && ssvc.cisaCVSS && typeof ssvc.cisaCVSS.baseScore === 'number') {
             const cisaBadge = document.createElement('span');
@@ -737,6 +752,12 @@ function renderOverviewContent(panel, entity, detail, related) {
 
     if (entity.type === 'technique' && detail && detail.framework) {
         addOverviewField(content, 'Framework', detail.framework.charAt(0).toUpperCase() + detail.framework.slice(1));
+    }
+
+    if (entity.type === 'cve' && detail && detail.epss) {
+        addOverviewField(content, 'EPSS Score', String(detail.epss.score));
+        addOverviewField(content, 'EPSS Percentile', formatEpssPercentile(detail.epss.percentile));
+        addOverviewField(content, 'EPSS Score Date', detail.epss.date + ' (' + detail.epss.cadence + ')');
     }
 
     if (entity.type === 'cve' && detail && detail.kev) {
