@@ -22,11 +22,11 @@ As of 2026-09-26:
 - Curated entity graph currently holds 2,971 enriched CVEs under the prior inclusion rule (as published). The corrected rule is KEV, APT-linked, or SSVC exploitation status active; on the next pipeline run the curated set rebuilds to every KEV CVE (1,726 today), and the entity index shrinks to about 4,340 entities (~7.6 MB). Every other ingested CVE stays reachable by ID through the per-year shard fallback on the site and in the MCP, curated or not.
 - 5,585 total entities across 8 frameworks (currently published; drops to ~4,340 on the next pipeline run per the curated-CVE rule above): 969 CWEs, 697 ATT&CK techniques, 559 CAPECs, 176 APT groups, 147 D3FEND countermeasures, 56 campaigns, 10 OWASP categories
 - 1,726 CISA KEV entries tracked with daily refresh
-- Fail-closed by design: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
+- Fail-closed by design, and loud about it: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes, and a failed data run or data past its expected age opens a GitHub issue that closes itself on recovery; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
 - Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
 - MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
 - Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / EPSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / EPSS / CISA-override badges and clickable references on CVE pages
-- 469 unit tests plus 41 Playwright smoke tests passing; mypy is clean across all 28 source files
+- 540 unit tests plus 51 Playwright smoke tests passing; mypy is clean across all 29 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -68,6 +68,7 @@ Features:
 - Interactive relationship graph; click any node to navigate
 - **Worklist / triage mode** (`#/list`): paste a list of IDs and get one sortable table across the cohort (CVSS, EPSS, KEV, ransomware use, SSVC exploit status, and remediation due date) with a shareable URL
 - **EPSS** on CVE pages and in the worklist: FIRST's exploitation probability with its percentile and score date. The daily curated file wins over the weekly shard value, and the date says which one you are looking at
+- **Data freshness** on every page: "Data as of <date>" with a per-source breakdown on expand, and an amber banner naming any source older than it should be (see [Data freshness and failure alerting](#data-freshness-and-failure-alerting))
 - Investigation pinning with JSON export
 - Dark and light theme
 - Hash-based routing with shareable URLs and browser back / forward
@@ -141,9 +142,26 @@ Four automated workflows keep the code honest, the data fresh, and the site work
 | Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) plus `mypy` |
 | Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
-| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 41-test Playwright suite against the deployed site |
+| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 51-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
 
 The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; there is no branch protection configured yet, so these are CI gates a maintainer checks before merging, not enforced required checks.
+
+### Data freshness and failure alerting
+
+Runs fail closed, so the remaining risk is silent staleness. Three pieces cover it, all on GitHub Actions and the built-in `GITHUB_TOKEN`, with no extra secrets, services, or third-party actions.
+
+**Freshness record.** Every pipeline run updates `docs/data/freshness.json` with one entry per source: `label`, `last_success` (ISO 8601 UTC), `cadence_hours`, and `stale_after_hours`. Sources: NVD CVE shards and the entity index (weekly, stale after 8 days), plus KEV, Vulnrichment, EPSS, CWE, CAPEC, ATT&CK, and D3FEND (daily, stale after 36 hours). An entry advances only when its own step succeeded; a failed, degraded, or partial step leaves it untouched, even when other sources in the same run succeeded. The write is atomic, and a failure to write it is logged without turning the run red. Because the data workflows publish only on a clean run, the published file never claims a success that did not happen. The file changes on every clean run, so the daily workflow now makes a data commit every day, even when no upstream content changed; that is intended, since a rarely changing source such as CWE would otherwise look stale.
+
+**Site.** `docs/js/freshness.js` reads the file and shows "Data as of <date>" (the most recent successful update) in the bottom corner of every page, with each source's time, age, and cadence on expand. Any source past its threshold raises an amber banner naming it. A missing or malformed file renders the site exactly as before. Sources absent from the file are unknown, not stale.
+
+**Alerts.** `scripts/pipeline_alert.py` (standard library plus the `gh` CLI, called with argument lists) manages GitHub issues:
+
+| Condition | Label | Issue title | Opened by | Closed by |
+|-----------|-------|-------------|-----------|-----------|
+| A data workflow run fails, or is cancelled (a job timeout cancels) | `pipeline-failure` | `Data workflow failing: <workflow name>` | that workflow's `Alert on failure` step; later failures comment on the same issue | the next successful run of that workflow, with a recovery comment |
+| Any source in the deployed `freshness.json` is past its threshold, or the file cannot be read | `pipeline-stale` | `Published data is stale` | the daily 07:00 UTC smoke canary; later days comment | the first canary that finds every source fresh |
+
+The stale canary is what catches runs that never happened at all (a disabled schedule, an Actions outage). Repository watchers get the issue notifications. Labels are created idempotently on first use. The script never fails the job: any alerting error is logged as a workflow warning and it exits 0. `issues: write` is granted only on the three jobs that alert (`update`, `pipeline`, `smoke-live`), and every workflow value reaches the script through `env:`, never through an expression inside a `run:` block. One expected false alarm: a merge between 06:00 and 07:00 UTC, before the first run that writes `freshness.json`, makes the canary open a stale issue that the next day's canary closes.
 
 ## MCP server (optional)
 
@@ -235,9 +253,10 @@ docs/
     entity-system.js          # Entity index, search, data lookup helpers
     results.js                # Result page rendering (header, tabs, summary cards)
     worklist.js               # Worklist / triage mode (sortable cohort table)
+    freshness.js              # "Data as of" line and stale-data banner
     graph.js                  # D3 force-directed relationship graph
   vendor/                      # d3 7.9.0, pinned and served same-origin (CSP script-src 'self')
-  data/                       # Reference databases (auto-updated)
+  data/                       # Reference databases and freshness.json (auto-updated)
   database/                   # CVE database by year (auto-updated)
 ```
 
@@ -258,7 +277,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 469 unit tests across pipeline processors, the MCP layer, and the shared intelligence contract (cross-seam parity), plus 41 Playwright smoke tests; mypy is clean across all 28 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 540 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the alert script, and the workflow guards, plus 51 Playwright smoke tests; mypy is clean across all 29 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 
@@ -293,7 +312,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 
 | Phase | Item | Notes |
 |-------|------|-------|
-| P14 | Pipeline observability and hardening | Run summaries, failure alerting, data-quality checks |
+| P14 | Pipeline observability and hardening | Run summaries, data-quality checks; failure alerting and the freshness banner (I16) are in review |
 | P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 (CWE-assignment gap closure) slotted #2 |
 
 P11 (CVE2CAPEC parity check) closed 2026-06-11 by decision: enrichment stays in-house. P12 (ctibutler) deferred indefinitely per its conditional.

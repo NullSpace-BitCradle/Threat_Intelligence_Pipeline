@@ -88,7 +88,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 
 ### 4.2 NEXT
 
-- **I16 / T14.2** · Failure alerting and freshness banner · NEXT · also show the year in the worklist EPSS date when it is not the current year (I1 review LOW) · runs now fail red, so the risk is silent staleness; nothing notifies on a failure or a skip over 36 hours, and the site shows no data age · ~half day
+- **I16 / T14.2** · Failure alerting and freshness banner · IN REVIEW (branch `feat/i16-alerting-freshness`) · runs now fail red, so the risk is silent staleness; nothing notified on a failure or a skip over 36 hours, and the site showed no data age. Built: `docs/data/freshness.json` records `last_success` per source (NVD shards, entity index, KEV, Vulnrichment, EPSS, CWE, CAPEC, ATT&CK, D3FEND) only when that source's step succeeded, atomically, with `cadence_hours` and `stale_after_hours` (36 hours daily, 8 days weekly); every page shows "Data as of" with a per-source breakdown and an amber banner naming any stale source, and a missing or malformed file renders as before; the worklist EPSS date keeps its year outside the current year (I1 review LOW); `scripts/pipeline_alert.py` opens or comments on one `pipeline-failure` issue per failing data workflow (failure or timeout) and closes it on the next success, and the daily live canary opens or closes a `pipeline-stale` issue from the deployed `freshness.json`; `issues: write` only on the three alerting jobs, no expressions inside `run:` blocks, actionlint clean. Measured: 540 unit tests, 51 smoke tests (fresh, stale, missing, and malformed fixtures, plus a served generated file), mypy clean on 29 files. Side effect: the daily run now commits every day, because `freshness.json` changes on every clean run · ~half day
 - **T10.8** · Cross-vendor (Forge/GPT) audit of P10 and I29 · NEXT · required before any Partner Network demo; blocked until 2026-09-29 by the free Codex quota · ~half day
 - **I30** · APT lookup id mismatch · NEXT, pair with I32 · the processor passes bare technique ids (`1134`) to `lookup_by_techniques`, whose keys are `T1134`, so shard `APT_GROUPS` is always empty · small
 - **I32** · Decide APT linkage · NEXT, maintainer decision · technique-overlap links would tag roughly 60% of CVEs; replace with explicit attribution (ATT&CK campaign or intrusion-set references that cite CVEs) or keep and label it derived · decision first
@@ -179,7 +179,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
 | Repo reaches GitHub's 5 GB guidance around early 2027 at the current weekly rewrites (about 2.6 GB today) | High | I17: move shards off git history before then |
-| Silent staleness: upstream outages now fail red, but nobody is told and the site shows no data age | Medium | I16 alerting and freshness banner |
+| Silent staleness: upstream outages now fail red, but nobody is told and the site shows no data age | Medium | I16 alerting and freshness banner (IN REVIEW) |
 | Single maintainer; knowledge and review live in one head | High | This plan, ISC-backed PRs, CI gates; I33 would enforce checks |
 | Cross-vendor audits depend on a free Codex quota | Medium | T10.8 waits for the reset; no demo before it runs |
 | Wrong or noisy mappings ship with authoritative labels | Medium | I29 labels inherited links; I30 and I32 fix APT linkage; I21 raises coverage with provenance tiers |
