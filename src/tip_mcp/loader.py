@@ -98,6 +98,9 @@ class IndexLoader:
         # cwe_db.json RelatedAttackPatterns by bare CWE number; False means
         # "tried and unavailable".
         self._cwe_capecs: "Optional[dict[str, frozenset[str]] | bool]" = None
+        # epss_curated.json as {"date", "scores"}; False means "tried and
+        # unavailable".
+        self._epss: "Optional[dict] | bool" = None
         # entity_index.json "meta" object ({} when absent).
         self._meta: dict = {}
 
@@ -148,6 +151,7 @@ class IndexLoader:
         self._reverse = None
         self._kev_db = None
         self._cwe_capecs = None
+        self._epss = None
 
     @property
     def reverse_adjacency(self) -> dict[str, dict[str, list[tuple[str, str, Any, Any]]]]:
@@ -203,6 +207,33 @@ class IndexLoader:
                         str(k).strip().upper(): v for k, v in data.items() if isinstance(v, dict)
                     }
         return self._kev_db if isinstance(self._kev_db, dict) else None
+
+    @property
+    def epss_curated(self) -> Optional[dict]:
+        """The daily EPSS file for the curated tier (epss_curated.json) as
+        {"date": score date, "model_version", "scores": {CVE ID upper:
+        {score, percentile}}}. None when absent or malformed; callers then
+        fall back to the weekly value on the entity record or shard. Loaded
+        once per load()."""
+        if self._epss is None:
+            self._epss = False
+            path = self.data_dir / "epss_curated.json"
+            if path.is_file():
+                try:
+                    data = _read_json(path, "epss_curated.json")
+                except IndexNotLoadedError:
+                    data = None
+                meta = data.get("meta") if isinstance(data, dict) else None
+                scores = data.get("scores") if isinstance(data, dict) else None
+                if isinstance(meta, dict) and isinstance(meta.get("date"), str) and isinstance(scores, dict):
+                    self._epss = {
+                        "date": meta["date"],
+                        "model_version": meta.get("model_version"),
+                        "scores": {
+                            str(k).strip().upper(): v for k, v in scores.items() if isinstance(v, dict)
+                        },
+                    }
+        return self._epss if isinstance(self._epss, dict) else None
 
     @property
     def cwe_related_capecs(self) -> Optional[dict[str, frozenset[str]]]:
