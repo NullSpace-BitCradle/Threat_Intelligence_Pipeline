@@ -4,6 +4,10 @@
 Two modes, both driven by environment variables so no workflow expression is
 ever interpolated into a shell:
 
+Every alert body (a new issue, or a comment on a repeat) mentions the
+repository owner from REPO_OWNER, because the repository has no watchers and
+an unmentioned issue notifies nobody. Recovery comments carry no mention.
+
 ``run``    after a data workflow job. WORKFLOW_NAME, RUN_OUTCOME (the job
            status: success, failure or cancelled) and RUN_URL. A failure opens
            one ``pipeline-failure`` issue per workflow, or comments on the one
@@ -14,13 +18,17 @@ ever interpolated into a shell:
            be read; closes it when everything is fresh.
 
 gh is called with argument lists (never a shell) and authenticates from
-GH_TOKEN. Alerting never fails the workflow: every error is logged and the
-script exits 0. Standard library only.
+GH_TOKEN. In ``run`` mode alerting never fails the workflow: every error is
+logged and the script exits 0. In ``stale`` mode the check is the job's
+purpose, so a canary that cannot alert (bad token, missing permission, Issues
+disabled, API outage) prints an error and exits 1; stale data that was
+alerted exits 0. Standard library only.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -35,6 +43,9 @@ LABELS = {
     FAILURE_LABEL: ("d73a4a", "A scheduled data workflow failed"),
     STALE_LABEL: ("fbca04", "Published data is older than its expected cadence"),
 }
+# GitHub user and organization names: alphanumerics and hyphens, 1 to 39.
+OWNER_RE = re.compile(r"[A-Za-z0-9-]{1,39}")
+
 # Daily sources go stale after 36 hours, weekly ones after 8 days, when the
 # file does not carry its own stale_after_hours.
 DAILY_STALE_HOURS = 36
@@ -110,6 +121,21 @@ def close_if_open(gh: Gh, label: str, title: str, comment: str) -> None:
     print(f"Closed issue #{number}: {title}")
 
 
+def owner_mention(env: Mapping[str, str]) -> str:
+    """``@owner`` for REPO_OWNER, or "" (with a warning) when it is missing or
+    not a valid GitHub login, so nothing else can ride into an issue body."""
+    owner = env.get("REPO_OWNER", "")
+    if OWNER_RE.fullmatch(owner):
+        return f"@{owner}"
+    print(f"::warning::REPO_OWNER {owner!r} is missing or not a valid GitHub login; alert sent without a mention")
+    return ""
+
+
+def _with_mention(body: str, env: Mapping[str, str]) -> str:
+    mention = owner_mention(env)
+    return f"{mention} {body}" if mention else body
+
+
 def _require(env: Mapping[str, str], name: str) -> str:
     value = env.get(name, "").strip()
     if not value:
@@ -131,7 +157,7 @@ def handle_run(env: Mapping[str, str], gh: Gh) -> None:
         "This issue gets a comment on each further failure and closes itself "
         "on the next successful run."
     )
-    open_or_comment(gh, FAILURE_LABEL, title, body)
+    open_or_comment(gh, FAILURE_LABEL, title, _with_mention(body, env))
 
 
 @dataclass(frozen=True)
@@ -203,7 +229,7 @@ def handle_stale(env: Mapping[str, str], gh: Gh, fetch: Fetch, now: datetime) ->
             + f"\n\nChecked by: {run_url}\n\n"
             "This issue closes itself when the canary next finds every source fresh."
         )
-        open_or_comment(gh, STALE_LABEL, STALE_TITLE, body)
+        open_or_comment(gh, STALE_LABEL, STALE_TITLE, _with_mention(body, env))
     else:
         close_if_open(gh, STALE_LABEL, STALE_TITLE, f"Fresh again: every source is within its threshold.\n\nChecked by: {run_url}")
 
@@ -216,12 +242,20 @@ def main(
     now: Optional[datetime] = None,
 ) -> int:
     env = os.environ if env is None else env
+    mode = argv[0] if argv else ""
+    if mode == "stale":
+        try:
+            handle_stale(env, gh, fetch, now or datetime.now(timezone.utc))
+        except Exception as e:
+            # The canary's job is to alert. If it cannot (bad token, missing
+            # permission, Issues disabled, API outage), go red so the failed
+            # run itself is the signal.
+            print(f"::error::stale canary could not alert: {e}")
+            return 1
+        return 0
     try:
-        mode = argv[0] if argv else ""
         if mode == "run":
             handle_run(env, gh)
-        elif mode == "stale":
-            handle_stale(env, gh, fetch, now or datetime.now(timezone.utc))
         else:
             raise ValueError(f"unknown mode {mode!r}; expected 'run' or 'stale'")
     except Exception as e:

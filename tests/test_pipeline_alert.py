@@ -52,8 +52,18 @@ class FakeGh:
         return next(c for c in self.calls if c[:2] == verb)
 
 
-def _run_env(outcome):
-    return {"WORKFLOW_NAME": WORKFLOW, "RUN_OUTCOME": outcome, "RUN_URL": RUN_URL}
+OWNER = "NullSpace-BitCradle"
+
+
+def _run_env(outcome, owner=OWNER):
+    env = {"WORKFLOW_NAME": WORKFLOW, "RUN_OUTCOME": outcome, "RUN_URL": RUN_URL}
+    if owner is not None:
+        env["REPO_OWNER"] = owner
+    return env
+
+
+def _body(call, flag="--body"):
+    return call[call.index(flag) + 1]
 
 
 def _main(argv, env, gh, fetch=None):
@@ -136,7 +146,8 @@ def _fresh_doc(**ages_hours):
     return json.dumps({"schema": 1, "sources": sources})
 
 
-STALE_ENV = {"FRESHNESS_URL": "https://example.test/data/freshness.json", "RUN_URL": RUN_URL}
+STALE_ENV = {"FRESHNESS_URL": "https://example.test/data/freshness.json", "RUN_URL": RUN_URL,
+             "REPO_OWNER": OWNER}
 
 
 def test_stale_source_opens_stale_issue_naming_it():
@@ -198,10 +209,14 @@ def test_unparseable_entry_counts_as_stale():
 # Alerting must never fail the workflow.
 
 @pytest.mark.parametrize("fail_on", [["label", "create"], ["issue", "list"],
-                                     ["issue", "create"]])
-def test_gh_failure_does_not_raise_or_exit_nonzero(fail_on, capsys):
+                                     ["issue", "create"], ["issue", "close"]])
+def test_gh_failure_in_run_mode_does_not_raise_or_exit_nonzero(fail_on, capsys):
+    closing = fail_on == ["issue", "close"]
     gh = FakeGh(fail_on=fail_on)
-    assert _main(["run"], _run_env("failure"), gh) == 0
+    if closing:
+        gh.issues = [{"number": 7, "title": f"Data workflow failing: {WORKFLOW}",
+                      "label": "pipeline-failure"}]
+    assert _main(["run"], _run_env("success" if closing else "failure"), gh) == 0
     assert "alerting failed" in capsys.readouterr().out
 
 
@@ -239,3 +254,77 @@ def test_real_gh_failure_becomes_gh_error(monkeypatch):
     monkeypatch.setattr(alert.subprocess, "run", fake_run)
     with pytest.raises(alert.GhError, match="bad token"):
         alert.run_gh(["issue", "list"])
+
+
+# The repository has no watchers, so an unmentioned issue notifies nobody.
+# Every alert body mentions the owner; recovery comments do not.
+
+def test_failure_issue_mentions_owner():
+    gh = FakeGh()
+    _main(["run"], _run_env("failure"), gh)
+    assert f"@{OWNER}" in _body(gh.call(["issue", "create"]))
+
+
+def test_repeat_failure_comment_mentions_owner():
+    gh = FakeGh([{"number": 7, "title": f"Data workflow failing: {WORKFLOW}",
+                  "label": "pipeline-failure"}])
+    _main(["run"], _run_env("failure"), gh)
+    assert f"@{OWNER}" in _body(gh.call(["issue", "comment"]))
+
+
+def test_stale_issue_and_comment_mention_owner():
+    doc = _fresh_doc(kev=40)
+    gh = FakeGh()
+    _main(["stale"], STALE_ENV, gh, fetch=lambda url: doc)
+    assert f"@{OWNER}" in _body(gh.call(["issue", "create"]))
+    gh = FakeGh([{"number": 9, "title": alert.STALE_TITLE, "label": "pipeline-stale"}])
+    _main(["stale"], STALE_ENV, gh, fetch=lambda url: doc)
+    assert f"@{OWNER}" in _body(gh.call(["issue", "comment"]))
+
+
+def test_recovery_comments_do_not_mention_owner():
+    gh = FakeGh([{"number": 7, "title": f"Data workflow failing: {WORKFLOW}",
+                  "label": "pipeline-failure"}])
+    _main(["run"], _run_env("success"), gh)
+    assert "@" not in _body(gh.call(["issue", "close"]), "--comment")
+    gh = FakeGh([{"number": 9, "title": alert.STALE_TITLE, "label": "pipeline-stale"}])
+    _main(["stale"], STALE_ENV, gh, fetch=lambda url: _fresh_doc(kev=1))
+    assert "@" not in _body(gh.call(["issue", "close"]), "--comment")
+
+
+@pytest.mark.parametrize("owner", ["", "a" * 40, "bad owner", "x;rm", "@someone",
+                                   "evil\n@other", "name_with_underscore", None])
+def test_invalid_owner_is_never_mentioned(owner, capsys):
+    gh = FakeGh()
+    assert _main(["run"], _run_env("failure", owner=owner), gh) == 0
+    body = _body(gh.call(["issue", "create"]))  # the issue still opens
+    assert "@" not in body
+    assert "REPO_OWNER" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("owner", ["a", "a" * 39, "Null-Space-9"])
+def test_valid_owner_shapes_are_mentioned(owner):
+    assert alert.owner_mention({"REPO_OWNER": owner}) == f"@{owner}"
+
+
+# Stale mode: a canary that cannot alert must go red; run mode never does.
+
+@pytest.mark.parametrize("fail_on", [["label", "create"], ["issue", "list"],
+                                     ["issue", "create"], ["issue", "close"]])
+def test_gh_failure_in_stale_mode_exits_1_with_error(fail_on, capsys):
+    gh = FakeGh(fail_on=fail_on)
+    doc = _fresh_doc(kev=1) if fail_on == ["issue", "close"] else _fresh_doc(kev=40)
+    if fail_on == ["issue", "close"]:
+        gh.issues = [{"number": 9, "title": alert.STALE_TITLE, "label": "pipeline-stale"}]
+    assert _main(["stale"], STALE_ENV, gh, fetch=lambda url: doc) == 1
+    assert "::error::" in capsys.readouterr().out
+
+
+def test_stale_data_alerted_successfully_exits_0():
+    gh = FakeGh()
+    assert _main(["stale"], STALE_ENV, gh, fetch=lambda url: _fresh_doc(kev=40)) == 0
+    assert ["issue", "create"] in gh.verbs()
+
+
+def test_fresh_data_exits_0():
+    assert _main(["stale"], STALE_ENV, FakeGh(), fetch=lambda url: _fresh_doc(kev=1)) == 0
