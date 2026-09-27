@@ -8,7 +8,7 @@ import re
 import sys
 import time
 import requests
-from typing import Dict, Any, List, Optional, cast
+from typing import Dict, Any, Callable, Iterable, List, Optional, cast
 from pathlib import Path
 
 from tip.utils.config import get_config
@@ -20,7 +20,7 @@ from tip.core.owasp_processor import OWASPProcessor
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
-from tip.core.id_normalize import cwe_number, cwe_parents, expand_cwe_list
+from tip.core.id_normalize import cwe_number, cwe_parents, split_cwe_list
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
 config = get_config()
@@ -41,6 +41,38 @@ ENRICHMENT_FAILURE_MAX = 50
 def nvd_request_delay(has_api_key: bool) -> float:
     """Seconds to wait between successful NVD page requests."""
     return NVD_DELAY_KEYED if has_api_key else NVD_DELAY_KEYLESS
+
+
+def derive_cve_links(
+    assigned: List[str],
+    inherited: List[str],
+    capecs_for_cwe: Callable[[str], Iterable[str]],
+    techniques_for_capec: Callable[[str], Iterable[str]],
+    owasp_for_cwes: Callable[[List[str]], Iterable[str]],
+) -> Dict[str, List[str]]:
+    """CWE, CAPEC, technique and OWASP lists for one CVE (ISA I29).
+
+    Each list comes as a direct list, reached from the NVD-assigned CWEs,
+    and an ``_INHERITED`` list, reached only through inherited parent CWEs
+    and never repeating a direct id. Pure: the result depends only on the
+    arguments, so the processor, the tests and the I29 probe share it.
+    """
+    d_capec = {str(c) for cwe in assigned for c in capecs_for_cwe(cwe)}
+    i_capec = {str(c) for cwe in inherited for c in capecs_for_cwe(cwe)} - d_capec
+    d_tech = {str(t) for c in d_capec for t in techniques_for_capec(c)}
+    i_tech = {str(t) for c in i_capec for t in techniques_for_capec(c)} - d_tech
+    d_owasp = set(owasp_for_cwes(assigned)) if assigned else set()
+    i_owasp = (set(owasp_for_cwes(inherited)) if inherited else set()) - d_owasp
+    return {
+        "CWE": list(assigned),
+        "CWE_INHERITED": list(inherited),
+        "CAPEC": sorted(d_capec),
+        "CAPEC_INHERITED": sorted(i_capec),
+        "TECHNIQUES": sorted(d_tech),
+        "TECHNIQUES_INHERITED": sorted(i_tech),
+        "OWASP": sorted(d_owasp),
+        "OWASP_INHERITED": sorted(i_owasp),
+    }
 
 
 class CVEProcessor:
@@ -513,49 +545,47 @@ class CVEProcessor:
 
         for cve_id, data in cve_data.items():
             try:
-                # Step 1: CWE list plus one level of ChildOf parents, every
-                # id normalized to CWE-<n> (shared definition, ISC-21/23).
-                cwe_list = expand_cwe_list(self.cwe_db, data.get('CWE', []))
+                # Steps 1 to 5: NVD-assigned CWEs apart from one level of
+                # non-pillar parents, and the CAPEC, technique and OWASP
+                # links each reaches (shared definitions, ISA I29).
+                assigned, inherited = split_cwe_list(self.cwe_db, data.get('CWE', []))
+                links = derive_cve_links(
+                    assigned,
+                    inherited,
+                    capecs_for_cwe=self.fetch_capec_for_cwe,
+                    techniques_for_capec=self.get_techniques_for_capec,
+                    owasp_for_cwes=lambda cwes: self.owasp_processor.get_owasp_categories_for_cwes(cwes),
+                )
 
-                result[cve_id] = {"CWE": cwe_list}
+                result[cve_id] = {"CWE": links["CWE"], "CWE_INHERITED": links["CWE_INHERITED"]}
                 # Carry forward raw NVD fields that enrichment does not regenerate.
                 for field in PRESERVED_FIELDS:
                     if field in data:
                         result[cve_id][field] = data[field]
-                
-                # Step 2: Get CAPEC entries
-                capec_list = set()
-                for cwe in cwe_list:
-                    capec_list.update(self.fetch_capec_for_cwe(cwe))
-                
-                result[cve_id]["CAPEC"] = list(sorted(capec_list))
-                
-                # Step 3: Get techniques
-                techniques_list = set()
-                for capec in capec_list:
-                    techniques = self.get_techniques_for_capec(capec)
-                    techniques_list.update(techniques)
-                
-                result[cve_id]["TECHNIQUES"] = list(sorted(techniques_list))
-                
-                # Step 4: Get D3FEND techniques
-                defend_list: List[Dict[str, str]] = []
-                seen_defend_ids: set = set()
-                for technique in techniques_list:
-                    defend_techniques = self.get_defend_techniques(technique)
-                    for dt in defend_techniques:
+                for field in ("CAPEC", "CAPEC_INHERITED", "TECHNIQUES", "TECHNIQUES_INHERITED"):
+                    result[cve_id][field] = links[field]
+
+                # Step 4: D3FEND techniques. An entry reached only through an
+                # inherited technique is a copy flagged inherited, so the
+                # cached lookup lists are never mutated.
+                defend_by_id: Dict[str, Dict[str, Any]] = {}
+                for technique in links["TECHNIQUES"]:
+                    for dt in self.get_defend_techniques(technique):
                         dt_id = dt.get('id', '')
-                        if dt_id and dt_id not in seen_defend_ids:
-                            seen_defend_ids.add(dt_id)
-                            defend_list.append(dt)
-                
+                        if dt_id and dt_id not in defend_by_id:
+                            defend_by_id[dt_id] = dt
+                for technique in links["TECHNIQUES_INHERITED"]:
+                    for dt in self.get_defend_techniques(technique):
+                        dt_id = dt.get('id', '')
+                        if dt_id and dt_id not in defend_by_id:
+                            defend_by_id[dt_id] = {**dt, "inherited": True}
+
                 # Sort by ID for consistent output
-                result[cve_id]["DEFEND"] = sorted(defend_list, key=lambda x: x.get('id', ''))
-                
-                # Step 5: Get OWASP Top 10 categories
-                # Use result[cve_id] which contains enriched CWE list with parent CWEs
-                owasp_categories = self.owasp_processor.get_owasp_categories_for_cve(result[cve_id])
-                result[cve_id]["OWASP"] = owasp_categories
+                result[cve_id]["DEFEND"] = [defend_by_id[k] for k in sorted(defend_by_id)]
+
+                # Step 5: OWASP Top 10 categories, direct and inherited.
+                result[cve_id]["OWASP"] = links["OWASP"]
+                result[cve_id]["OWASP_INHERITED"] = links["OWASP_INHERITED"]
 
                 # Step 6: KEV lookup
                 kev_data = self.kev_processor.lookup(cve_id)
@@ -598,9 +628,12 @@ class CVEProcessor:
                                 "source": "cisa_vulnrichment",
                             }
 
-                # Step 8: APT Groups reverse lookup from techniques
-                if result[cve_id].get("TECHNIQUES"):
-                    apt_groups = self.apt_processor.lookup_by_techniques(result[cve_id]["TECHNIQUES"])
+                # Step 8: APT Groups reverse lookup from techniques. APT
+                # linkage is outside I29, so it keeps its technique set
+                # (direct plus inherited); only pillar-driven links drop out.
+                apt_techniques = links["TECHNIQUES"] + links["TECHNIQUES_INHERITED"]
+                if apt_techniques:
+                    apt_groups = self.apt_processor.lookup_by_techniques(apt_techniques)
                     if apt_groups:
                         result[cve_id]["APT_GROUPS"] = apt_groups
 

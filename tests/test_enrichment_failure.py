@@ -40,7 +40,7 @@ def _processor(tmp_path, monkeypatch, failing_ids):
     proc.capec_db = {}
     proc.techniques_db = {}
     proc.logger = logging.getLogger("test_enrichment_failure")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cve=lambda rec: [])
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=kev_lookup)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.apt_processor = SimpleNamespace(lookup_by_techniques=lambda t: [])

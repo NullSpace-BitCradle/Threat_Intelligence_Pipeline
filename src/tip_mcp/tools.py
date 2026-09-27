@@ -115,50 +115,78 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
     the entity-index generator uses (shards carry no APT_GROUPS today).
     Used by both lookup_entity and pivot_from_entity so the two tools project
     the same graph out of a shard.
+
+    I29 shards list ids reached only through an inherited parent CWE in
+    CAPEC_INHERITED, TECHNIQUES_INHERITED and OWASP_INHERITED, and flag such
+    DEFEND entries; those rels carry inherited: true. CWE rels are the
+    NVD-assigned CWEs only (the parents are the record's cwe_inherited), as
+    in the entity index. Legacy shards produce no inherited flag.
     """
     rels: list[dict] = []
     seen: set[tuple[str, str]] = set()
 
-    def add(target_id: str, rel_type: str, source: str = "shard") -> Optional[dict]:
+    def add(target_id: str, rel_type: str, source: str = "shard", inherited: bool = False) -> Optional[dict]:
         if not target_id or (target_id, rel_type) in seen:
             return None
         seen.add((target_id, rel_type))
-        rel = {"target_id": target_id, "rel_type": rel_type, "source": source}
+        rel: dict = {"target_id": target_id, "rel_type": rel_type, "source": source}
+        if inherited:
+            rel["inherited"] = True
         rels.append(rel)
         return rel
 
+    # Direct lists first, so an id in both is never flagged inherited.
+    both = ((False, ""), (True, "_INHERITED"))
     for cwe in payload.get("CWE", []) or []:
         add(_norm_ref(cwe, "CWE-"), "cwe")
-    for capec in payload.get("CAPEC", []) or []:
-        add(_norm_ref(capec, "CAPEC-"), "capec")
-    techniques: list[str] = []
-    for tech in payload.get("TECHNIQUES", []) or []:
-        tech_id = _norm_technique(tech)
-        techniques.append(tech_id)
-        add(tech_id, "technique")
-    for owasp in payload.get("OWASP", []) or []:
-        add(str(owasp).strip(), "owasp")
-    for defend in payload.get("DEFEND", []) or []:
-        if not isinstance(defend, dict) or not defend.get("id"):
-            continue
-        rel = add(str(defend["id"]), "defend")
+    for inh, suffix in both:
+        for capec in payload.get("CAPEC" + suffix, []) or []:
+            add(_norm_ref(capec, "CAPEC-"), "capec", inherited=inh)
+    techniques: list[tuple[str, bool]] = []
+    for inh, suffix in both:
+        for tech in payload.get("TECHNIQUES" + suffix, []) or []:
+            tech_id = _norm_technique(tech)
+            techniques.append((tech_id, inh))
+            add(tech_id, "technique", inherited=inh)
+    for inh, suffix in both:
+        for owasp in payload.get("OWASP" + suffix, []) or []:
+            add(str(owasp).strip(), "owasp", inherited=inh)
+    defends = [d for d in payload.get("DEFEND", []) or [] if isinstance(d, dict) and d.get("id")]
+    for defend in sorted(defends, key=lambda d: d.get("inherited") is True):
+        rel = add(str(defend["id"]), "defend", inherited=defend.get("inherited") is True)
         if rel is None:
             continue
         if defend.get("relationship") is not None:
             rel["relationship"] = defend["relationship"]
         if defend.get("name") is not None:
             rel["name"] = defend["name"]
-    for gid in payload.get("APT_GROUPS", []) or []:
+    # APT groups: inherited exactly when every technique behind the group is
+    # (the processor lists each group's techniques_overlap; a bare id carries
+    # none, so it is inherited only when the shard has no direct technique).
+    # Direct groups are added first, so a group reached both ways is direct.
+    direct_techs = {t for t, inh in techniques if not inh}
+    inherited_techs = {t for t, inh in techniques if inh}
+    groups_found: list[tuple[str, str, bool]] = []
+    for group in payload.get("APT_GROUPS", []) or []:
+        if isinstance(group, dict):
+            gid = str(group.get("id") or "").strip().upper()
+            overlap = {_norm_technique(t) for t in group.get("techniques_overlap") or []}
+            inh = bool(overlap) and overlap <= inherited_techs and not overlap & direct_techs
+        else:
+            gid = str(group or "").strip().upper()
+            inh = bool(inherited_techs) and not direct_techs
         if gid:
-            add(str(gid).strip().upper(), "apt_group")
+            groups_found.append((gid, "shard", inh))
     if loader is not None:
-        for tech_id in techniques:
+        for tech_id, inh in techniques:
             tech = loader.entities.get(tech_id)
             if not tech:
                 continue
             groups = (tech.get("rels") or {}).get("apt_group") or {}
             for gid in groups.get("ids", []) or []:
-                add(str(gid), "apt_group", "graph (technique overlap)")
+                groups_found.append((str(gid), "graph (technique overlap)", inh))
+    for gid, source, inh in sorted(groups_found, key=lambda g: g[2]):
+        add(gid, "apt_group", source, inherited=inh)
     return rels
 
 
@@ -190,6 +218,8 @@ def _build_shard_record(
         "description": description,
         "rels": _shard_rels(payload, loader),
     }
+    if "CWE_INHERITED" in payload:
+        record["cwe_inherited"] = [_norm_ref(c, "CWE-") for c in payload.get("CWE_INHERITED") or []]
     cvss = payload.get("CVSS")
     if isinstance(cvss, dict):
         if cvss.get("score") is not None:
@@ -251,6 +281,7 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         entity = loader.entities[key]
         rels_out = []
         for rel_type, rel_body in (entity.get("rels") or {}).items():
+            marked = set(rel_body.get("inherited") or [])
             for tid in rel_body.get("ids", []):
                 rel = {
                     "target_id": tid,
@@ -259,6 +290,8 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
                 }
                 if rel_body.get("tier") is not None:
                     rel["tier"] = rel_body["tier"]
+                if tid in marked:
+                    rel["inherited"] = True
                 rels_out.append(rel)
 
         # Every field the entity carries (description, CVSS, dates,
@@ -339,6 +372,7 @@ def pivot_from_entity_impl(
         entity = loader.entities[key]
         hits = []
         for rel_type, rel_body in (entity.get("rels") or {}).items():
+            marked = set(rel_body.get("inherited") or [])
             for tid in rel_body.get("ids", []):
                 target = loader.entities.get(tid)
                 if target is None:
@@ -346,18 +380,20 @@ def pivot_from_entity_impl(
                 ttype = target.get("type")
                 if want is not None and not _type_matches(want, ttype, rel_type, target):
                     continue
-                hits.append(
-                    {
-                        "id": target.get("id", tid),
-                        "type": ttype,
-                        "name": target.get("name"),
-                        "rel_type": rel_type,
-                        # Provenance of the link itself (additive), so a
-                        # derived mapping never reads as a stated fact.
-                        "source": rel_body.get("source"),
-                        "tier": rel_body.get("tier"),
-                    }
-                )
+                hit = {
+                    "id": target.get("id", tid),
+                    "type": ttype,
+                    "name": target.get("name"),
+                    "rel_type": rel_type,
+                    # Provenance of the link itself (additive), so a
+                    # derived mapping never reads as a stated fact.
+                    "source": rel_body.get("source"),
+                    "tier": rel_body.get("tier"),
+                }
+                # Additive (I29): reached only through an inherited parent CWE.
+                if tid in marked:
+                    hit["inherited"] = True
+                hits.append(hit)
         return ok_response(hits, meta={"source": "entity_index.json", "count": len(hits)})
 
     # Shard fallback: only for syntactically valid CVE IDs.
@@ -383,18 +419,19 @@ def pivot_from_entity_impl(
                     name = rel.get("name") or tid
                 if want is not None and not _type_matches(want, ttype, rtype, target):
                     continue
-                hits.append(
-                    {
-                        "id": tid,
-                        "type": ttype,
-                        "name": name,
-                        "rel_type": rtype,
-                        # Shard enrichment lists are pipeline output, not a
-                        # source's own statement, so they are derived.
-                        "source": "Pipeline (shard enrichment)",
-                        "tier": "derived",
-                    }
-                )
+                shard_hit_rel = {
+                    "id": tid,
+                    "type": ttype,
+                    "name": name,
+                    "rel_type": rtype,
+                    # Shard enrichment lists are pipeline output, not a
+                    # source's own statement, so they are derived.
+                    "source": "Pipeline (shard enrichment)",
+                    "tier": "derived",
+                }
+                if rel.get("inherited"):
+                    shard_hit_rel["inherited"] = True
+                hits.append(shard_hit_rel)
             return ok_response(
                 hits,
                 meta={"source": "shard", "shard": shard_name, "count": len(hits)},
@@ -536,6 +573,7 @@ def _capped(items: list, limit: int) -> list:
 # only as strong as its weakest hop; an unknown tier ranks below derived.
 TIER_RANK = {"authoritative": 3, "official": 2, "derived": 1}
 INHERITED_SOURCE = "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)"
+INHERITED_CWE_SOURCE = "TIP processor (CWE inherited as a ChildOf parent of an NVD-assigned CWE)"
 UNVERIFIED_SOURCE = "TIP graph (CWE to CAPEC hop unverified: cwe_db.json unavailable)"
 SHARD_TECHNIQUE_SOURCE = "shard (pipeline CAPEC→Technique enrichment)"
 SHARD_DEFEND_SOURCE = "shard (pipeline Technique→D3FEND enrichment)"
@@ -590,9 +628,9 @@ def build_attack_chain_impl(
     The CVE set is exactly the technique's own cve rels. The CAPECs are those
     whose capec -> technique rel names the technique (the graph stores that
     edge on the CAPEC, so the loader's reverse adjacency finds it). For each
-    CVE, via_cwes are its CWEs that link to one of those CAPECs and
-    via_capecs the CAPECs reached; a CVE with no such CWE still appears, with
-    empty via lists. cwes lists only the CWEs some returned CVE goes through.
+    CVE, via_cwes are its CWEs that link to one of those CAPECs the CVE
+    itself credits and via_capecs the credited CAPECs reached; a CVE with no
+    such CWE still appears, with empty via lists. cwes lists only the CWEs some returned CVE goes through.
 
     Every element carries the source and tier of its weakest hop. A CWE to
     CAPEC hop not in the CWE's own RelatedAttackPatterns (cwe_db.json) was
@@ -632,9 +670,17 @@ def build_attack_chain_impl(
         entry: Optional[dict] = None
         if hits:
             inherited: Optional[bool]
-            if related is None:
+            hops: list[Hop]
+            if loader.inherited_links:
+                # The index names the ancestor-inherited CAPECs itself (I29).
+                cbody = ((loader.entities.get(cwe_id) or {}).get("rels") or {}).get("capec") or {}
+                marked = {str(c) for c in cbody.get("inherited") or []}
+                inherited_capecs = [c for c in hits if c in marked]
+                inherited = bool(inherited_capecs)
+                hops = [(INHERITED_SOURCE, "derived")] if inherited else []
+            elif related is None:
                 inherited, inherited_capecs = None, []
-                hops: list[Hop] = [(UNVERIFIED_SOURCE, "derived")]
+                hops = [(UNVERIFIED_SOURCE, "derived")]
             else:
                 own = related.get(_bare(cwe_id), frozenset())
                 inherited_capecs = [c for c in hits if _bare(c) not in own]
@@ -658,37 +704,70 @@ def build_attack_chain_impl(
     tbody = (tech.get("rels") or {}).get("cve") or {}
     tech_cve_hop: Hop = (tbody.get("source"), tbody.get("tier"))
     own_cves = list(dict.fromkeys(str(c) for c in tbody.get("ids", []) or []))
+    tech_inherited = {str(c) for c in tbody.get("inherited") or []}
 
     cves: list[dict] = []
     cwes: dict[str, dict] = {}
+    parent_cwes: set[str] = set()
     for cve_id in own_cves:
         ent = loader.entities.get(cve_id) or {}
         via_cwes: list[str] = []
         via_capecs: set[str] = set()
+        inherited_cwes: list[str] = []
         hops = [tech_cve_hop]
+        # The CAPECs the CVE itself credits. A CWE can reach a chain CAPEC
+        # the CVE does not credit (a pillar CAPEC the processor dropped, say);
+        # that CAPEC never explains the CVE. A CVE with no capec rels at all
+        # (hand-built graphs; every real CVE has them) is not filtered.
+        cve_capecs = set(_rels_to(loader, cve_id, "capec", "cve"))
+
+        def credited(ce: dict) -> list[str]:
+            return [c for c in ce["via_capecs"] if not cve_capecs or c in cve_capecs]
+
         cve_cwes = _rels_to(loader, cve_id, "cwe", "cve")
         for cwe_id in sorted(cve_cwes, key=_id_key):
             ce = cwe_entry(cwe_id)
-            if ce is None:
+            if ce is None or not credited(ce):
                 continue
             via_cwes.append(cwe_id)
-            via_capecs.update(ce["via_capecs"])
+            via_capecs.update(credited(ce))
             cwes[cwe_id] = ce
             hops += [cve_cwes[cwe_id], (ce["source"], ce["tier"])]
+        if not via_cwes:
+            # No NVD-assigned CWE explains the CVE: fall back to its
+            # inherited parent CWEs (I29), flagged and derived.
+            for cwe_id in sorted((str(c) for c in ent.get("cwe_inherited") or []), key=_id_key):
+                ce = cwe_entry(cwe_id)
+                if ce is None or not credited(ce):
+                    continue
+                via_cwes.append(cwe_id)
+                inherited_cwes.append(cwe_id)
+                via_capecs.update(credited(ce))
+                cwes[cwe_id] = ce
+                parent_cwes.add(cwe_id)
+                hops += [(INHERITED_CWE_SOURCE, "derived"), (ce["source"], ce["tier"])]
         source, tier = _weakest(hops)
-        cves.append(
-            {
-                "id": cve_id,
-                "name": ent.get("name"),
-                "kev": _kev_flag(loader, cve_id, ent),
-                "cvss_score": ent.get("cvss_score"),
-                "severity": ent.get("severity"),
-                "via_cwes": via_cwes,
-                "via_capecs": sorted(via_capecs, key=_id_key),
-                "source": source,
-                "tier": tier,
-            }
-        )
+        element = {
+            "id": cve_id,
+            "name": ent.get("name"),
+            "kev": _kev_flag(loader, cve_id, ent),
+            "cvss_score": ent.get("cvss_score"),
+            "severity": ent.get("severity"),
+            "via_cwes": via_cwes,
+            "via_capecs": sorted(via_capecs, key=_id_key),
+            "source": source,
+            "tier": tier,
+        }
+        # Additive (I29), present only when true.
+        if inherited_cwes:
+            element["inherited_cwes"] = inherited_cwes
+        if cve_id in tech_inherited:
+            element["inherited"] = True
+        cves.append(element)
+    for cwe_id in parent_cwes:
+        # Some returned CVE is explained through this CWE as an inherited
+        # parent; each such CVE names it in inherited_cwes.
+        cwes[cwe_id]["inherited_parent"] = True
 
     defenses = [
         {"id": did, "name": _name(loader, did), "source": source, "tier": tier}
@@ -725,7 +804,7 @@ def build_attack_chain_impl(
         "limit": limit,
         "truncated": any(n > limit for n in totals.values()),
     }
-    if related is None:
+    if related is None and not loader.inherited_links:
         meta["cwe_db_note"] = (
             "cwe_db.json unavailable, so CWE to CAPEC hops cannot be checked against "
             "each CWE's own RelatedAttackPatterns; they are marked unverified and derived."
@@ -839,19 +918,23 @@ def get_defenses_impl(
     cid = normalize_entity_id(cve_id)
     meta: dict = {"query": {"cve_id": cid}}
 
-    # (technique id, source, tier) of each CVE -> technique hop, and
-    # (defend id, source, tier) of the CVE's own defend rels.
-    techniques: list[tuple[str, Any, Any]] = []
-    own: list[tuple[str, Any, Any]] = []
+    # (technique id, source, tier, inherited) of each CVE -> technique hop,
+    # and (defend id, source, tier, inherited) of the CVE's own defend rels.
+    techniques: list[tuple[str, Any, Any, bool]] = []
+    own: list[tuple[str, Any, Any, bool]] = []
     payload: Optional[dict] = None
     key = loader.resolve_entity_key(cid)
     if key is not None:
         cid = key
         rels = loader.entities[key].get("rels") or {}
         tbody = rels.get("technique") or {}
-        techniques = [(str(t), tbody.get("source"), tbody.get("tier")) for t in tbody.get("ids", []) or []]
+        tinh = {str(t) for t in tbody.get("inherited") or []}
+        techniques = [(str(t), tbody.get("source"), tbody.get("tier"), str(t) in tinh)
+                      for t in tbody.get("ids", []) or []]
         dbody = rels.get("defend") or {}
-        own = [(str(d), dbody.get("source"), dbody.get("tier")) for d in dbody.get("ids", []) or []]
+        dinh = {str(d) for d in dbody.get("inherited") or []}
+        own = [(str(d), dbody.get("source"), dbody.get("tier"), str(d) in dinh)
+               for d in dbody.get("ids", []) or []]
         meta["source"] = "entity_index.json"
     try:
         shard_hit = loader.find_cve_in_shards(cid)
@@ -866,10 +949,11 @@ def get_defenses_impl(
             meta["source"] = "shard"
             meta["shard"] = shard_hit[1]
             for rel in _shard_rels(payload):
+                inh = bool(rel.get("inherited"))
                 if rel["rel_type"] == "technique":
-                    techniques.append((rel["target_id"], SHARD_TECHNIQUE_SOURCE, "derived"))
+                    techniques.append((rel["target_id"], SHARD_TECHNIQUE_SOURCE, "derived", inh))
                 elif rel["rel_type"] == "defend":
-                    own.append((rel["target_id"], SHARD_DEFEND_SOURCE, "derived"))
+                    own.append((rel["target_id"], SHARD_DEFEND_SOURCE, "derived", inh))
     if key is None and shard_hit is None:
         return _not_found(loader, cid)
 
@@ -877,6 +961,9 @@ def get_defenses_impl(
     out: dict[str, dict] = {}
     hops: dict[str, list[Hop]] = {}
     paths: dict[str, list[str]] = {}
+    # Defenses reached by at least one direct link, and by an inherited one.
+    reached_direct: set[str] = set()
+    reached_inherited: set[str] = set()
 
     def entry(did: str) -> dict:
         if did not in out:
@@ -890,17 +977,19 @@ def get_defenses_impl(
             hops[did], paths[did] = [], []
         return out[did]
 
-    for tech_id, tsource, ttier in techniques:
+    for tech_id, tsource, ttier, tinherited in techniques:
         for did, dsource, dtier in _technique_defenses(loader, tech_id):
             e = entry(did)
+            (reached_inherited if tinherited else reached_direct).add(did)
             if tech_id not in e["via_techniques"]:
                 e["via_techniques"].append(tech_id)
             hops[did] += [(tsource, ttier), (dsource, dtier)]
             path = f"CVE→technique: {tsource}; technique→D3FEND: {dsource}"
             if path not in paths[did]:
                 paths[did].append(path)
-    for did, source, tier in own:
+    for did, source, tier, dinherited in own:
         entry(did)
+        (reached_inherited if dinherited else reached_direct).add(did)
         hops[did].append((source, tier))
         if not paths[did]:
             paths[did].append(str(source))
@@ -908,10 +997,13 @@ def get_defenses_impl(
     for did, e in out.items():
         e["mapping_source"] = " | ".join(paths[did])
         e["tier"] = _weakest(hops[did])[1]
+        # Additive (I29): reached only through an inherited parent CWE.
+        if did in reached_inherited and did not in reached_direct:
+            e["inherited"] = True
 
     defs = sorted(out.values(), key=lambda d: _id_key(d["id"]))
     meta["count"] = len(defs)
-    meta["techniques"] = list(dict.fromkeys(t for t, _, _ in techniques))
+    meta["techniques"] = list(dict.fromkeys(t[0] for t in techniques))
     meta["path"] = "cve -> technique -> defend; each defense carries the weakest tier on its path"
     if not techniques:
         meta["note"] = f"{cid} maps to no ATT&CK technique, so only its own D3FEND rels are listed."

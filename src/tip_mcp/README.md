@@ -40,7 +40,8 @@ path and the shard path.
   technique (its own `cve` rels); the CAPEC and CWE path only explains them.
   `capecs` are the CAPEC patterns whose `capec -> technique` rel names the
   technique. Each CVE lists `via_cwes` (its CWEs that reach one of those
-  CAPECs) and `via_capecs` (the CAPECs reached); a CVE with no such CWE still
+  CAPECs the CVE itself credits) and `via_capecs` (those credited CAPECs), so
+  a CAPEC the CVE no longer credits is never named; a CVE with no such CWE still
   appears, with empty via lists, and `meta.cves_without_path` counts them.
   `cwes` lists only the CWEs a returned CVE goes through, each with
   `via_capecs`, `inherited_capecs`, and an `inherited` flag: true when a CWE
@@ -73,6 +74,23 @@ path and the shard path.
   monitors, hardens, ...) comes from the CVE's shard when present. Read
   CVE-side defenses as leads through the CVE's techniques, not as MITRE
   mappings of the CVE.
+- **Inherited links (I29).** An index generated after I29 sets
+  `meta.inherited_links` and marks every link reached only through an
+  inherited parent CWE (a ChildOf parent NVD did not assign; pillars are
+  never inherited). `pivot_from_entity` hits and `lookup_entity` rels carry
+  `inherited: true` for such links, on the entity path and on the shard path
+  (from the shard's `_INHERITED` lists); a CVE record carries
+  `cwe_inherited`, and its `cwe` rels are the NVD-assigned CWEs only.
+  `build_attack_chain` reads each CWE's `inherited` CAPECs from the index
+  instead of recomputing them from `cwe_db.json`. A fallback covers a chain
+  CVE whose assigned CWEs have no CAPEC path to the technique: it is then
+  explained through its inherited parents, listed in `inherited_cwes`, with
+  the CWE element flagged `inherited_parent` and the CVE derived. On current
+  data that fallback does not fire (0 of 8,506 chain CVEs on the index
+  regenerated for I29). A chain CVE whose technique link is inherited
+  carries `inherited: true`. `get_defenses` marks a CVE-side defense
+  `inherited: true` when every link that reaches it is inherited. Each flag appears only
+  when true, so an older index or shard produces the same output as before.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null

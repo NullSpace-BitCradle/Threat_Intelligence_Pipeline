@@ -98,6 +98,8 @@ class IndexLoader:
         # cwe_db.json RelatedAttackPatterns by bare CWE number; False means
         # "tried and unavailable".
         self._cwe_capecs: "Optional[dict[str, frozenset[str]] | bool]" = None
+        # entity_index.json "meta" object ({} when absent).
+        self._meta: dict = {}
 
     @property
     def loaded(self) -> bool:
@@ -135,6 +137,8 @@ class IndexLoader:
             )
 
         self._entities = entities
+        meta = data.get("meta")
+        self._meta = meta if isinstance(meta, dict) else {}
         self._entities_ci = None
         self._search_index = search
         self._cve_ids = self._load_cve_ids()
@@ -170,6 +174,14 @@ class IndexLoader:
                         )
             self._reverse = rev
         return self._reverse
+
+    @property
+    def inherited_links(self) -> bool:
+        """True when the index marks links reached only through an inherited
+        parent CWE (I29): rel bodies carry an "inherited" id subset when any
+        exist, and cwe -> capec bodies name the CAPECs not in the CWE's own
+        RelatedAttackPatterns. Older indexes lack the marker."""
+        return self._meta.get("inherited_links") is True
 
     @property
     def kev_db(self) -> Optional[dict[str, dict]]:

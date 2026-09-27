@@ -571,6 +571,42 @@
 .prov-authoritative { background: rgba(59,130,246,0.15); color: var(--accent); }
 .prov-derived { background: rgba(234,179,8,0.15); color: var(--severity-medium); }
 
+/* I29: link reached only through an inherited parent CWE */
+.inherited-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px dashed var(--severity-medium);
+    color: var(--severity-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-left: 8px;
+    cursor: help;
+}
+
+.entity-card-inherited { border-style: dashed; }
+.inherited-chip { border-style: dashed; }
+
+/* I29: graph node and edge reached only through an inherited parent CWE.
+   CSS rules override the presentation attributes graph.js sets. */
+.graph-node-inherited circle {
+    stroke: var(--severity-medium);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+    fill-opacity: 0.45;
+}
+.graph-link-inherited { stroke-dasharray: 4 3; }
+.related-item-inherited { border: 1px dashed var(--severity-medium); }
+.related-item-inherited .inherited-badge { margin-left: auto; flex-shrink: 0; }
+
+/* I29: inherited share of a relationship count */
+.summary-card-inherited {
+    font-size: 11px;
+    color: var(--severity-medium);
+    margin-top: 2px;
+}
+
 /* ===== GRAPH PANEL ===== */
 .graph-header {
     font-size: 11px;

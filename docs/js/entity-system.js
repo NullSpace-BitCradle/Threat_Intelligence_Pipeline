@@ -312,6 +312,9 @@ function getRelatedEntities(entityId) {
             ids: ids,
             source: relData.source || '',
             tier: relData.tier || 'derived',
+            // Additive (I29): ids reached only through an inherited parent
+            // CWE. Older indexes have none, so nothing is marked.
+            inherited: (relData.inherited || []).map(id => normalizeRelId(relType, id)),
             entities: ids.map(id => getEntity(id)).filter(Boolean)
         };
     }
@@ -368,6 +371,21 @@ function buildExternalLink(entity) {
 
 const detailCache = {};
 
+// CAPEC numbers a CWE lists itself or any ancestor on its ChildOf chain lists,
+// the same walk the generator uses for cwe -> capec inheritance.
+function cweAncestorCapecs(cweDb, num, visiting) {
+    var out = new Set();
+    if (visiting[num]) return out;
+    visiting[num] = true;
+    var entry = cweDb[num];
+    if (!entry) return out;
+    (entry.RelatedAttackPatterns || []).forEach(function(c) { out.add(String(c)); });
+    (entry.ChildOf || []).forEach(function(pid) {
+        cweAncestorCapecs(cweDb, String(pid), visiting).forEach(function(c) { out.add(c); });
+    });
+    return out;
+}
+
 async function fetchEntityDetail(entityId) {
     if (detailCache[entityId]) return detailCache[entityId];
 
@@ -384,7 +402,20 @@ async function fetchEntityDetail(entityId) {
             var cweEntry = cweDb[num];
             if (cweEntry) {
                 detail.description = cweEntry.description || '';
-                detail.parents = (cweEntry.ChildOf || []).map(function(id) { return 'CWE-' + id; });
+                // ChildOf repeats a parent once per CWE view; list it once.
+                var parentNums = (cweEntry.ChildOf || []).map(String).filter(function(id, i, all) {
+                    return all.indexOf(id) === i;
+                });
+                detail.parents = parentNums.map(function(id) { return 'CWE-' + id; });
+                // I29: which direct parent leads to each ancestor CAPEC, so an
+                // inherited CAPEC's tooltip names only that parent.
+                detail.capecParents = {};
+                parentNums.forEach(function(pid) {
+                    cweAncestorCapecs(cweDb, pid, {}).forEach(function(cnum) {
+                        var cid = 'CAPEC-' + cnum;
+                        (detail.capecParents[cid] = detail.capecParents[cid] || []).push('CWE-' + pid);
+                    });
+                });
             }
         } else if (entity.type === 'technique') {
             var techId = entityId.replace('T', '');

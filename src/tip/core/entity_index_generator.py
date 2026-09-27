@@ -208,12 +208,22 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     def link_one(eid: str, rel: str, target: str) -> None:
         rels_map[eid][rel].add(target)
 
+    # Targets reached only through an inherited parent CWE (ISA I29), kept
+    # apart from rels_map and published as each rel body's additive
+    # "inherited" subset.
+    inherited_map: dict[str, dict[str, set]] = defaultdict(lambda: defaultdict(set))
+
+    def mark_inherited(id_a: str, rel_a: str, id_b: str, rel_b: str) -> None:
+        inherited_map[id_a][rel_a].add(id_b)
+        inherited_map[id_b][rel_b].add(id_a)
+
     # ── 1. Load CWE database ──────────────────────────────────────
     print("Loading CWE database...")
     cwe_db = _load_json(data_dir / "cwe_db.json")
 
     # CAPEC inheritance walks the full ChildOf chain (shared definition in
-    # tip.core.id_normalize; a CVE's own CWE list only gains one level).
+    # tip.core.id_normalize). CAPECs that are not the CWE's own
+    # RelatedAttackPatterns are labeled inherited (ISC-8).
     cwe_parent_capecs: dict[str, set[str]] = {}
     for cwe_num in cwe_db:
         cwe_capecs_with_ancestors(cwe_db, cwe_num, cwe_parent_capecs)
@@ -226,10 +236,13 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         name = cwe_data.get("name") or cwe_data.get("Name") or ""
         ensure(cwe_id, "cwe", name if name else cwe_id, "weakness")
 
+        own_capecs = {str(c) for c in cwe_data.get("RelatedAttackPatterns", []) or []}
         for capec_num in cwe_parent_capecs.get(cwe_num, set()):
             capec_ref = normalize_capec_id(capec_num)
             if capec_ref:
                 link_one(cwe_id, "capec", capec_ref)
+                if capec_num not in own_capecs:
+                    inherited_map[cwe_id]["capec"].add(capec_ref)
 
     print(f"  Loaded {len(cwe_db)} CWEs ({inherited_count} inherited CAPECs from parents)")
 
@@ -463,39 +476,73 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         # Shards written before ingest-time normalization carry bare parent
         # CWE numbers (["74","CWE-79"]) and bare technique ids; normalize
         # here so existing shards also produce resolvable rels (ISC-22).
+        # A shard with CWE_INHERITED (I29) lists NVD-assigned CWEs in CWE
+        # and keeps inherited parents, and whatever only they reach, apart.
+        # Legacy shards have no _INHERITED lists and link exactly as before.
         for cwe_raw in cve_data.get("CWE", []):
             cwe_ref = normalize_cwe_id(cwe_raw)
             if cwe_ref:
                 link(cve_id, "cwe", cwe_ref, "cve")
+        if "CWE_INHERITED" in cve_data:
+            cve_entity["cwe_inherited"] = [
+                c for c in (normalize_cwe_id(x) for x in cve_data.get("CWE_INHERITED") or []) if c
+            ]
 
-        for capec_raw in cve_data.get("CAPEC", []):
-            capec_ref = normalize_capec_id(capec_raw)
-            if capec_ref:
-                link(cve_id, "capec", capec_ref, "cve")
+        def split(direct_raw: list, inherited_raw: list, norm: Callable[[str], str | None]) -> tuple[list[str], list[str]]:
+            direct = [n for n in (norm(x) for x in direct_raw or []) if n]
+            seen = set(direct)
+            inh = [n for n in (norm(x) for x in inherited_raw or []) if n and n not in seen]
+            return direct, inh
 
-        for tech_raw in cve_data.get("TECHNIQUES", []):
-            tech_id = normalize_technique_id(tech_raw)
-            if not tech_id:
-                continue
+        capec_direct, capec_inh = split(cve_data.get("CAPEC", []), cve_data.get("CAPEC_INHERITED", []), normalize_capec_id)
+        for capec_ref in capec_direct + capec_inh:
+            link(cve_id, "capec", capec_ref, "cve")
+        for capec_ref in capec_inh:
+            mark_inherited(cve_id, "capec", capec_ref, "cve")
+
+        tech_direct, tech_inh = split(cve_data.get("TECHNIQUES", []), cve_data.get("TECHNIQUES_INHERITED", []),
+                                      normalize_technique_id)
+        groups_direct: set[str] = set()
+        groups_inh: set[str] = set()
+        defend_direct: set[str] = set()
+        defend_inh: set[str] = set()
+        for tech_id in tech_direct + tech_inh:
+            is_inh = tech_id in tech_inh
             link(cve_id, "technique", tech_id, "cve")
             for gid in technique_to_groups.get(tech_id, []):
                 link(cve_id, "apt_group", gid, "cve")
+                (groups_inh if is_inh else groups_direct).add(gid)
             # Chain through to D3FEND: CVE -> technique -> defend
             for did in technique_to_defend.get(tech_id, set()):
                 if did in entities:
                     link(cve_id, "defend", did, "cve")
+                    (defend_inh if is_inh else defend_direct).add(did)
+        for tech_id in tech_inh:
+            mark_inherited(cve_id, "technique", tech_id, "cve")
 
         # Also pick up any DEFEND entries already in CVE data (legacy format)
         for defend_entry in cve_data.get("DEFEND", []):
             if isinstance(defend_entry, dict):
                 did = defend_entry.get("id", "")
+                entry_inh = defend_entry.get("inherited") is True
             else:
                 did = str(defend_entry)
+                entry_inh = False
             if did:
                 link(cve_id, "defend", did, "cve")
+                (defend_inh if entry_inh else defend_direct).add(did)
 
-        for owasp_id in cve_data.get("OWASP", []):
+        for gid in groups_inh - groups_direct:
+            mark_inherited(cve_id, "apt_group", gid, "cve")
+        for did in defend_inh - defend_direct:
+            mark_inherited(cve_id, "defend", did, "cve")
+
+        owasp_direct, owasp_inh = split(cve_data.get("OWASP", []), cve_data.get("OWASP_INHERITED", []),
+                                        lambda x: str(x) if x else None)
+        for owasp_id in owasp_direct + owasp_inh:
             link(cve_id, "owasp", owasp_id, "cve")
+        for owasp_id in owasp_inh:
+            mark_inherited(cve_id, "owasp", owasp_id, "cve")
 
         if is_kev:
             kev_cves.add(cve_id)
@@ -543,6 +590,13 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 "source": prov["source"],
                 "tier": prov["tier"],
             }
+            # Additive (I29): the ids reached only through an inherited
+            # parent CWE, present only when there are any.
+            inherited_ids = inherited_map.get(eid, {}).get(rel_type)
+            if inherited_ids:
+                sub = [t for t in live if t in inherited_ids]
+                if sub:
+                    rels[rel_type]["inherited"] = sub
         entity["rels"] = rels
 
         # Add entity-level provenance
@@ -632,6 +686,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             "version": "1.5",
             # Additive: rel targets dropped because no such entity exists.
             "dropped_dangling_rels": sum(dropped_dangling.values()),
+            # Additive (I29): rel bodies may carry an "inherited" id subset
+            # and CVEs a cwe_inherited list; readers of older indexes treat
+            # every link as direct.
+            "inherited_links": True,
         },
         "entities": entities,
     }
