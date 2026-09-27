@@ -229,6 +229,9 @@ class PipelineOrchestrator:
                 'successful': successful,
                 'failed': failed,
                 'results': db_results,
+                # Steps that wrote fresh upstream data, not just succeeded;
+                # freshness.json advances only on these.
+                'fresh': sorted(getattr(self.db_manager, 'fresh_writes', set())),
                 'timestamp': datetime.now().isoformat()
             }
             self.results['database_updates'] = summary

@@ -79,11 +79,16 @@ def succeeded_sources(results: Mapping[str, Any]) -> List[str]:
     """Source keys whose steps were clean in this run's orchestrator results."""
     done: List[str] = []
 
+    # A reference source advances only when every step behind it succeeded
+    # AND wrote fresh data ("fresh" in the step). A success that kept the
+    # existing file, or wrote degraded data, is not fresh.
     db = results.get("database_updates")
     db_results = db.get("results") if isinstance(db, Mapping) else None
+    fresh_list = db.get("fresh") if isinstance(db, Mapping) else None
+    fresh = set(fresh_list) if isinstance(fresh_list, list) else set()
     if isinstance(db_results, Mapping):
         for key, steps in _DB_STEPS.items():
-            if all(db_results.get(step) is True for step in steps):
+            if all(db_results.get(step) is True and step in fresh for step in steps):
                 done.append(key)
         # The curated EPSS file is republished after the entity index; a
         # failed republish means the published file is not this run's.
