@@ -597,6 +597,8 @@
     fill-opacity: 0.45;
 }
 .graph-link-inherited { stroke-dasharray: 4 3; }
+.related-item-inherited { border: 1px dashed var(--severity-medium); }
+.related-item-inherited .inherited-badge { margin-left: auto; flex-shrink: 0; }
 
 /* I29: inherited share of a relationship count */
 .summary-card-inherited {

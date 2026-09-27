@@ -59,7 +59,7 @@ async function renderResultPage(entityId, gen) {
     renderEntityHeader(main, entity, related, detail);
     renderSummaryCards(main, entity, related);
     renderDetailTabs(main, entity, related, detail);
-    renderGraphPanel(graphPanel, entityId, related);
+    renderGraphPanel(graphPanel, entityId, related, null, detail);
 }
 
 // Render a CVE detail page from shard data when the CVE is not in the
@@ -895,8 +895,9 @@ function addOverviewField(container, label, value) {
     container.appendChild(section);
 }
 
-function renderGraphPanel(panel, entityId, related, entityOverride) {
+function renderGraphPanel(panel, entityId, related, entityOverride, detail) {
     panel.textContent = '';
+    const entity = entityOverride || getEntity(entityId);
 
     // Graph header
     const header = document.createElement('div');
@@ -955,6 +956,13 @@ function renderGraphPanel(panel, entityId, related, entityOverride) {
                 nameSpan.className = 'related-name';
                 nameSpan.textContent = relEntity.name;
                 item.appendChild(nameSpan);
+            }
+
+            // I29: same marker as the detail tabs for links reached only
+            // through an inherited parent CWE.
+            if (entity && relData.inherited && relData.inherited.indexOf(relId) !== -1) {
+                item.classList.add('related-item-inherited');
+                item.appendChild(makeInheritedBadge(inheritedTooltip(entity, relType, relEntity, detail)));
             }
 
             section.appendChild(item);

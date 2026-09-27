@@ -12,6 +12,7 @@ Run against a local server:
 import gzip
 import json
 import os
+import re
 
 from playwright.sync_api import Page, Route, expect
 
@@ -82,6 +83,19 @@ def test_isc16_graph_marks_inherited_node(page: Page) -> None:
     # Direct nodes carry no marker.
     direct = page.locator(".graph-container svg g:not(.graph-node-inherited) > title")
     assert all("inherited" not in (t or "") for t in direct.all_text_contents())
+
+
+def test_isc16_sidebar_lists_mark_inherited_items(page: Page) -> None:
+    tech = _inject_index(page)
+    sidebar = page.locator("#result-graph .related-section")
+    item = sidebar.locator(".related-item").filter(
+        has=page.locator(".related-id", has_text=re.compile(rf"^{re.escape(tech)}$")))
+    badge = item.locator(".inherited-badge")
+    expect(badge).to_be_visible(timeout=TIMEOUT_MS)
+    assert "CWE-664" in (badge.get_attribute("title") or "")
+    expect(item).to_have_class(re.compile(r"related-item-inherited"))
+    # Only the one inherited technique is marked in the sidebar.
+    assert sidebar.locator(".inherited-badge").count() == 1
 
 
 def test_isc16_counts_show_inherited_subset(page: Page) -> None:
@@ -194,5 +208,5 @@ def test_isc17_legacy_data_renders_without_markers(page: Page) -> None:
         assert page.locator(".inherited-badge").count() == 0
         assert page.locator("[data-cwe-section]").count() == 0
         assert page.locator(".entity-card-inherited, .inherited-chip").count() == 0
-        assert page.locator(".graph-node-inherited, .summary-card-inherited").count() == 0
+        assert page.locator(".graph-node-inherited, .summary-card-inherited, .related-item-inherited").count() == 0
         assert page.locator("#result-main .badge", has_text="inherited").count() == 0
