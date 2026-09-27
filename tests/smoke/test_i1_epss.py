@@ -22,8 +22,10 @@ BASE_URL = os.environ.get(
 
 TIMEOUT_MS = 30_000
 EPSS_FILE = "**/data/epss_curated.json"
-SHARD_1999 = "**/database/CVE-1999.jsonl.gz"
+SHARDS = "**/database/CVE-*.jsonl.gz"
+INDEX_FILE = "**/data/entity_index.json"
 SHARD_ONLY_CVE = "CVE-1999-0095"
+CURATED_CVE = "CVE-2023-44487"
 
 
 def _daily(scores: dict, date: str = "2026-09-26") -> str:
@@ -41,22 +43,45 @@ def _no_daily(page: Page) -> None:
     page.route(EPSS_FILE, lambda r: r.fulfill(status=404, body="not found"))
 
 
-def _serve_weekly_shard(page: Page) -> None:
-    """The real 1999 shard with a weekly EPSS value on CVE-1999-0095."""
+def _serve_sources(page: Page, weekly: bool = False) -> None:
+    """Serve the real entity index and shards with every EPSS value removed,
+    so each test controls both the daily and the weekly value. Deployed data
+    carries EPSS since the first weekly run with I1 (2026-09-27), and the site
+    rightly prefers the newer of the two, which would otherwise override the
+    routed daily fixture. With weekly=True, CVE-1999-0095 gets a weekly
+    value dated 2026-09-20 in its shard, and the curated CVE-2023-44487 the
+    same value in the entity index, which is where a curated page reads it."""
 
-    def handler(route: Route) -> None:
+    def index_handler(route: Route) -> None:
+        doc = json.loads(route.fetch().body())
+        for entity_id, entity in doc.get("entities", {}).items():
+            entity.pop("epss", None)
+            if weekly and entity_id == CURATED_CVE:
+                entity["epss"] = {"score": 0.1, "percentile": 0.2, "date": "2026-09-20"}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(doc))
+
+    def shard_handler(route: Route) -> None:
         resp = route.fetch()
         lines = []
         for line in gzip.decompress(resp.body()).decode("utf-8").splitlines():
             if not line.strip():
                 continue
             rec = json.loads(line)
-            if SHARD_ONLY_CVE in rec:
-                rec[SHARD_ONLY_CVE]["EPSS"] = {"score": 0.1, "percentile": 0.2, "date": "2026-09-20"}
+            for cve_id, data in rec.items():
+                if isinstance(data, dict):
+                    data.pop("EPSS", None)
+                    if weekly and cve_id == SHARD_ONLY_CVE:
+                        data["EPSS"] = {"score": 0.1, "percentile": 0.2, "date": "2026-09-20"}
             lines.append(json.dumps(rec))
         route.fulfill(status=200, body=gzip.compress(("\n".join(lines) + "\n").encode("utf-8")))
 
-    page.route(SHARD_1999, handler)
+    page.route(INDEX_FILE, index_handler)
+    page.route(SHARDS, shard_handler)
+
+
+def _serve_weekly_shard(page: Page) -> None:
+    """Real sources without EPSS, plus a weekly value on CVE-1999-0095."""
+    _serve_sources(page, weekly=True)
 
 
 def _errors(page: Page) -> list[str]:
@@ -66,6 +91,7 @@ def _errors(page: Page) -> list[str]:
 
 
 def test_cve_page_shows_daily_epss(page: Page) -> None:
+    _serve_sources(page)
     _serve_daily(page, {"CVE-2023-44487": {"score": 0.99999, "percentile": 0.99998}})
     errors = _errors(page)
     page.goto(f"{BASE_URL}#/cve/CVE-2023-44487")
@@ -93,6 +119,16 @@ def test_weekly_shard_value_without_daily_file(page: Page) -> None:
     _serve_weekly_shard(page)
     _no_daily(page)
     page.goto(f"{BASE_URL}#/cve/{SHARD_ONLY_CVE}")
+    main = page.locator("#result-main")
+    expect(main).to_contain_text("EPSS 0.1", timeout=TIMEOUT_MS)
+    expect(main).to_contain_text("2026-09-20 (weekly)")
+
+
+def test_curated_page_reads_weekly_value_from_the_index(page: Page) -> None:
+    """A curated CVE takes its weekly EPSS from the entity index, not a shard."""
+    _serve_weekly_shard(page)
+    _no_daily(page)
+    page.goto(f"{BASE_URL}#/cve/{CURATED_CVE}")
     main = page.locator("#result-main")
     expect(main).to_contain_text("EPSS 0.1", timeout=TIMEOUT_MS)
     expect(main).to_contain_text("2026-09-20 (weekly)")
