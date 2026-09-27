@@ -368,9 +368,10 @@ function renderSummaryCards(container, entity, related) {
         cards.push({
             label: relCfg.relLabel || relCfg.label,
             value: String(relData.ids.length),
-            detail: relData.source || '',
+            // I21: name the sources the links actually have, never the
+            // body source alone when they differ.
+            detail: linkBreakdown(relData, true) || relData.source || '',
             inherited: inhCount > 0 ? inhCount + ' inherited via parent CWE' : '',
-            tiers: linkTierSummary(relData),
             color: GRAPH_COLORS[relType] || 'var(--text-primary)'
         });
     }
@@ -429,13 +430,6 @@ function renderSummaryCards(container, entity, related) {
             inhEl.className = 'summary-card-inherited';
             inhEl.textContent = card.inherited;
             el.appendChild(inhEl);
-        }
-        // I21: how many of these links are CTID or inferred.
-        if (card.tiers) {
-            const tierEl = document.createElement('div');
-            tierEl.className = 'summary-card-tiers';
-            tierEl.textContent = card.tiers;
-            el.appendChild(tierEl);
         }
 
         grid.appendChild(el);
@@ -547,7 +541,7 @@ function renderDetailTabs(container, entity, related, detail) {
             }
 
             // Provenance badge
-            const linkTier = (lp && lp.tier) || relData.tier;
+            const linkTier = (lp && lp.tier) || (relData.defaultProv && relData.defaultProv.tier) || relData.tier;
             if (linkTier) {
                 const prov = document.createElement('span');
                 prov.className = 'prov-badge prov-' + linkTier;
@@ -672,6 +666,33 @@ function isCtidProv(prov) {
     return !!prov && prov.tier === 'official' && String(prov.source || '').indexOf('CTID') !== -1;
 }
 
+// How one link was made: 'CTID' (an analyst mapping), 'via CTID' (a D3FEND
+// defense reached through a CTID technique, derived), 'inferred', or
+// 'chain' for every link without a per-link entry.
+function linkKind(prov) {
+    if (!prov) return 'chain';
+    // Tier first: an inferred rule's text cites its agreement with CTID.
+    if (prov.tier === 'inferred') return 'inferred';
+    if (String(prov.source || '').indexOf('CTID') !== -1) return prov.tier === 'official' ? 'CTID' : 'via CTID';
+    return 'chain';
+}
+
+// "2 chain, 1 inferred" or "3 CTID": the sources a rel type's links
+// actually have, or '' when none has a per-link entry (older data).
+function linkBreakdown(relData, withChain) {
+    var counts = { 'chain': 0, 'CTID': 0, 'via CTID': 0, 'inferred': 0 };
+    var any = false;
+    (relData.ids || []).forEach(function(id) {
+        var prov = linkProvOf(relData, id);
+        if (prov) any = true;
+        counts[linkKind(prov)]++;
+    });
+    if (!any) return '';
+    return ['chain', 'CTID', 'via CTID', 'inferred'].filter(function(k) {
+        return counts[k] > 0 && (withChain || k !== 'chain');
+    }).map(function(k) { return counts[k] + ' ' + k; }).join(', ');
+}
+
 function ctidTooltip(prov, relType) {
     if (relType !== 'technique' && relType !== 'cve') {
         return 'Reached through a technique MITRE CTID analysts mapped to the CVE (' + (prov.source || 'CTID') + ').';
@@ -695,9 +716,10 @@ function makeLinkTierBadge(prov, relType) {
     if (!prov) return null;
     var badge = document.createElement('span');
     badge.style.cursor = 'help';
-    if (isCtidProv(prov)) {
+    var kind = linkKind(prov);
+    if (kind === 'CTID' || kind === 'via CTID') {
         badge.className = 'ctid-badge';
-        badge.textContent = 'CTID';
+        badge.textContent = kind;
         badge.title = ctidTooltip(prov, relType);
     } else if (prov.tier === 'inferred') {
         badge.className = 'inferred-badge';
@@ -709,18 +731,9 @@ function makeLinkTierBadge(prov, relType) {
     return badge;
 }
 
-// "2 CTID, 1 inferred" for a rel type, or '' when it has neither.
+// "2 CTID, 1 inferred" for a rel type's header badge, or ''.
 function linkTierSummary(relData) {
-    var ctid = 0, inferred = 0;
-    (relData.ids || []).forEach(function(id) {
-        var prov = linkProvOf(relData, id);
-        if (isCtidProv(prov)) ctid++;
-        else if (prov && prov.tier === 'inferred') inferred++;
-    });
-    var parts = [];
-    if (ctid) parts.push(ctid + ' CTID');
-    if (inferred) parts.push(inferred + ' inferred');
-    return parts.join(', ');
+    return linkBreakdown(relData, false);
 }
 
 // Add an I21 shard list (TECHNIQUES_CTID or TECHNIQUES_INFERRED) to the

@@ -37,9 +37,11 @@ def _ensure_tech(data: dict, tid: str) -> None:
     data["entities"].setdefault(tid, {"type": "technique", "id": tid, "name": tid, "phase": "attack", "rels": {}})
 
 
-def _inject_index(page: Page) -> None:
+def _inject_index(page: Page) -> dict:
     """Rewrite CVE-2023-44487: one CTID technique and one inferred one, with
-    per-link provenance, whatever the served index holds."""
+    per-link provenance, whatever the served index holds. Returns
+    {"chain": number of other technique ids}."""
+    picked: dict = {}
 
     def handler(route: Route) -> None:
         resp = route.fetch()
@@ -51,6 +53,7 @@ def _inject_index(page: Page) -> None:
         # First, so the graph and the sidebar (which show a few per type)
         # include them.
         tech["ids"] = [CTID_TECH, INFERRED_TECH] + [t for t in tech["ids"] if t not in (CTID_TECH, INFERRED_TECH)]
+        picked["chain"] = len(tech["ids"]) - 2
         tech["inherited"] = [t for t in tech.get("inherited", []) if t not in (CTID_TECH, INFERRED_TECH)]
         tech["link_prov"] = {
             CTID_TECH: {"source": CTID_SOURCE, "tier": "official",
@@ -68,6 +71,7 @@ def _inject_index(page: Page) -> None:
     page.route("**/data/entity_index.json", handler)
     page.goto(f"{BASE_URL}#/cve/{CVE}")
     expect(page.locator("#result-main")).to_contain_text("HTTP/2", timeout=TIMEOUT_MS)
+    return picked
 
 
 def _card(page: Page, tid: str):
@@ -115,7 +119,7 @@ def test_chain_links_stay_unmarked(page: Page) -> None:
 
 
 def test_graph_and_sidebar_and_counts_mark_the_tiers(page: Page) -> None:
-    _inject_index(page)
+    picked = _inject_index(page)
     ctid_node = page.locator(".graph-container svg g.graph-node-ctid")
     inferred_node = page.locator(".graph-container svg g.graph-node-inferred")
     expect(ctid_node).to_have_count(1, timeout=TIMEOUT_MS)
@@ -124,9 +128,10 @@ def test_graph_and_sidebar_and_counts_mark_the_tiers(page: Page) -> None:
     assert "inferred from the CVSS vector" in (inferred_node.first.locator("title").text_content() or "")
     header = page.locator("#result-main .badge", has_text="1 CTID, 1 inferred")
     expect(header).to_have_count(1)
-    tiers = page.locator(".summary-card .summary-card-tiers")
-    expect(tiers).to_have_count(1)
-    expect(tiers).to_have_text("1 CTID, 1 inferred")
+    # The summary card names the sources its links have, not the body's.
+    card = page.locator(".summary-card", has=page.locator(".summary-card-label", has_text="Techniques"))
+    want = (f"{picked['chain']} chain, " if picked["chain"] else "") + "1 CTID, 1 inferred"
+    expect(card.locator(".summary-card-detail")).to_have_text(want)
     sidebar = page.locator("#result-graph .related-section")
     expect(sidebar.locator(".related-item-tiered .ctid-badge")).to_have_count(1)
     expect(sidebar.locator(".related-item-tiered .inferred-badge")).to_have_count(1)
@@ -198,7 +203,9 @@ def test_legacy_data_renders_without_tier_markers(page: Page) -> None:
         assert page.locator(".ctid-badge, .inferred-badge").count() == 0
         assert page.locator(".entity-card-official, .entity-card-inferred, .related-item-tiered").count() == 0
         assert page.locator(".graph-node-ctid, .graph-node-inferred").count() == 0
-        assert page.locator(".prov-inferred, .summary-card-tiers").count() == 0
+        assert page.locator(".prov-inferred").count() == 0
+        details = page.locator(".summary-card-detail").all_text_contents()
+        assert not any(re.search(r"\d+ (chain|CTID|via CTID|inferred)\b", d) for d in details), details
         assert page.locator("#result-main .badge", has_text=re.compile(r"CTID|inferred\)")).count() == 0
 
 
@@ -226,3 +233,53 @@ def test_served_ctid_links_render_when_present(page: Page) -> None:
     expect(badge).to_be_visible(timeout=TIMEOUT_MS)
     comment = data["entities"][target]["rels"]["technique"]["link_prov"][tid]["comment"]
     assert comment in (badge.get_attribute("title") or "")
+
+
+# ── summary cards on regenerated data (I21 review) ───────────────────
+
+REL_LABEL = {"cve": "Vulnerabilities", "technique": "Techniques", "defend": "Defenses"}
+
+
+def _kind(prov):
+    if not prov:
+        return "chain"
+    if prov.get("tier") == "inferred":
+        return "inferred"
+    if "CTID" in str(prov.get("source", "")):
+        return "CTID" if prov.get("tier") == "official" else "via CTID"
+    return "chain"
+
+
+def _breakdown(body):
+    lp = body.get("link_prov") or {}
+    counts = {}
+    for i in body["ids"]:
+        k = _kind(lp.get(i))
+        counts[k] = counts.get(k, 0) + 1
+    return ", ".join(f"{counts[k]} {k}" for k in ("chain", "CTID", "via CTID", "inferred") if k in counts)
+
+
+@pytest.mark.parametrize("path", ["cve/CVE-2024-34102", "cve/CVE-2007-0671", "technique/T1190",
+                                  "technique/T1204", "defend/D3-EAL"])
+def test_served_summary_cards_name_the_link_sources(page: Page, path: str) -> None:
+    """On regenerated data every summary card whose links carry per-link
+    provenance names the sources present (CVE-2024-34102: all CTID;
+    CVE-2007-0671: inferred only). Skipped on data generated before I21."""
+    data = page.request.get(f"{BASE_URL}data/entity_index.json").json()
+    if not data.get("meta", {}).get("link_provenance"):
+        pytest.skip("served index predates I21")
+    eid = path.split("/", 1)[1]
+    ent = data["entities"].get(eid)
+    if ent is None:
+        pytest.skip(f"{eid} not in the served index")
+    bodies = {r: b for r, b in (ent.get("rels") or {}).items() if b.get("link_prov") and r in REL_LABEL}
+    assert bodies, f"{eid} has no per-link provenance to show"
+    page.goto(f"{BASE_URL}#/{path}")
+    expect(page.locator("#result-main .detail-tabs")).to_be_visible(timeout=TIMEOUT_MS)
+    for rel, body in bodies.items():
+        card = page.locator(".summary-card", has=page.locator(".summary-card-label", has_text=REL_LABEL[rel]))
+        expect(card.locator(".summary-card-detail")).to_have_text(_breakdown(body), timeout=TIMEOUT_MS)
+    if eid == "CVE-2024-34102":
+        assert _breakdown(bodies["technique"]).endswith("CTID") and "chain" not in _breakdown(bodies["technique"])
+    if eid == "CVE-2007-0671":
+        assert _breakdown(bodies["technique"]) == "1 inferred"

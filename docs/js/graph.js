@@ -63,8 +63,9 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
             const effectiveEntity = relEntity || { name: relId, type: relType };
             nodeSet.add(relId);
             const lp = linkProv[relId];
+            // Tier first: an inferred rule's text cites its agreement with CTID.
             const linkTier = lp && lp.tier === 'inferred' ? 'inferred'
-                : (lp && lp.tier === 'official' && String(lp.source || '').indexOf('CTID') !== -1 ? 'ctid' : null);
+                : (lp && String(lp.source || '').indexOf('CTID') !== -1 ? 'ctid' : null);
             nodes.push({
                 id: relId,
                 name: effectiveEntity.name || relId,
