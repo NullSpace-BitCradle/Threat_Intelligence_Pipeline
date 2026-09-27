@@ -346,6 +346,13 @@ function renderEntityHeader(container, entity, related, detail) {
     }
 
     header.appendChild(badges);
+    // I7: watch this entity for changes.
+    if (isWatchableEntity(entity)) {
+        const watchRow = document.createElement('div');
+        watchRow.className = 'watch-row';
+        watchRow.appendChild(makeWatchToggle(entity.type, entity.id));
+        header.appendChild(watchRow);
+    }
     container.appendChild(header);
 }
 
@@ -905,6 +912,18 @@ function renderOverviewContent(panel, entity, detail, related) {
         addOverviewField(content, 'Ransomware Use', kev.knownRansomwareCampaignUse || 'Unknown');
         if (kev.requiredAction) {
             addOverviewField(content, 'Required Action', kev.requiredAction);
+        }
+        // I7: KEV vendor and product are not entities, so they are
+        // watched from here.
+        if (kev.vendorProject) {
+            var kevWatch = document.createElement('div');
+            kevWatch.className = 'watch-row kev-watch';
+            kevWatch.appendChild(makeWatchToggle('kev_vendor', kev.vendorProject, 'vendor ' + kev.vendorProject));
+            if (kev.product) {
+                kevWatch.appendChild(makeWatchToggle('kev_product', kevProductId(kev.vendorProject, kev.product),
+                    'product ' + kev.product));
+            }
+            content.appendChild(kevWatch);
         }
     }
 

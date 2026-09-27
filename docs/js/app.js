@@ -5,7 +5,7 @@
 // ── Page Management ────────────────────────────────────────────
 
 function showPage(pageId) {
-    var pages = document.querySelectorAll('#page-landing, #page-results, #page-search-results, #page-worklist');
+    var pages = document.querySelectorAll('#page-landing, #page-results, #page-search-results, #page-worklist, #page-feed');
     for (var i = 0; i < pages.length; i++) {
         pages[i].classList.add('hidden');
         if (pages[i].id === 'page-landing') pages[i].style.display = '';
@@ -65,6 +65,18 @@ function handleRoute() {
     if (listMatch) {
         var listIds = listMatch[1] ? safeDecode(listMatch[1]) : '';
         showWorklistPage(listIds, gen);
+        return;
+    }
+
+    // Route: #/changes, #/changes/<event type>, #/watching (I7, I8). Tested
+    // before the generic #/<type>/<id> route, which would swallow them.
+    var changesMatch = hash.match(/^#\/changes(?:\/(\w+))?$/);
+    if (changesMatch) {
+        showChangesPage(changesMatch[1] || '', gen);
+        return;
+    }
+    if (hash === '#/watching') {
+        showWatchingPage(gen);
         return;
     }
 
@@ -495,7 +507,7 @@ function setupTheme() {
 
     function updateThemeIcons(theme) {
         var icon = theme === 'dark' ? '\u263E' : '\u2606';
-        var btns = document.querySelectorAll('#btn-theme, #btn-theme-sr, #btn-theme-wl');
+        var btns = document.querySelectorAll('#btn-theme, #btn-theme-sr, #btn-theme-wl, #btn-theme-feed');
         for (var i = 0; i < btns.length; i++) btns[i].textContent = icon;
     }
 
@@ -504,6 +516,8 @@ function setupTheme() {
     if (btnSr) btnSr.addEventListener('click', toggleTheme);
     var btnWl = document.getElementById('btn-theme-wl');
     if (btnWl) btnWl.addEventListener('click', toggleTheme);
+    var btnFeed = document.getElementById('btn-theme-feed');
+    if (btnFeed) btnFeed.addEventListener('click', toggleTheme);
 
     updateThemeIcons(document.documentElement.getAttribute('data-theme') || 'dark');
 }
@@ -673,6 +687,10 @@ function setupBrandLinks() {
     if (brandWl) brandWl.addEventListener('click', function() {
         window.location.hash = '#/';
     });
+    var brandFeed = document.getElementById('brand-home-feed');
+    if (brandFeed) brandFeed.addEventListener('click', function() {
+        window.location.hash = '#/';
+    });
 }
 
 // ── Init ───────────────────────────────────────────────────────
@@ -687,6 +705,7 @@ async function init() {
     detectMode();
     await initLanding();
     handleRoute();
+    updateWatchSummary();
 }
 
 init();
