@@ -19,6 +19,7 @@ Status legend:
 
 - **NOW**: in flight or starting now.
 - **NEXT**: ready to pick up after NOW; no blockers.
+- **IN REVIEW**: built and verified on a branch; waiting on review and green CI before merge.
 - **LATER**: scoped and wanted, not yet scheduled.
 - **PARKED**: waits on a trigger (server mode, product validation) that has not happened.
 - **DONE**: shipped to `main`, verifiable on disk or in git.
@@ -84,7 +85,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 ### 4.1 NOW
 
 - **T10.7** · Re-capture `src/tip_mcp/DEMO.md` after the first weekly run with I29 shards · NOW · the committed demo predates the new shard format, and `scripts/mcp_demo.py --check` will flag the drift · minutes, after the Sunday run
-- **I1** · EPSS scoring (P15) · NOW · adds a fourth severity axis beside CVSS, KEV, and SSVC; next feature. Source: the free daily FIRST bulk file (2.5 MB gz, 379,842 CVEs on 2026-09-26). Constraint: the full score set is 12.4 MB as JSON and nearly every score changes daily, so it must not be committed daily (about 1 GB a year of history); shards carry EPSS with its score date and a small daily file covers the curated tier · ~1 day
+- **I1** · EPSS scoring (P15) · IN REVIEW (branch `feat/i1-epss`) · adds a fourth severity axis beside CVSS, KEV, and SSVC. Source: the free daily FIRST bulk file (2.5 MB gz, 379,842 CVEs on 2026-09-26). Constraint: the full score set is 12.4 MB as JSON and nearly every score changes daily, so it must not be committed daily (about 1 GB a year of history); shards carry EPSS with its score date and a small daily file covers the curated tier. Built: a fail-closed `epss_processor` (download, header, or row-count floor failure turns the run red and keeps the previous file); the daily run writes `docs/data/epss_curated.json` (measured 95,904 bytes for all 1,728 curated CVEs); the weekly run adds `EPSS {score, percentile, date}` to shard records and the generator adds an `epss` block to curated entities through `tip_intel.cve_blocks`; the site shows EPSS on CVE pages and sorts the worklist by it, preferring the daily file; the MCP adds `epss` to `lookup_entity` and `kev_status`. Layer 2 unchanged (1,728 curated CVEs with and without EPSS on the real shards). Live probe: 379,842 rows, model v2026.06.15, CVE-2023-44487 at 0.99999 · ~1 day
 
 ### 4.2 NEXT
 

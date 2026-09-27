@@ -25,7 +25,7 @@ As of 2026-09-26:
 - Fail-closed by design: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
 - Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
 - MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
-- Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / CISA-override badges and clickable references on CVE pages
+- Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / EPSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / EPSS / CISA-override badges and clickable references on CVE pages
 - 348 unit tests plus 25 Playwright smoke tests passing; mypy is clean across all 27 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
@@ -66,7 +66,8 @@ Features:
 - Overview tab with descriptions, aliases, KEV details, and data provenance
 - Framework tabs: ATT&CK, D3FEND, APT Groups, OWASP, CWE, CAPEC, KEV detail
 - Interactive relationship graph; click any node to navigate
-- **Worklist / triage mode** (`#/list`): paste a list of IDs and get one sortable table across the cohort — CVSS, KEV, ransomware use, SSVC exploit status, and remediation due date — with a shareable URL
+- **Worklist / triage mode** (`#/list`): paste a list of IDs and get one sortable table across the cohort (CVSS, EPSS, KEV, ransomware use, SSVC exploit status, and remediation due date) with a shareable URL
+- **EPSS** on CVE pages and in the worklist: FIRST's exploitation probability with its percentile and score date. The daily curated file wins over the weekly shard value, and the date says which one you are looking at
 - Investigation pinning with JSON export
 - Dark and light theme
 - Hash-based routing with shareable URLs and browser back / forward
@@ -86,6 +87,7 @@ Features:
 | OWASP Top 10 | CWE to OWASP category mappings | Bundled |
 | CISA KEV | Known exploited vulnerabilities, ransomware use, remediation deadlines | Daily (Actions) |
 | CISA Vulnrichment | SSVC decisions (exploit status, automatable, impact), CISA CVSS overrides | Daily (Actions) |
+| FIRST EPSS | Probability of exploitation in the next 30 days (score, percentile, score date) for every scored CVE | Daily for curated CVEs (`docs/data/epss_curated.json`), weekly in the CVE shards; the full daily set is never committed |
 
 ## Requirements
 
@@ -137,7 +139,7 @@ Four automated workflows keep the code honest, the data fresh, and the site work
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) plus `mypy` |
-| Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups |
+| Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
 | Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 25-test Playwright suite against the deployed site |
 
@@ -156,7 +158,7 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
 | `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus its D3FEND defenses; every element carries the tier of its weakest hop, inherited CWE links are flagged, and an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
 | `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb; CVE-side defenses are derived leads through the CVE's techniques | "Which D3FEND countermeasures map to T1499?" |
-| `kev_status(cve_id)` | CISA KEV membership, dates, ransomware use, required action, vendor, product, and SSVC when known | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
+| `kev_status(cve_id)` | CISA KEV membership, dates, ransomware use, required action, vendor, product, SSVC when known, and EPSS (null when unscored) | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
 CVE lookups carry the full intelligence the pipeline stores in the shards: KEV detail (due date, ransomware use, required action), CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics, projected through `tip_intel.cve_blocks`, the single contract shared with the entity-index generator so both surfaces stay in sync (added 2026-06-20).
 
@@ -206,12 +208,13 @@ src/tip/
     campaign_fetcher.py       # MITRE ATT&CK campaigns ingestion
     owasp_processor.py        # CWE to OWASP mapping
     kev_processor.py          # CISA KEV catalog
+    epss_processor.py         # FIRST EPSS bulk file (fail-closed; curated-tier file + shard enrichment)
     vulnrichment_processor.py # CISA SSVC decisions and CVSS overrides
     apt_processor.py          # ATT&CK Groups with reverse technique index
   utils/                      # Config, error handling, validation, atomic writes, performance
   database/                   # JSONL file manager
 src/tip_intel/
-  cve_blocks.py               # Shared CVE intelligence contract (KEV/SSVC/CVSS/D3FEND) for generator + MCP
+  cve_blocks.py               # Shared CVE intelligence contract (KEV/SSVC/CVSS/EPSS/D3FEND) for generator + MCP
 src/tip_mcp/
   loader.py                   # Loads entity / search indexes; CVE shard scanner
   tools.py                    # MCP tool implementations
@@ -316,6 +319,7 @@ ATT&CK, D3FEND, CWE, and CAPEC content: © The MITRE Corporation. This work is r
 | MITRE CAPEC | [CAPEC Terms of Use](https://capec.mitre.org/about/termsofuse.html) |
 | CISA KEV | [CC0 1.0](https://www.cisa.gov/sites/default/files/licenses/kev/license.txt) |
 | CISA Vulnrichment | [CC0 1.0](https://github.com/cisagov/vulnrichment) |
+| FIRST EPSS | [FIRST EPSS](https://www.first.org/epss/) |
 | OWASP Top 10 | [CC BY-SA 4.0](https://owasp.org/www-project-top-ten/) |
 
 Use of this data does not imply endorsement by NIST, MITRE, CISA, DHS, or OWASP.
@@ -326,4 +330,5 @@ Use of this data does not imply endorsement by NIST, MITRE, CISA, DHS, or OWASP.
 - [NVD](https://nvd.nist.gov/) for CVE data
 - [MITRE](https://www.mitre.org/) for ATT&CK, D3FEND, CWE, and CAPEC frameworks
 - [CISA](https://www.cisa.gov/) for KEV catalog and Vulnrichment data
+- [FIRST](https://www.first.org/epss/) for the Exploit Prediction Scoring System (EPSS)
 - [OWASP](https://owasp.org/) for Top 10 security risk categories
