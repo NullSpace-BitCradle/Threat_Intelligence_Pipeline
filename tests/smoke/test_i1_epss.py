@@ -109,7 +109,9 @@ def test_cve_page_renders_without_epss_file(page: Page) -> None:
 
 def test_worklist_sorts_by_epss_and_shows_score_age(page: Page) -> None:
     """One daily-sourced row and one shard-sourced (weekly) row: the cell shows
-    the score date as visible text and marks the weekly one."""
+    the score date as visible text and marks the weekly one. The clock is fixed
+    inside the fixtures' year, so the dates show as MM-DD in any year."""
+    page.clock.set_fixed_time("2026-09-27T12:00:00Z")
     _serve_weekly_shard(page)
     _serve_daily(page, {"CVE-1999-0001": {"score": 0.03351, "percentile": 0.88243}})
     page.goto(f"{BASE_URL}#/list/CVE-1999-0001,CVE-1999-0095")
@@ -126,6 +128,20 @@ def test_worklist_sorts_by_epss_and_shows_score_age(page: Page) -> None:
     expect(rows.nth(1).locator("td.worklist-epss")).to_have_text("0.03351 · 09-26")
     table.locator("th", has_text="EPSS").click()  # ascending
     expect(first_id).to_have_text("CVE-1999-0001")
+
+
+def test_worklist_epss_date_shows_year_outside_current_year(page: Page) -> None:
+    """I16 ISC-6 (I1 review LOW): a score date from another year keeps its year."""
+    page.clock.set_fixed_time("2027-01-05T12:00:00Z")
+    _serve_weekly_shard(page)
+    _serve_daily(page, {"CVE-1999-0001": {"score": 0.03351, "percentile": 0.88243}})
+    page.goto(f"{BASE_URL}#/list/CVE-1999-0001,CVE-1999-0095")
+    table = page.locator("#worklist-table table")
+    expect(table).to_be_visible(timeout=TIMEOUT_MS)
+    table.locator("th", has_text="EPSS").click()  # highest first
+    rows = table.locator("tbody tr")
+    expect(rows.nth(0).locator("td.worklist-epss")).to_have_text("0.1 · 2026-09-20 weekly")
+    expect(rows.nth(1).locator("td.worklist-epss")).to_have_text("0.03351 · 2026-09-26")
 
 
 def test_weekly_value_newer_than_daily_wins(page: Page) -> None:

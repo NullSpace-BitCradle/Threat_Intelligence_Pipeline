@@ -840,3 +840,26 @@
 
 .stats-error { color: var(--severity-critical); }
 .worklist-status.worklist-status-error { color: var(--severity-critical); }
+
+/* ===== I16: data freshness line and stale banner ===== */
+.data-freshness {
+    position: fixed; left: 12px; bottom: 10px; z-index: 50;
+    max-width: calc(100vw - 24px);
+    padding: 4px 10px; border-radius: 6px;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 11px;
+}
+.data-freshness summary { cursor: pointer; }
+.data-freshness[open] { color: var(--text-secondary); }
+.data-freshness-list { margin: 6px 0 2px; padding-left: 16px; }
+.data-freshness-list li { margin: 2px 0; }
+.data-freshness-source { font-weight: 600; }
+.data-freshness-list li.is-stale { color: #bb8009; }
+
+.stale-banner {
+    padding: 8px 24px; font-size: 13px; font-weight: 500;
+    background: rgba(187, 128, 9, 0.18); color: #e3b341;
+    border-bottom: 1px solid #bb8009;
+}
+[data-theme="light"] .stale-banner { background: #fff8c5; color: #4d2d00; border-bottom-color: #d4a72c; }
+[data-theme="light"] .data-freshness-list li.is-stale { color: #9a6700; }
