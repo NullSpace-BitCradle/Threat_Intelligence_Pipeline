@@ -50,6 +50,7 @@ RICH_PAYLOAD = {
         "vendorProject": "IETF",
         "product": "HTTP/2",
     },
+    "EPSS": {"score": 0.99999, "percentile": 0.99998, "date": "2026-09-26"},
     "VULNRICHMENT": {
         "ssvcExploitStatus": "active",
         "ssvcAutomatable": "no",
@@ -105,6 +106,7 @@ def test_contract_is_non_empty():
         "cisa_cvss",
         "cvss_version",
         "cvss_source",
+        "epss",
     }
 
 

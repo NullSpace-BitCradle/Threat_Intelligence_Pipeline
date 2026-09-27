@@ -19,7 +19,7 @@ from typing import Optional
 # The cross-seam parity test asserts every name here round-trips producer ->
 # consumer. Relationship-decoration (D3FEND semantics) is applied in place on
 # existing rels and so is tracked separately by the test, not listed here.
-INTEL_FIELDS = ("kev_detail", "ssvc", "cisa_cvss", "cvss_version", "cvss_source")
+INTEL_FIELDS = ("kev_detail", "ssvc", "cisa_cvss", "cvss_version", "cvss_source", "epss")
 
 
 def kev_detail(payload: dict) -> Optional[dict]:
@@ -62,6 +62,22 @@ def cisa_cvss(payload: dict) -> Optional[dict]:
     if isinstance(cisa, dict) and cisa:
         return cisa
     return None
+
+
+def _probability(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0.0 <= value <= 1.0
+
+
+def epss_block(payload: dict) -> Optional[dict]:
+    """FIRST EPSS {score, percentile, date}, or None. A value without its
+    score date is dropped: a score without a date is misleading."""
+    epss = payload.get("EPSS")
+    if not isinstance(epss, dict):
+        return None
+    score, pct, date = epss.get("score"), epss.get("percentile"), epss.get("date")
+    if not (_probability(score) and _probability(pct) and isinstance(date, str) and date):
+        return None
+    return {"score": score, "percentile": pct, "date": date}
 
 
 def cvss_meta(payload: dict) -> dict:
@@ -110,6 +126,9 @@ def enrich(record: dict, payload: dict) -> None:
     cisa = cisa_cvss(payload)
     if cisa and "cisa_cvss" not in record:
         record["cisa_cvss"] = cisa
+    epss = epss_block(payload)
+    if epss and "epss" not in record:
+        record["epss"] = epss
     for key, value in cvss_meta(payload).items():
         record.setdefault(key, value)
     # D3FEND semantics decorate the MCP record's flat rels list. The generator's
