@@ -25,6 +25,7 @@ EPSS_FILE = "**/data/epss_curated.json"
 SHARDS = "**/database/CVE-*.jsonl.gz"
 INDEX_FILE = "**/data/entity_index.json"
 SHARD_ONLY_CVE = "CVE-1999-0095"
+CURATED_CVE = "CVE-2023-44487"
 
 
 def _daily(scores: dict, date: str = "2026-09-26") -> str:
@@ -48,12 +49,15 @@ def _serve_sources(page: Page, weekly: bool = False) -> None:
     carries EPSS since the first weekly run with I1 (2026-09-27), and the site
     rightly prefers the newer of the two, which would otherwise override the
     routed daily fixture. With weekly=True, CVE-1999-0095 gets a weekly
-    value dated 2026-09-20 in its shard."""
+    value dated 2026-09-20 in its shard, and the curated CVE-2023-44487 the
+    same value in the entity index, which is where a curated page reads it."""
 
     def index_handler(route: Route) -> None:
         doc = json.loads(route.fetch().body())
-        for entity in doc.get("entities", {}).values():
+        for entity_id, entity in doc.get("entities", {}).items():
             entity.pop("epss", None)
+            if weekly and entity_id == CURATED_CVE:
+                entity["epss"] = {"score": 0.1, "percentile": 0.2, "date": "2026-09-20"}
         route.fulfill(status=200, content_type="application/json", body=json.dumps(doc))
 
     def shard_handler(route: Route) -> None:
@@ -115,6 +119,16 @@ def test_weekly_shard_value_without_daily_file(page: Page) -> None:
     _serve_weekly_shard(page)
     _no_daily(page)
     page.goto(f"{BASE_URL}#/cve/{SHARD_ONLY_CVE}")
+    main = page.locator("#result-main")
+    expect(main).to_contain_text("EPSS 0.1", timeout=TIMEOUT_MS)
+    expect(main).to_contain_text("2026-09-20 (weekly)")
+
+
+def test_curated_page_reads_weekly_value_from_the_index(page: Page) -> None:
+    """A curated CVE takes its weekly EPSS from the entity index, not a shard."""
+    _serve_weekly_shard(page)
+    _no_daily(page)
+    page.goto(f"{BASE_URL}#/cve/{CURATED_CVE}")
     main = page.locator("#result-main")
     expect(main).to_contain_text("EPSS 0.1", timeout=TIMEOUT_MS)
     expect(main).to_contain_text("2026-09-20 (weekly)")
