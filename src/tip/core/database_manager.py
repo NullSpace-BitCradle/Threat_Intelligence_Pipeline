@@ -25,6 +25,7 @@ from tip.utils.atomic_io import write_reference_db, count_records, count_groups
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
+from tip.core.epss_processor import EPSSProcessor, count_epss
 
 config = get_config()
 config.setup_logging()
@@ -42,6 +43,9 @@ class DatabaseManager:
     def __init__(self):
         self.config = config
         self.logger = get_logger('database_manager')
+        # One EPSS processor per manager: the bulk file is fetched once per
+        # run and the CVE step reuses the same snapshot.
+        self.epss_processor = EPSSProcessor()
         
         # Database configurations
         self.databases = {
@@ -79,6 +83,11 @@ class DatabaseManager:
                 'url': config.get('database.groups.url'),
                 'file': config.get_database_path('groups'),
                 'processor': self._update_groups_database
+            },
+            'epss': {
+                'url': config.get('database.epss.url'),
+                'file': config.get_database_path('epss'),
+                'processor': self._update_epss_database
             }
         }
     
@@ -446,6 +455,12 @@ class DatabaseManager:
         stix_data = apt_processor.download()
         return apt_processor._process_stix_data(stix_data)
 
+    def _update_epss_database(self) -> None:
+        """Fetch EPSS and publish the curated-tier file. The processor owns
+        the write (compact JSON, floor on the bulk row count); raises on any
+        failure so update_database reports it and keeps the existing file."""
+        self.epss_processor.write_curated(self.epss_processor.fetch())
+
     def _save_database(
         self,
         data: Dict[str, Any],
@@ -473,6 +488,9 @@ class DatabaseManager:
                     zip_file = str(Path(tmp) / f"{db_name}_data.zip")
                     self._download_file(db_config['url'], zip_file)
                     data = db_config['processor'](zip_file)
+            elif db_name == 'epss':
+                db_config['processor']()
+                return True
             else:
                 data = db_config['processor']()
 
@@ -494,7 +512,7 @@ class DatabaseManager:
         results = {}
         
         # Update databases in dependency order
-        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment', 'groups']
+        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment', 'groups', 'epss']
         
         for db_name in update_order:
             self.logger.info(f"Updating {db_name} database...")
@@ -523,7 +541,7 @@ class DatabaseManager:
                         data = json.load(f)
                     status[db_name] = {
                         'exists': True,
-                        'entries': len(data),
+                        'entries': count_epss(data) if db_name == 'epss' else len(data),
                         'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
                     }
                 except Exception as e:

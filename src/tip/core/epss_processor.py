@@ -132,6 +132,9 @@ class EPSSProcessor:
         self.url: str = config.get('database.epss.url', DEFAULT_URL)
         self.db_path: str = config.get('database.epss.file', DEFAULT_FILE)
         self.snapshot: Optional[EPSSSnapshot] = None
+        # A failed fetch is kept so a second caller in the same run gets the
+        # same error instead of a second download.
+        self.fetch_error: Optional[Exception] = None
 
     @property
     def entity_index_path(self) -> Path:
@@ -141,6 +144,16 @@ class EPSSProcessor:
         """Download and parse the bulk file; later calls reuse the snapshot."""
         if self.snapshot is not None:
             return self.snapshot
+        if self.fetch_error is not None:
+            raise self.fetch_error
+        try:
+            self.snapshot = self._download()
+        except Exception as e:
+            self.fetch_error = e
+            raise
+        return self.snapshot
+
+    def _download(self) -> EPSSSnapshot:
         context = create_api_context("download_epss", self.url)
         try:
             self.logger.info(f"Downloading EPSS bulk file from {self.url}")
@@ -153,7 +166,6 @@ class EPSSProcessor:
         self.logger.info(
             f"Parsed EPSS {snap.model_version} scored {snap.score_date}: {snap.row_count} CVEs"
         )
-        self.snapshot = snap
         return snap
 
     def build_curated(self, snap: EPSSSnapshot) -> Dict[str, Any]:

@@ -39,6 +39,8 @@ class PipelineOrchestrator:
         # Initialize components
         self.db_manager = DatabaseManager()
         self.cve_processor = CVEProcessor()
+        # One EPSS fetch per run, shared by the database step and CVE step.
+        self.cve_processor.epss_processor = self.db_manager.epss_processor
     
     @performance_timer("full_pipeline")
     def run_full_pipeline(self, force_update: bool = False) -> Dict[str, Any]:
@@ -89,6 +91,10 @@ class PipelineOrchestrator:
             log_info("Step 4: Generating entity index...")
             self._generate_entity_index()
 
+            # Step 5: the curated tier may have changed with the new index;
+            # republish the EPSS curated file from this run's snapshot.
+            self._refresh_epss_curated()
+
             # Generate final summary
             summary = self._create_summary()
             log_info("Pipeline completed successfully")
@@ -133,6 +139,29 @@ class PipelineOrchestrator:
         except Exception as e:
             log_error(f"Entity index generation failed: {e}")
             self.results['entity_index'] = {
+                'status': 'failed', 'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+
+    def _refresh_epss_curated(self) -> None:
+        """Rewrite epss_curated.json against the entity index just written.
+
+        Uses the snapshot the database step fetched; no second download. When
+        there is no snapshot the epss database step already failed and the
+        run is red, so there is nothing to refresh.
+        """
+        epss = self.db_manager.epss_processor
+        if epss.snapshot is None or self.results.get('entity_index', {}).get('status') != 'success':
+            return
+        try:
+            count = epss.write_curated(epss.snapshot)
+            self.results['epss_curated'] = {
+                'status': 'success', 'curated_count': count,
+                'timestamp': datetime.now().isoformat()
+            }
+        except Exception as e:
+            log_error(f"EPSS curated refresh failed: {e}")
+            self.results['epss_curated'] = {
                 'status': 'failed', 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }
@@ -338,6 +367,12 @@ class PipelineOrchestrator:
                 step['enrichment_failed'] = stats.get('failed', 0)
                 # Capped so a mass failure cannot bloat the summary file.
                 step['enrichment_failed_ids'] = list(stats.get('failed_ids', []))[:100]
+            epss_error = getattr(self.cve_processor, 'last_epss_error', None)
+            if epss_error:
+                # Records were written without EPSS: real progress, not clean.
+                step['epss_error'] = epss_error
+                if success:
+                    step['status'] = 'partial'
             self.results['cve_processing'] = step
             
             if success:
