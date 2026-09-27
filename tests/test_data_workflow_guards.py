@@ -5,6 +5,7 @@ step pushes only when the local branch is exactly one new data commit on top
 of origin/main. Parsed as text (no YAML dependency); actionlint validates the
 syntax separately.
 """
+import json
 import re
 from pathlib import Path
 
@@ -299,3 +300,16 @@ def test_actions_stay_sha_pinned(name):
         m = re.search(r"uses:\s*(\S+)", line)
         if m:
             assert re.search(r"@[0-9a-f]{40}$", m.group(1)), line
+
+
+@pytest.mark.parametrize("name", DATA_WORKFLOWS)
+def test_commit_step_stages_the_change_log(name):
+    """I8: the change log is written under docs/data, which both commit steps
+    stage and diff, so it publishes with the data it describes and only from
+    a run that exited 0."""
+    config = json.loads((WORKFLOWS.parents[1] / "config.json").read_text())
+    log = Path(config["files"]["changes"])
+    assert log.parts[:2] == ("docs", "data") and log.name == "changes.json.gz"
+    step = (WORKFLOWS / name).read_text().split("- name: Commit and push if data changed", 1)[1]
+    assert "git add docs/data docs/database lastUpdate.txt" in step
+    assert "git diff --cached --quiet -- docs/data docs/database" in step

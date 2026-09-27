@@ -31,6 +31,8 @@ def test_wrappers_delegate_to_impls(served):
     assert server.get_defenses(cve_id="CVE-2002-0367")["ok"] is True
     assert server.get_defenses()["error"]["code"] == "bad_param"
     assert server.kev_status("CVE-2002-0367")["data"]["in_kev"] is True
+    assert server.recent_changes()["meta"]["limit"] == 50
+    assert server.recent_changes(type="nope")["error"]["code"] == "bad_param"
 
 
 def test_data_dir_resolution(monkeypatch, tmp_path):

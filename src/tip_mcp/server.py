@@ -1,7 +1,7 @@
 """MCP server entry point for TIP.
 
 Registers lookup_entity, pivot_from_entity, search_threat_intel,
-build_attack_chain, get_defenses, and kev_status with the mcp SDK's MCPServer (mcp 2.x; FastMCP in 1.x) over stdio. Requires the `mcp`
+build_attack_chain, get_defenses, kev_status, and recent_changes with the mcp SDK's MCPServer (mcp 2.x; FastMCP in 1.x) over stdio. Requires the `mcp`
 package pinned in requirements-mcp.txt.
 """
 
@@ -16,11 +16,13 @@ from mcp.server.mcpserver import MCPServer
 from .loader import IndexLoader, IndexNotLoadedError
 from .tools import (
     DEFAULT_CHAIN_LIMIT,
+    DEFAULT_CHANGES_LIMIT,
     build_attack_chain_impl,
     get_defenses_impl,
     kev_status_impl,
     lookup_entity_impl,
     pivot_from_entity_impl,
+    recent_changes_impl,
     search_threat_intel_impl,
 )
 
@@ -145,6 +147,29 @@ def kev_status(cve_id: str) -> dict[str, Any]:
     with in_kev false and null KEV fields. A malformed CVE id is bad_param.
     """
     return kev_status_impl(_loader, cve_id)
+
+
+@mcp.tool(structured_output=True)
+def recent_changes(
+    entity_id: Optional[str] = None,
+    type: Optional[str] = None,
+    limit: int = DEFAULT_CHANGES_LIMIT,
+) -> dict[str, Any]:
+    """Report what changed in TIP's data over the last 30 days.
+
+    Events are observed by the pipeline run to run, newest first, each with
+    date, type, cve, before, after, and related ids (cwe, technique,
+    apt_group, and KEV vendor and product). type is one of kev_added,
+    kev_removed, ssvc_exploitation_changed, epss_jump (a move of 0.1 or a
+    crossing of 0.5 in EPSS, curated CVEs only), cvss_changed (curated CVEs),
+    curated_added, curated_removed. entity_id keeps only events whose CVE or
+    related ids, vendor, or product match it (case-insensitive), so a CWE,
+    technique, APT group id, or vendor name works as a watch. Capped at limit
+    (default 50); meta.total has the full count. When the log hit its event
+    cap, meta.truncated counts the dropped older events and meta.note says
+    so. No change log yet returns ok with no events and meta.note.
+    """
+    return recent_changes_impl(_loader, entity_id, type, limit)
 
 
 def main() -> None:

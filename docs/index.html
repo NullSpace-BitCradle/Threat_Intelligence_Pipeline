@@ -26,6 +26,12 @@
 
     <a class="worklist-link" href="#/list">Build a triage worklist from a list of IDs →</a>
 
+    <div class="feed-links">
+        <a class="feed-link" id="link-changes" href="#/changes">What changed</a>
+        <a class="feed-link" id="link-watching" href="#/watching">Watching<span id="watch-count"></span></a>
+    </div>
+    <div class="watch-summary" id="watch-summary"></div>
+
     <div class="stats-bar" id="stats-bar"></div>
 
     <div class="quick-access">
@@ -101,11 +107,28 @@
     </div>
 </div>
 
+<!-- ===== CHANGES / WATCHING PAGE (I7, I8) ===== -->
+<div id="page-feed" class="hidden">
+    <div class="top-bar">
+        <div class="top-bar-brand" id="brand-home-feed">TIP</div>
+        <div class="worklist-title" id="feed-title">What changed</div>
+        <div class="feed-nav">
+            <a class="feed-link" href="#/changes">What changed</a>
+            <a class="feed-link" href="#/watching">Watching</a>
+        </div>
+        <div class="top-bar-actions">
+            <button class="icon-btn" id="btn-theme-feed" title="Toggle theme">&#9790;</button>
+        </div>
+    </div>
+    <div class="worklist-page" id="feed-body"></div>
+</div>
+
 <script src="vendor/d3-7.9.0.min.js"></script>
 <script src="js/entity-system.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/results.js"></script>
 <script src="js/worklist.js"></script>
+<script src="js/watch.js"></script>
 <script src="js/app.js"></script>
 <script src="js/freshness.js"></script>
 

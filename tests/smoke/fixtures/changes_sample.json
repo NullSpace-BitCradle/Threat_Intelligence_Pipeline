@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "window_days": 30,
+  "since": "2026-09-01",
+  "events": [
+    {"date": "2026-09-26", "type": "kev_added", "cve": "CVE-2023-44487", "before": null,
+     "after": {"date_added": "2026-09-26", "due_date": "2026-10-17", "ransomware": "Unknown"},
+     "related": {"vendor": "IETF", "product": "HTTP/2", "cwe": ["CWE-400", "CWE-664"], "technique": ["T1499"], "apt_group": ["G0016"]}},
+    {"date": "2026-09-25", "type": "ssvc_exploitation_changed", "cve": "CVE-2024-9999", "before": "poc", "after": "active",
+     "related": {"cwe": ["CWE-79"]}},
+    {"date": "2026-09-24", "type": "epss_jump", "cve": "CVE-2026-4321", "before": 0.02, "after": 0.61,
+     "related": {"technique": ["T1190"]}},
+    {"date": "2026-09-20", "type": "cvss_changed", "cve": "CVE-2023-44487", "before": 5.3, "after": 7.5,
+     "related": {"vendor": "IETF", "product": "HTTP/2", "cwe": ["CWE-400", "CWE-664"], "technique": ["T1499"], "apt_group": ["G0016"]}},
+    {"date": "2026-09-18", "type": "curated_added", "cve": "CVE-2025-1111", "before": false, "after": true,
+     "related": {"cwe": ["CWE-22"]}},
+    {"date": "2026-09-10", "type": "kev_removed", "cve": "CVE-2019-0001",
+     "before": {"date_added": "2021-11-03", "due_date": "2022-05-03"}, "after": null,
+     "related": {"vendor": "Acme", "product": "Widget"}},
+    {"date": "2026-09-05", "type": "curated_removed", "cve": "CVE-2020-0002", "before": true, "after": false,
+     "related": {"cwe": ["CWE-79"]}}
+  ]
+}

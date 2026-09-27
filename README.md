@@ -24,10 +24,11 @@ As of 2026-09-26:
 - 1,726 CISA KEV entries tracked with daily refresh
 - Fail-closed by design, and loud about it: a failed, degraded, or partial pipeline step exits non-zero so nothing publishes, and a failed data run or data past its expected age opens a GitHub issue that closes itself on recovery; reference-database writes are atomic and refuse to shrink an existing file below half its record count; shards write atomically with deterministic gzip
 - Fully automated: daily reference database refresh, weekly full CVE pipeline, a unit-test + mypy gate on every push to `main` and every pull request, a smoke gate on every push touching the site, plus a daily smoke canary against the deployed site
-- MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
+- MCP server Phase B live (all 6 planned tools, including attack chain, defenses, and KEV status, plus `recent_changes` for the change log) with JSONL shard fallback, so any ingested CVE is queryable even outside the curated graph; CVE lookups now carry full KEV detail, CISA SSVC decision, CISA CVSS override, CVSS provenance, and D3FEND relationship semantics through a single shared contract used by both the pipeline and the MCP
 - Web triage: a worklist mode (paste a list of IDs, capped at 25, for one sortable cohort table across CVSS / EPSS / KEV / ransomware / SSVC / due date), plus KEV / ransomware / SSVC / EPSS / CISA-override badges and clickable references on CVE pages
 - Technique links name their source (I21): MITRE CTID's analyst mappings for KEV CVEs (official), the CWE chain (derived), an inherited parent CWE (derived, flagged), or one exploitation technique inferred from the CVSS vector (inferred) when nothing else gives any. This reaches the published site with the next weekly run, which rewrites the shards and the index; until then the site shows chain links only. Measured on CVE-2024 re-derived with the I29 approximation (probe in the I21 record, MASTER_PLAN I21): technique coverage 71.8% to 90.5% of records, of which 18.6 points are inferred links (7,319 CVEs), 0.2% CTID and the rest the chain as before
-- 708 unit tests plus 73 Playwright smoke tests passing; mypy is clean across all 32 source files
+- What changed and watchlists (I7, I8): every data run records what it observed changing (KEV adds and removals, SSVC exploitation, EPSS jumps, CVSS, the curated set) in a 30-day log, `docs/data/changes.json.gz`; the site lists it, lets a reader watch CVEs, CWEs, techniques, APT groups, and KEV vendors and products, and shows the changes that touch them. The log starts with the first data run after merge
+- 803 unit tests plus 101 Playwright smoke tests passing; mypy is clean across all 33 source files
 
 Counts move on their own: the pipeline auto-commits fresh data daily and weekly. The development plan with status of every item lives in [Plans/MASTER_PLAN.md](Plans/MASTER_PLAN.md). A summary is in the [Roadmap](#roadmap) section below.
 
@@ -88,6 +89,8 @@ Features:
 - Interactive relationship graph; click any node to navigate
 - **Worklist / triage mode** (`#/list`): paste a list of IDs and get one sortable table across the cohort (CVSS, EPSS, KEV, ransomware use, SSVC exploit status, and remediation due date) with a shareable URL
 - **EPSS** on CVE pages and in the worklist: FIRST's exploitation probability with its percentile and score date. The daily curated file wins over the weekly shard value, and the date says which one you are looking at
+- **Watchlist** (I7): a Watch button on every CVE, CWE, technique, and APT group page, and on the KEV vendor and product in a CVE's KEV block. The watchlist lives in this browser only (`localStorage` key `tip-watchlist`), is validated on every read, and a corrupt value reads as empty instead of breaking the page
+- **What changed** (`#/changes`, I8): every change the data runs observed in the last 30 days, newest first, filterable by type (`#/changes/<type>`); **Watching** (`#/watching`) lists your watched entities and only the changes that touch them, and the landing page says how many landed this week. See [Change log](#change-log-what-changed)
 - **Data freshness** on every page: "Data as of <date>" with a per-source breakdown on expand, and an amber banner naming any source older than it should be (see [Data freshness and failure alerting](#data-freshness-and-failure-alerting))
 - Investigation pinning with JSON export
 - Dark and light theme
@@ -163,7 +166,7 @@ Four automated workflows keep the code honest, the data fresh, and the site work
 | Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) plus `mypy` |
 | Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, the MITRE CTID KEV mappings, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
 | Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
-| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 73-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
+| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 101-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
 
 The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Both data workflows pass the built-in `GITHUB_TOKEN` to the pipeline step so the CTID tree listing is not rate limited per IP; it is sent as a request header only. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; there is no branch protection configured yet, so these are CI gates a maintainer checks before merging, not enforced required checks.
 
@@ -183,6 +186,27 @@ Runs fail closed, so the remaining risk is silent staleness. Three pieces cover 
 | Any source in the deployed `freshness.json` is past its threshold, or the file cannot be read | `pipeline-stale` | `Published data is stale` | the daily 07:00 UTC smoke canary; later days comment | the first canary that finds every source fresh |
 
 The stale canary is what catches runs that never happened at all (a disabled schedule, an Actions outage). It alerts only when the workflow runs from `main`. The repository has no watchers, so every new alert and every repeat comment starts with an @mention of the repository owner (`github.repository_owner`, passed through `env:` and used only when it is a valid GitHub login); recovery comments carry no mention. Labels are created idempotently on first use. In the data workflows the script never fails the job: any alerting error is logged as a workflow warning and it exits 0. The canary is the opposite: when it cannot alert (bad token, missing permission, Issues disabled, API outage) it prints an error and exits 1, so the smoke job goes red; stale data it did alert on exits 0. `issues: write` is granted only on the three jobs that alert (`update`, `pipeline`, `smoke-live`), and every workflow value reaches the script through `env:`, never through an expression inside a `run:` block. One expected false alarm: a merge between 06:00 and 07:00 UTC, before the first run that writes `freshness.json`, makes the canary open a stale issue that the next day's canary closes.
+
+### Change log (what changed)
+
+Each data run compares the state it is about to replace with the state it wrote and appends what changed to `docs/data/changes.json.gz` (gzipped JSON, read in the browser with `DecompressionStream`, like the CVE shards). The data files are replaced in place, so the pipeline snapshots the published state of each source in memory before any step overwrites it; the workflows fast-forward to `main` first, so that is the last published state. Nothing reads git history.
+
+| Event type | Source | When |
+|---|---|---|
+| `kev_added`, `kev_removed` | CISA KEV (daily) | A CVE enters or leaves the catalog; `after` (or `before`) carries date added, due date, and ransomware use |
+| `ssvc_exploitation_changed` | CISA Vulnrichment (daily) | The SSVC exploitation value changes (`poc` to `active`), or a CVE gets its first decision and it is `active` (a first `none` or `poc` is the daily norm for newly enriched CVEs and is not an event) |
+| `epss_jump` | `epss_curated.json` (daily and weekly) | A curated CVE's EPSS moves by 0.1 or more, or crosses 0.5 either way |
+| `cvss_changed` | Entity index (weekly) | A curated CVE's CVSS score changes |
+| `curated_added`, `curated_removed` | Entity index (weekly) | A CVE joins or leaves the curated graph |
+
+Every event has `date` (the run date, UTC), `type`, `cve`, `before`, `after`, and `related`: the CVE's CWEs, techniques, and APT groups from the entity index, and its KEV vendor and product, so a watch on any of them matches. A CVE outside the curated graph carries only what KEV knows about it until a weekly run curates it; that run then fills the missing CWE, technique, and APT group ids on every event for the CVE still in the window (never overwriting ids already there), so a CWE watch matches the earlier "Entered KEV" too.
+
+Rules the log keeps:
+- **Observed facts only.** A source with no previous file or an empty one adds nothing. A partial previous file (under 90% of the new record count and more than 500 records short, as when a half-built database is rebuilt in full) adds no "added" events; the 500-record slack lets a small set such as the curated tier grow by a normal week (1,728 to 1,950) and still report its additions. Symmetrically, a source whose new record count is under 90% of the previous one adds no removal events (`kev_removed`, `curated_removed`) and logs a warning, since a set that shrank that far is more likely a bad build than news. Changes on records present in both states are always recorded, so a first run or a rebuild never floods the log.
+- **Successful steps only.** A source adds events only when its step succeeded and wrote fresh data, the same rule `freshness.json` uses; a failed run publishes nothing at all.
+- **Bounded.** Events are merged with the existing log, deduped on (date, type, cve) to the day's net change, and pruned to the last 30 days. Two backstops follow: at most 6,500 events are kept, newest first (within a day KEV and SSVC events outrank EPSS, CVSS, and curated churn, so churn is cut first), and then whole days are dropped, oldest first, while the gzipped file is over 150,000 bytes. When either drops events, the file carries `truncated` (how many dropped events are still inside the window), `truncated_through` (the newest date among them), and `truncated_days` (the count per date, so the total stays honest when the log sits at the cap for weeks); the site and `recent_changes` say so. Measured on the stacked worst case (a replay of the 2026-09-20 to 2026-09-27 data commits, a heavy synthetic EPSS week, 30 days of first `active` SSVC decisions, and an EPSS model release moving every curated CVE): 3,293 events and 85 KB gzipped, so neither backstop fires; it is a committed test fixture.
+- **Deterministic and atomic.** Sorted keys, fixed gzip header, one atomic replace; an unchanged log is not rewritten. Writing the log is not a pipeline step: a failure is logged in `results/update_summary.json` and never turns a run red.
+- **Known limit: EPSS on a day with two runs.** A jump is judged within each run. When both data runs change the curated EPSS file on the same UTC day, their `epss_jump` events for a CVE merge to the day's net change without the threshold being checked again, so the day can show a net move under 0.1, and two moves under 0.1 that add up to a jump are not recorded.
 
 ## MCP server (optional)
 
@@ -277,10 +301,11 @@ docs/
     entity-system.js          # Entity index, search, data lookup helpers
     results.js                # Result page rendering (header, tabs, summary cards)
     worklist.js               # Worklist / triage mode (sortable cohort table)
+    watch.js                  # Watchlist, What changed and Watching views (I7, I8)
     freshness.js              # "Data as of" line and stale-data banner
     graph.js                  # D3 force-directed relationship graph
   vendor/                      # d3 7.9.0, pinned and served same-origin (CSP script-src 'self')
-  data/                       # Reference databases and freshness.json (auto-updated)
+  data/                       # Reference databases, freshness.json, changes.json.gz (auto-updated)
   database/                   # CVE database by year (auto-updated)
 ```
 
@@ -301,7 +326,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 708 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the alert script, and the workflow guards, plus 73 Playwright smoke tests; mypy is clean across all 32 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 803 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the change log, the alert script, and the workflow guards, plus 101 Playwright smoke tests; mypy is clean across all 33 source files. Unit tests and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
 
 ## Roadmap
 
@@ -324,6 +349,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | Always-latest MITRE sources | 2026-06-11 | ATT&CK STIX de-pinned (was frozen at v16.1); techniques refreshed to v19.1; dead XLSX config removed; CodeQL alerts at zero |
 | Enrichment direction decided | 2026-06-11 | CVE2CAPEC adoption rejected (P11 closed); enrichment stays in-house; CWE-gap closure tracked as I21 |
 | P9.5 surface-gap closure | 2026-06-20 | MCP now passes full KEV/SSVC/CVSS/D3FEND detail (I22); schema-driven shared contract `tip_intel.cve_blocks` with cross-seam parity test (I24); web triage badges + clickable references (I23); worklist/triage mode (I28); graph node-label and `/health` 404 fixes (I25/I26) |
+| I21 technique coverage | 2026-09-27 | MITRE CTID KEV mappings (official) and one technique inferred from the CVSS vector (inferred), each link labeled by source and tier; PR #11 |
 | P10 MCP Phase B | 2026-09-26 | `build_attack_chain`, `get_defenses`, `kev_status` complete the six-tool MCP surface; project `.mcp.json`; recorded CVE-2023-44487 demo in `src/tip_mcp/DEMO.md` |
 
 ### Next
@@ -337,7 +363,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | Phase | Item | Notes |
 |-------|------|-------|
 | P14 | Pipeline observability and hardening | Run summaries, data-quality checks; failure alerting and the freshness banner (I16) shipped in PR #10 |
-| P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 (technique coverage through CTID and an inferred tier) is in review |
+| P15 | Improvements grab-bag | Promoted item by item from the master plan; I21 shipped in PR #11; I7 (watchlists) and I8 (what changed) are in review |
 
 P11 (CVE2CAPEC parity check) closed 2026-06-11 by decision: enrichment stays in-house. P12 (ctibutler) deferred indefinitely per its conditional.
 

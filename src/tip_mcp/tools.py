@@ -1223,3 +1223,81 @@ def kev_status_impl(loader: IndexLoader, cve_id: str) -> dict:
             f"{cid} is not in the entity graph or the shards; KEV status is from the catalog only.",
         )
     return ok_response(data, meta=meta)
+
+
+# I8: recent change events from changes.json.gz. Read-only; the pipeline
+# writes the log. Kept in step with tip.core.change_log.EVENT_TYPES by test.
+CHANGE_EVENT_TYPES = (
+    "kev_added",
+    "kev_removed",
+    "ssvc_exploitation_changed",
+    "epss_jump",
+    "cvss_changed",
+    "curated_added",
+    "curated_removed",
+)
+DEFAULT_CHANGES_LIMIT = 50
+_RELATED_ID_KEYS = ("cwe", "technique", "apt_group")
+
+
+def _event_touches(ev: dict, want: str) -> bool:
+    """True when the event's CVE or any related id, vendor, or product is
+    ``want`` (compared case-insensitively)."""
+    if ev["cve"].lower() == want:
+        return True
+    related = ev.get("related") or {}
+    for key in ("vendor", "product"):
+        if isinstance(related.get(key), str) and related[key].strip().lower() == want:
+            return True
+    for key in _RELATED_ID_KEYS:
+        ids = related.get(key)
+        if isinstance(ids, list) and any(isinstance(i, str) and i.lower() == want for i in ids):
+            return True
+    return False
+
+
+def recent_changes_impl(
+    loader: IndexLoader,
+    entity_id: Optional[str] = None,
+    type: Optional[str] = None,
+    limit: int = DEFAULT_CHANGES_LIMIT,
+) -> dict:
+    """Recent change events, newest first, optionally only those touching
+    entity_id and only of one event type. A missing or unreadable log is ok
+    with no events and meta.note saying why, as kev_status does without
+    kev_db.json."""
+    if entity_id is not None and (not isinstance(entity_id, str) or not entity_id.strip()):
+        return error_response(ErrorCode.BAD_PARAM, "entity_id must be a non-empty string when given")
+    if type is not None and type not in CHANGE_EVENT_TYPES:
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"type {type!r} is not a change event type",
+            hint="One of: " + ", ".join(CHANGE_EVENT_TYPES) + ".",
+        )
+    bad = _bad_limit(limit)
+    if bad is not None:
+        return bad
+
+    log = loader.changes
+    meta: dict = {"source": "changes.json.gz", "limit": limit}
+    if log is None:
+        meta.update(count=0, total=0, note=f"No change log: {loader.changes_error}.")
+        return ok_response({"events": []}, meta=meta)
+    events = log["events"]
+    if type is not None:
+        events = [e for e in events if e["type"] == type]
+    if entity_id is not None:
+        want = normalize_entity_id(entity_id).lower()
+        events = [e for e in events if _event_touches(e, want)]
+    meta.update(
+        count=min(len(events), limit), total=len(events),
+        since=log["since"], window_days=log["window_days"],
+    )
+    if log.get("truncated"):
+        meta["truncated"] = log["truncated"]
+        meta["truncated_through"] = log.get("truncated_through")
+        meta["note"] = (
+            f"The log hit its event cap: {log['truncated']} older events on or before "
+            f"{log.get('truncated_through')} were dropped."
+        )
+    return ok_response({"events": _capped(events, limit)}, meta=meta)
