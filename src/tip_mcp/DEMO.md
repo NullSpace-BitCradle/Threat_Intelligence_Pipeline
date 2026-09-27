@@ -63,7 +63,7 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 21 relationships.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-09-26",
+      "date": "2026-09-27",
       "model_version": "v2026.06.15"
     },
     "cvss_version": "3.1",
@@ -190,7 +190,7 @@ pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
 build_attack_chain({"technique_id": "T1499", "limit": 10})
 ```
 
-23 CVEs linked to the technique (each explained by its CWE and CAPEC path; 6 without one), through 3 CAPEC patterns and 5 weaknesses (3 of the 5 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 4 official, 6 derived; of the weaknesses shown: 2 official, 3 derived.
+24 CVEs linked to the technique (each explained by its CWE and CAPEC path; 6 without one), through 3 CAPEC patterns and 5 weaknesses (3 of the 5 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 4 official, 6 derived; of the weaknesses shown: 2 official, 3 derived.
 
 ```json
 {
@@ -492,17 +492,17 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
     "totals": {
       "capecs": 3,
       "cwes": 5,
-      "cves": 23,
+      "cves": 24,
       "defenses": 11
     },
     "cves_without_path": 6,
     "limit": 10,
     "truncated": true,
     "link_tiers": {
-      "derived": 16,
+      "derived": 17,
       "official": 7
     },
-    "note": "6 of the 23 CVEs linked to T1499 have no CWE path to its CAPEC patterns; their via lists are empty."
+    "note": "6 of the 24 CVEs linked to T1499 have no CWE path to its CAPEC patterns; their via lists are empty."
   }
 }
 ```
@@ -882,7 +882,7 @@ In KEV: True; added 2023-10-10, due 2023-10-31, ransomware use Unknown.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-09-26",
+      "date": "2026-09-27",
       "model_version": "v2026.06.15"
     }
   },
