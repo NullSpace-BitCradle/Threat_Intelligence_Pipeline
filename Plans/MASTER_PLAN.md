@@ -35,7 +35,7 @@ ID rules:
 
 ## 2. Executive summary
 
-On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. The next job is to re-capture the MCP demo once the first weekly run writes I29 shards (T10.7) and to start EPSS scoring (I1). After that come failure alerting, the cross-vendor audit before any Partner Network demo, the APT linkage fix and decision, and the CWE-assignment gap.
+On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. EPSS scoring (I1, PR #8) is merged too. The next job is to re-capture the MCP demo once the first weekly run writes I29 and EPSS shards (T10.7). After that come failure alerting, the cross-vendor audit before any Partner Network demo, the APT linkage fix and decision, and the CWE-assignment gap.
 
 ## 3. Current state, measured
 
@@ -84,12 +84,11 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 
 ### 4.1 NOW
 
-- **T10.7** · Re-capture `src/tip_mcp/DEMO.md` after the first weekly run with I29 shards · NOW · the committed demo predates the new shard format, and `scripts/mcp_demo.py --check` will flag the drift · minutes, after the Sunday run
-- **I1** · EPSS scoring (P15) · IN REVIEW (branch `feat/i1-epss`) · adds a fourth severity axis beside CVSS, KEV, and SSVC. Source: the free daily FIRST bulk file (2.5 MB gz, 379,842 CVEs on 2026-09-26). Constraint: the full score set is 12.4 MB as JSON and nearly every score changes daily, so it must not be committed daily (about 1 GB a year of history); shards carry EPSS with its score date and a small daily file covers the curated tier. Built: a fail-closed `epss_processor` (download, header, or row-count floor failure turns the run red and keeps the previous file); the daily run writes `docs/data/epss_curated.json` (measured 95,904 bytes for all 1,728 curated CVEs); the weekly run adds `EPSS {score, percentile, date}` to shard records and the generator adds an `epss` block to curated entities through `tip_intel.cve_blocks`; the site shows EPSS on CVE pages and sorts the worklist by it, preferring the daily file; the MCP adds `epss` to `lookup_entity` and `kev_status`. Layer 2 unchanged (1,728 curated CVEs with and without EPSS on the real shards). Live probe: 379,842 rows, model v2026.06.15, CVE-2023-44487 at 0.99999 · ~1 day
+- **T10.7** · Re-capture `src/tip_mcp/DEMO.md` after the first weekly run with I29 and EPSS shards · NOW · the committed demo predates the new shard format, and `scripts/mcp_demo.py --check` will flag the drift · minutes, after the Sunday run
 
 ### 4.2 NEXT
 
-- **I16 / T14.2** · Failure alerting and freshness banner · NEXT · runs now fail red, so the risk is silent staleness; nothing notifies on a failure or a skip over 36 hours, and the site shows no data age · ~half day
+- **I16 / T14.2** · Failure alerting and freshness banner · NEXT · also show the year in the worklist EPSS date when it is not the current year (I1 review LOW) · runs now fail red, so the risk is silent staleness; nothing notifies on a failure or a skip over 36 hours, and the site shows no data age · ~half day
 - **T10.8** · Cross-vendor (Forge/GPT) audit of P10 and I29 · NEXT · required before any Partner Network demo; blocked until 2026-09-29 by the free Codex quota · ~half day
 - **I30** · APT lookup id mismatch · NEXT, pair with I32 · the processor passes bare technique ids (`1134`) to `lookup_by_techniques`, whose keys are `T1134`, so shard `APT_GROUPS` is always empty · small
 - **I32** · Decide APT linkage · NEXT, maintainer decision · technique-overlap links would tag roughly 60% of CVEs; replace with explicit attribution (ATT&CK campaign or intrusion-set references that cite CVEs) or keep and label it derived · decision first
@@ -165,6 +164,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | (no ID) | Dependabot: `actions/checkout` 7.0.1, `actions/setup-python` 7.0.0 | 2026-09-26 | PR #2, PR #3 |
 | (no ID) | Data runs build on the latest `main` (stale-base conflict) | 2026-09-27 | PR #6 |
 | I29 | NVD-assigned CWEs kept apart from inherited parents across shards, index, site, and MCP; pillars skipped | 2026-09-27 | PR #5 |
+| I1 | EPSS scoring: fail-closed bulk processor with retry and floors, daily curated file (1,728 CVEs, 96 KB), weekly shard enrichment with score date and model, site badge and worklist column, MCP `epss` block; full set never committed | 2026-09-27 | PR #8 |
 
 ## 6. Dropped
 
@@ -228,6 +228,8 @@ Task ISAs for P10, I29, and later work live in the maintainer's private workspac
 ## 11. Decisions log
 
 Append-only, newest first. Older entries are kept verbatim.
+
+- 2026-09-27: I1 EPSS merged as PR #8. The full EPSS set is never committed (it would add about 1 GB a year); a daily curated-tier file and weekly shard enrichment carry it instead. Fail-closed kept over degrade after review: with no carry-forward of prior values, a degraded weekly run would null EPSS on about 395k shard records in one commit. An EPSS failure in a full run aborts before the NVD crawl.
 
 - 2026-09-27: Plan restructured to v2.0. Status set reduced to NOW, NEXT, LATER, PARKED, DONE, DROPPED. The Changelog and Verification sections were folded into the Shipped table; git log is the changelog. P12 marked DROPPED because its conditional can no longer fire. T13.3 collision resolved: the live pipeline trigger became T13.6. New items T10.7, T10.8, and I30 to I33 moved here from private task notes.
 - 2026-09-27: Manual early runs of both data workflows ahead of the weekly schedule. Vulnrichment did a full resync to 188,261 entries (from 2,567) after the truncated-compare fix. The runs exposed a stale-base conflict: a run queued behind the other data run checked out its trigger SHA, so its final rebase conflicted on `lastUpdate.txt`. PR #6 makes both data workflows fast-forward to the latest `main` right after checkout.
