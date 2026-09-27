@@ -9,8 +9,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from tip_mcp.loader import IndexLoader
-from tip_mcp.tools import build_attack_chain_impl, get_defenses_impl, pivot_from_entity_impl
+from tip_intel.link_tiers import CTID_SOURCE, TIER_RANK
+from tip_mcp.loader import IndexLoader, link_provenance
+from tip_mcp.tools import (
+    build_attack_chain_impl,
+    get_defenses_impl,
+    lookup_entity_impl,
+    pivot_from_entity_impl,
+)
 
 STRONG = ("authoritative", "official")
 BIG = 10**9
@@ -18,6 +24,15 @@ BIG = 10**9
 
 def _rel(loader: IndexLoader, eid: str, rel_type: str) -> dict:
     return ((loader.entities.get(eid) or {}).get("rels") or {}).get(rel_type) or {}
+
+
+def _per_link(loader: IndexLoader, eid: str, rel_type: str, tid: str) -> bool:
+    """Whether the graph gives this link its own provenance (I21 link_prov)."""
+    return tid in (_rel(loader, eid, rel_type).get("link_prov") or {})
+
+
+def _link_tier(loader: IndexLoader, eid: str, rel_type: str, tid: str) -> object:
+    return link_provenance(_rel(loader, eid, rel_type), tid)["tier"]
 
 
 def chain_cve_mismatches(loader: IndexLoader) -> list[dict]:
@@ -43,7 +58,6 @@ def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[di
     path is derived, inherited, or unverified. Hop tiers are read from the
     graph, not from the element."""
     out: list[dict] = []
-    tech_cve_tier = _rel(loader, tid, "cve").get("tier")
     cwes = {c["id"]: c for c in chain["cwes"]}
     related = loader.cwe_related_capecs
     for cwe in chain["cwes"]:
@@ -62,7 +76,14 @@ def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[di
         if cwe["tier"] in STRONG and any(h not in STRONG for h in hops):
             out.append({"technique": tid, "kind": "cwe", "id": cwe["id"], "tier": cwe["tier"]})
     for cve in chain["cves"]:
-        hops = [tech_cve_tier]
+        # I21: a CTID or inferred link is labeled by the link alone, and
+        # must carry exactly the graph's provenance for it.
+        link = link_provenance(_rel(loader, tid, "cve"), cve["id"])
+        if _per_link(loader, tid, "cve", cve["id"]):
+            if (cve["tier"], cve["source"]) != (link["tier"], link["source"]):
+                out.append({"technique": tid, "kind": "cve-link", "id": cve["id"], "tier": cve["tier"]})
+            continue
+        hops = [link["tier"]]
         if cve.get("inherited_cwes"):
             hops.append("derived")
         for cwe_id in cve["via_cwes"]:
@@ -91,8 +112,9 @@ def chain_inherited_cwe_violations(loader: IndexLoader) -> list[dict]:
             cve_ent = loader.entities.get(cve["id"]) or {}
             assigned = set(_rel(loader, cve["id"], "cwe").get("ids") or [])
             parents = set(cve_ent.get("cwe_inherited") or [])
+            ctid_link = _per_link(loader, tid, "cve", cve["id"]) and cve.get("link_source") == CTID_SOURCE
             if not set(inh) <= parents or set(inh) & assigned or set(cve["via_cwes"]) != set(inh) \
-                    or cve["tier"] in STRONG:
+                    or (cve["tier"] in STRONG and not ctid_link):
                 bad.append({"technique": tid, "cve": cve["id"], "inherited_cwes": inh})
     return bad
 
@@ -102,19 +124,55 @@ def defense_tier_violations(loader: IndexLoader, cve_id: str, defenses: list[dic
     technique hop (or the CVE's own defend rel) is not."""
     out: list[dict] = []
     key = loader.resolve_entity_key(cve_id)
-    tech_tier: Any = _rel(loader, key, "technique").get("tier") if key else None
     for d in defenses:
         if "direct" in d:
             out.append({"cve": cve_id, "id": d["id"], "problem": "direct flag present"})
         if d["tier"] not in STRONG:
             continue
         own = _rel(loader, key, "defend") if key else {}
-        hops = [tech_tier] if d["via_techniques"] else []
+        # I21: the CVE -> technique hop is read per link from the graph.
+        hops: list[Any] = [_link_tier(loader, key, "technique", t) for t in d["via_techniques"]] if key else []
         if not d["via_techniques"] or d["id"] in (own.get("ids") or []):
-            hops.append(own.get("tier"))
+            hops.append(link_provenance(own, d["id"])["tier"] if own else None)
         if any(h not in STRONG for h in hops):
             out.append({"cve": cve_id, "id": d["id"], "tier": d["tier"]})
     return out
+
+
+def link_label_violations(loader: IndexLoader) -> list[dict]:
+    """I21 (ISC-9): every link the tools report carries the graph's own
+    provenance for that link. A CTID or inferred link never reads as chain
+    derived, and a chain link never reads as CTID or inferred. Checked on
+    lookup_entity and pivot_from_entity for every CVE and technique, on
+    every chain element, and on every CVE-side defense's technique links."""
+    bad: list[dict] = []
+    for eid, ent in loader.entities.items():
+        etype = ent.get("type")
+        if etype not in ("cve", "technique", "defend"):
+            continue
+        rels_out = lookup_entity_impl(loader, eid)["data"]["rels"]
+        for rel in rels_out:
+            want = link_provenance(_rel(loader, eid, rel["rel_type"]), rel["target_id"])
+            if (rel.get("source"), rel.get("tier")) != (want["source"], want["tier"]):
+                bad.append({"tool": "lookup", "id": eid, "target": rel["target_id"], "got": rel.get("tier")})
+        for hit in pivot_from_entity_impl(loader, eid)["data"]:
+            want = link_provenance(_rel(loader, eid, hit["rel_type"]), hit["id"])
+            if (hit.get("source"), hit.get("tier")) != (want["source"], want["tier"]):
+                bad.append({"tool": "pivot", "id": eid, "target": hit["id"], "got": hit.get("tier")})
+        # Chain link fields exist only on an I21 index (older ones answer as before).
+        if etype == "technique" and loader.link_provenance:
+            for cve in build_attack_chain_impl(loader, eid, limit=BIG)["data"]["cves"]:
+                want = link_provenance(_rel(loader, eid, "cve"), cve["id"])
+                if (cve.get("link_source"), cve.get("link_tier")) != (want["source"], want["tier"]):
+                    bad.append({"tool": "chain", "id": eid, "target": cve["id"], "got": cve.get("link_tier")})
+        if etype == "cve":
+            resp = get_defenses_impl(loader, cve_id=eid)
+            for d in resp.get("data") or []:
+                for tl in d.get("technique_links", []):
+                    want = link_provenance(_rel(loader, eid, "technique"), tl["id"])
+                    if (tl.get("source"), tl.get("tier")) != (want["source"], want["tier"]):
+                        bad.append({"tool": "defenses", "id": eid, "target": tl["id"], "got": tl.get("tier")})
+    return bad
 
 
 def all_tier_violations(loader: IndexLoader, cve_ids: "list[str] | None" = None) -> dict:
@@ -146,3 +204,23 @@ def all_tier_violations(loader: IndexLoader, cve_ids: "list[str] | None" = None)
         "chain_violations": chain_bad,
         "defense_violations": def_bad,
     }
+
+
+def body_label_violations(entities: dict) -> list[dict]:
+    """I21 review: a rel body's own source and tier must describe its links,
+    so a reader that ignores link_prov under-claims instead of mislabeling.
+    Every part of the body source (parts joined by " + ") is some link's
+    source, and the body tier is the weakest tier among its links."""
+    bad: list[dict] = []
+    for eid, ent in entities.items():
+        for rel_type, body in (ent.get("rels") or {}).items():
+            if not isinstance(body, dict) or "link_prov" not in body:
+                continue
+            links = [link_provenance(body, t) for t in body.get("ids", [])]
+            sources = [str(p["source"]) for p in links]
+            parts = str(body.get("source")).split(" + ")
+            claims_ok = all(any(src == part or src.startswith(part) for src in sources) for part in parts)
+            weakest = min((p["tier"] for p in links), key=lambda t: TIER_RANK.get(t, -1))
+            if not claims_ok or body.get("tier") != weakest:
+                bad.append({"id": eid, "rel": rel_type, "source": body.get("source"), "tier": body.get("tier")})
+    return bad

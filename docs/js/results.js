@@ -154,9 +154,14 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
             source: 'shard',
             tier: 'shard',
             inherited: inheritedIds,
+            linkProv: {},
             entities: resolved
         };
     }
+    // I21 shards: MITRE CTID analyst mappings and one inferred technique
+    // in their own lists, each entry naming its source.
+    addShardLinkTier(related, payload.TECHNIQUES_CTID, 'official');
+    addShardLinkTier(related, payload.TECHNIQUES_INFERRED, 'inferred');
 
     var shardDetail = {
         description: description,
@@ -332,6 +337,11 @@ function renderEntityHeader(container, entity, related, detail) {
             badge.textContent += ' (' + inhCount + ' inherited)';
             badge.title = inhCount + ' reached only through an inherited parent CWE';
         }
+        const tierNote = linkTierSummary(relData);
+        if (tierNote) {
+            badge.textContent += ' (' + tierNote + ')';
+            badge.title = (badge.title ? badge.title + '; ' : '') + tierNote;
+        }
         badges.appendChild(badge);
     }
 
@@ -358,7 +368,9 @@ function renderSummaryCards(container, entity, related) {
         cards.push({
             label: relCfg.relLabel || relCfg.label,
             value: String(relData.ids.length),
-            detail: relData.source || '',
+            // I21: name the sources the links actually have, never the
+            // body source alone when they differ.
+            detail: linkBreakdown(relData, true) || relData.source || '',
             inherited: inhCount > 0 ? inhCount + ' inherited via parent CWE' : '',
             color: GRAPH_COLORS[relType] || 'var(--text-primary)'
         });
@@ -519,15 +531,28 @@ function renderDetailTabs(container, entity, related, detail) {
                 card.appendChild(badgeHost);
             }
 
+            // I21: a CTID or inferred link has its own provenance.
+            const lp = linkProvOf(relData, relEntity.id);
+            const marker = makeLinkTierBadge(lp, relType);
+            if (marker && !isInherited) {
+                card.classList.add('entity-card-' + lp.tier);
+                badgeHost = document.createElement('span');
+                card.appendChild(badgeHost);
+            }
+
             // Provenance badge
-            if (relData.tier) {
+            const linkTier = (lp && lp.tier) || (relData.defaultProv && relData.defaultProv.tier) || relData.tier;
+            if (linkTier) {
                 const prov = document.createElement('span');
-                prov.className = 'prov-badge prov-' + relData.tier;
-                prov.textContent = relData.tier;
+                prov.className = 'prov-badge prov-' + linkTier;
+                prov.textContent = linkTier;
                 badgeHost.appendChild(prov);
             }
             if (isInherited) {
                 badgeHost.appendChild(makeInheritedBadge(inheritedTooltip(entity, relType, relEntity, detail)));
+            }
+            if (marker) {
+                badgeHost.appendChild(marker);
             }
 
             list.appendChild(card);
@@ -623,6 +648,118 @@ function inheritedTooltip(entity, relType, relEntity, detail) {
     var names = shown.length ? shown.join(', ') : 'an inherited parent weakness';
     return 'Inherited: ' + (cve && cve.id ? cve.id : 'the CVE') + ' reaches this only through parent ' +
         names + ', not through a CWE NVD assigned.';
+}
+
+// ── Per-link provenance (I21) ─────────────────────────────────
+// A technique link from MITRE CTID's KEV analysis is official and carries
+// the analyst's comment; one inferred from the CVSS vector is the lowest
+// tier and names its rule. D3FEND defenses reached only through such a
+// technique carry the same tier. Other links, and every link of an older
+// index or shard, have no per-link entry and render as before.
+
+function linkProvOf(relData, id) {
+    var map = relData && relData.linkProv;
+    return (map && map[id]) || null;
+}
+
+function isCtidProv(prov) {
+    return !!prov && prov.tier === 'official' && String(prov.source || '').indexOf('CTID') !== -1;
+}
+
+// How one link was made: 'CTID' (an analyst mapping), 'via CTID' (a D3FEND
+// defense reached through a CTID technique, derived), 'inferred', or
+// 'chain' for every link without a per-link entry.
+function linkKind(prov) {
+    if (!prov) return 'chain';
+    // Tier first: an inferred rule's text cites its agreement with CTID.
+    if (prov.tier === 'inferred') return 'inferred';
+    if (String(prov.source || '').indexOf('CTID') !== -1) return prov.tier === 'official' ? 'CTID' : 'via CTID';
+    return 'chain';
+}
+
+// "2 chain, 1 inferred" or "3 CTID": the sources a rel type's links
+// actually have, or '' when none has a per-link entry (older data).
+function linkBreakdown(relData, withChain) {
+    var counts = { 'chain': 0, 'CTID': 0, 'via CTID': 0, 'inferred': 0 };
+    var any = false;
+    (relData.ids || []).forEach(function(id) {
+        var prov = linkProvOf(relData, id);
+        if (prov) any = true;
+        counts[linkKind(prov)]++;
+    });
+    if (!any) return '';
+    return ['chain', 'CTID', 'via CTID', 'inferred'].filter(function(k) {
+        return counts[k] > 0 && (withChain || k !== 'chain');
+    }).map(function(k) { return counts[k] + ' ' + k; }).join(', ');
+}
+
+function ctidTooltip(prov, relType) {
+    if (relType !== 'technique' && relType !== 'cve') {
+        return 'Reached through a technique MITRE CTID analysts mapped to the CVE (' + (prov.source || 'CTID') + ').';
+    }
+    var types = Array.isArray(prov.mapping_type) ? prov.mapping_type.map(function(t) {
+        return String(t).replace(/_/g, ' ');
+    }) : [];
+    var text = 'MITRE CTID analyst mapping' + (types.length ? ' (' + types.join(', ') + ')' : '') + '.';
+    if (prov.comment) text += ' ' + prov.comment;
+    return text;
+}
+
+function inferredTooltip(prov, relType) {
+    if (relType !== 'technique' && relType !== 'cve') {
+        return 'Inferred: reached only through a technique inferred from the CVSS vector. A starting point, not a sourced mapping.';
+    }
+    return 'Inferred, not a sourced mapping. ' + (prov.source || 'TIP inference from the CVSS vector') + '.';
+}
+
+function makeLinkTierBadge(prov, relType) {
+    if (!prov) return null;
+    var badge = document.createElement('span');
+    badge.style.cursor = 'help';
+    var kind = linkKind(prov);
+    if (kind === 'CTID' || kind === 'via CTID') {
+        badge.className = 'ctid-badge';
+        badge.textContent = kind;
+        badge.title = ctidTooltip(prov, relType);
+    } else if (prov.tier === 'inferred') {
+        badge.className = 'inferred-badge';
+        badge.textContent = 'inferred';
+        badge.title = inferredTooltip(prov, relType);
+    } else {
+        return null;
+    }
+    return badge;
+}
+
+// "2 CTID, 1 inferred" for a rel type's header badge, or ''.
+function linkTierSummary(relData) {
+    return linkBreakdown(relData, false);
+}
+
+// Add an I21 shard list (TECHNIQUES_CTID or TECHNIQUES_INFERRED) to the
+// synthesized technique rels, marking each id with its own provenance. A
+// CTID statement wins over a chain entry for the same technique.
+function addShardLinkTier(related, list, tier) {
+    if (!Array.isArray(list) || list.length === 0) return;
+    var rel = related.technique;
+    if (!rel) {
+        rel = related.technique = { ids: [], source: 'shard', tier: 'shard', inherited: [], linkProv: {}, entities: [] };
+    }
+    list.forEach(function(entry) {
+        if (!entry || typeof entry !== 'object' || !entry.id) return;
+        var id = String(entry.id).indexOf('T') === 0 ? String(entry.id) : 'T' + entry.id;
+        if (rel.linkProv[id]) return;
+        var prov = { source: entry.source || '', tier: tier };
+        if (Array.isArray(entry.mapping_type)) prov.mapping_type = entry.mapping_type;
+        if (entry.comment) prov.comment = entry.comment;
+        if (entry.rule) prov.rule = entry.rule;
+        rel.linkProv[id] = prov;
+        if (rel.ids.indexOf(id) === -1) {
+            rel.ids.push(id);
+            rel.entities.push(getEntity(id) || { id: id, type: 'technique', name: id });
+        }
+        rel.inherited = rel.inherited.filter(function(x) { return x !== id; });
+    });
 }
 
 function makeInheritedBadge(tooltip) {
@@ -984,6 +1121,12 @@ function renderGraphPanel(panel, entityId, related, entityOverride, detail) {
             if (entity && relData.inherited && relData.inherited.indexOf(relId) !== -1) {
                 item.classList.add('related-item-inherited');
                 item.appendChild(makeInheritedBadge(inheritedTooltip(entity, relType, relEntity, detail)));
+            }
+            // I21: CTID and inferred links get their own marker.
+            const sideMarker = makeLinkTierBadge(linkProvOf(relData, relId), relType);
+            if (sideMarker) {
+                item.classList.add('related-item-tiered');
+                item.appendChild(sideMarker);
             }
 
             section.appendChild(item);

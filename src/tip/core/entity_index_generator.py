@@ -23,6 +23,9 @@ from tip.core.id_normalize import (
     normalize_cwe_id,
     normalize_technique_id,
 )
+from tip.core.ctid_processor import SOURCE as CTID_SOURCE, TIER as CTID_TIER, load_ctid_db
+from tip.core.technique_inference import INFERRED_TIER, ctid_links, extra_technique_links
+from tip_intel.link_tiers import CTID_DEFEND_SOURCE, INFERRED_DEFEND_SOURCE, INFERRED_FAMILY, TIER_RANK
 
 _jsonl = JSONLManager()
 
@@ -163,6 +166,78 @@ def build_cve_entity_record(
     return record
 
 
+def technique_extras(cve_id: str, cve_data: dict, ctid_db: dict | None,
+                     cvss_vector: str | None) -> tuple[list[dict], list[dict]]:
+    """(TECHNIQUES_CTID, TECHNIQUES_INFERRED) for one CVE (I21).
+
+    A shard the I21 processor wrote carries both lists and is used as is,
+    except that CTID mappings in ctid_db.json always win: a CVE CTID maps
+    gets those links and nothing inferred, even when its shard predates the
+    mapping (shards are rewritten weekly, ctid_db.json daily). For an older
+    shard both lists are derived the same way the processor would, from
+    ctid_db.json and the CVSS vector; without ctid_db.json nothing is
+    derived, since inference must not fill a slot CTID may hold.
+    """
+    current = ctid_links(ctid_db.get(cve_id)) if ctid_db is not None else []
+    if "TECHNIQUES_CTID" in cve_data or "TECHNIQUES_INFERRED" in cve_data:
+        if current:
+            return current, []
+        ctid = [t for t in cve_data.get("TECHNIQUES_CTID") or [] if isinstance(t, dict) and t.get("id")]
+        inferred = [t for t in cve_data.get("TECHNIQUES_INFERRED") or [] if isinstance(t, dict) and t.get("id")]
+        return ctid, inferred
+    if ctid_db is None:
+        return [], []
+    extra = extra_technique_links(
+        cve_data.get("TECHNIQUES") or [],
+        cve_data.get("TECHNIQUES_INHERITED") or [],
+        ctid_db.get(cve_id),
+        cvss_vector,
+    )
+    return extra["TECHNIQUES_CTID"], extra["TECHNIQUES_INFERRED"]
+
+
+def _relabel_body(body: dict, chain_prov: dict, per_link: dict) -> None:
+    """Make a rel body's own source and tier describe its links (I21 review),
+    so a reader that ignores link_prov under-claims rather than mislabels.
+
+    With chain links present the body keeps the chain source and takes the
+    weakest tier present; ``default_prov`` then carries the chain label for
+    the ids link_prov does not name, when it differs from the body's. With
+    no chain link, one source gives that source and tier, and several give a
+    source naming each, joined by " + " (inferred rules as one family) at the weakest tier.
+    """
+    chain_ids = [t for t in body["ids"] if t not in per_link]
+    provs = list(per_link.values()) + ([chain_prov] if chain_ids else [])
+    weakest = min((p["tier"] for p in provs), key=lambda t: TIER_RANK.get(t, -1))
+    if chain_ids:
+        body["tier"] = weakest
+        if weakest != chain_prov["tier"]:
+            body["default_prov"] = {"source": chain_prov["source"], "tier": chain_prov["tier"]}
+        return
+    sources = list(dict.fromkeys(str(p["source"]) for p in provs))
+    if len(sources) > 1:
+        ranked = sorted(provs, key=lambda p: -TIER_RANK.get(p["tier"], -1))
+        families = [INFERRED_FAMILY if str(p["source"]).startswith(INFERRED_FAMILY) else str(p["source"])
+                    for p in ranked]
+        body["source"] = " + ".join(dict.fromkeys(families))
+    else:
+        body["source"] = sources[0]
+    body["tier"] = weakest
+
+
+def _ctid_prov(link: dict, with_comment: bool) -> dict:
+    prov: dict = {"source": CTID_SOURCE, "tier": CTID_TIER,
+                  "mapping_type": list(link.get("mapping_type") or [])}
+    if with_comment and link.get("comment"):
+        prov["comment"] = link["comment"]
+    return prov
+
+
+def _inferred_prov(link: dict) -> dict:
+    return {"source": str(link.get("source") or "TIP inference"), "tier": INFERRED_TIER,
+            "rule": link.get("rule")}
+
+
 def _is_layer2(cve_id: str, cve_data: dict, kev_db: dict, vulnrich_db: dict) -> bool:
     """Layer 2 (curated CVE) rule: in KEV, APT-linked, or SSVC exploitation active.
 
@@ -216,6 +291,16 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     def mark_inherited(id_a: str, rel_a: str, id_b: str, rel_b: str) -> None:
         inherited_map[id_a][rel_a].add(id_b)
         inherited_map[id_b][rel_b].add(id_a)
+
+    # Per-link provenance for links whose source differs from the rel
+    # body's (I21): CTID official and inferred technique links, and the
+    # D3FEND defenses reached only through them. Published as each rel
+    # body's additive "link_prov" map, both directions.
+    link_prov: dict[str, dict[str, dict[str, dict]]] = defaultdict(lambda: defaultdict(dict))
+
+    def set_prov(id_a: str, rel_a: str, id_b: str, rel_b: str, prov_a: dict, prov_b: dict) -> None:
+        link_prov[id_a][rel_a][id_b] = prov_a
+        link_prov[id_b][rel_b][id_a] = prov_b
 
     # ── 1. Load CWE database ──────────────────────────────────────
     print("Loading CWE database...")
@@ -354,6 +439,59 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     print("Loading vulnrichment database...")
     vulnrich_db = _load_json(data_dir / "vulnrichment_db.json")
     print(f"  Loaded {len(vulnrich_db)} vulnrichment entries")
+
+    # ── 7b. Load CTID KEV technique mappings (I21) ─────────────────
+    print("Loading CTID KEV mappings...")
+    ctid_db = load_ctid_db(str(data_dir / "ctid_db.json"))
+    print(f"  Loaded CTID mappings for {len(ctid_db) if ctid_db is not None else 0} CVEs")
+    # CTID technique ids the graph has no technique for are not linked;
+    # counted. Checked 2026-09-27: CTID's file is on ATT&CK 16.1, and ATT&CK
+    # 19.2 revoked T1562 and T1562.001 (revoked by T1685) and T1070.001
+    # (revoked by T1685.005).
+    ctid_unknown: set[tuple[str, str]] = set()
+
+    def link_extras(cve_id: str, ctid: list[dict], inferred: list[dict],
+                    reached: dict[str, set[str]]) -> None:
+        """Link CTID and inferred techniques and the D3FEND defenses they
+        reach. ``reached`` maps a defend id to how the chain reached it
+        ("direct", "inherited"). A defense the chain reaches directly keeps
+        the chain label. One reached otherwise through a CTID technique is
+        derived ("CTID technique, then D3FEND": a composition nobody
+        asserted about the CVE), and one reached only through an inferred
+        technique is inferred."""
+        for kind, links_ in (("ctid", ctid), ("inferred", inferred)):
+            for t in links_:
+                tech_id = normalize_technique_id(str(t.get("id")))
+                if not tech_id:
+                    continue
+                if entities.get(tech_id, {}).get("type") != "technique":
+                    if kind == "ctid":
+                        ctid_unknown.add((cve_id, tech_id))
+                    continue
+                link(cve_id, "technique", tech_id, "cve")
+                if kind == "ctid":
+                    set_prov(cve_id, "technique", tech_id, "cve", _ctid_prov(t, True), _ctid_prov(t, False))
+                    # A CTID statement outranks an inherited chain path.
+                    inherited_map[cve_id]["technique"].discard(tech_id)
+                    inherited_map[tech_id]["cve"].discard(cve_id)
+                elif tech_id not in link_prov[cve_id]["technique"]:
+                    set_prov(cve_id, "technique", tech_id, "cve", _inferred_prov(t), _inferred_prov(t))
+                for did in technique_to_defend.get(tech_id, set()):
+                    if did in entities:
+                        reached.setdefault(did, set()).add(kind)
+        for did, kinds in reached.items():
+            if "ctid" in kinds or "inferred" in kinds:
+                link(cve_id, "defend", did, "cve")
+            if "direct" in kinds:
+                continue
+            if "ctid" in kinds:
+                prov = {"source": CTID_DEFEND_SOURCE, "tier": "derived"}
+                set_prov(cve_id, "defend", did, "cve", prov, dict(prov))
+                inherited_map[cve_id]["defend"].discard(did)
+                inherited_map[did]["cve"].discard(cve_id)
+            elif kinds == {"inferred"}:
+                prov = {"source": INFERRED_DEFEND_SOURCE, "tier": INFERRED_TIER}
+                set_prov(cve_id, "defend", did, "cve", prov, dict(prov))
 
     # ── 8. Load all CVE JSONL files ───────────────────────────────
     # Only index "interesting" CVEs in entity_index (Layer 2): in CISA KEV,
@@ -537,6 +675,13 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         for did in defend_inh - defend_direct:
             mark_inherited(cve_id, "defend", did, "cve")
 
+        # I21: CTID and inferred techniques. APT groups stay on the chain.
+        ctid_links, inferred_links = technique_extras(cve_id, cve_data, ctid_db, record.get("cvss_vector"))
+        reached = {d: {"direct"} for d in defend_direct}
+        for d in defend_inh - defend_direct:
+            reached[d] = {"inherited"}
+        link_extras(cve_id, ctid_links, inferred_links, reached)
+
         owasp_direct, owasp_inh = split(cve_data.get("OWASP", []), cve_data.get("OWASP_INHERITED", []),
                                         lambda x: str(x) if x else None)
         for owasp_id in owasp_direct + owasp_inh:
@@ -554,6 +699,8 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         ensure(cve_id, "cve", cve_id, "vulnerability")
         cve_blocks.enrich(entities[cve_id], {"KEV": kev_db[cve_id]})
         kev_cves.add(cve_id)
+        # No shard, so no chain and no vector: CTID links only.
+        link_extras(cve_id, technique_extras(cve_id, {}, ctid_db, None)[0], [], {})
         cve_count += 1
 
     print(f"  Indexed {cve_count} interesting CVEs ({len(kev_only)} KEV-only without a shard record; "
@@ -576,7 +723,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     dropped_dangling: dict[str, int] = defaultdict(int)
     for eid, entity in entities.items():
         etype = entity["type"]
-        rels = {}
+        rels: dict[str, dict] = {}
         for rel_type, targets in sorted(rels_map.get(eid, {}).items()):
             live = sorted(t for t in targets if t in entities)
             if len(live) != len(targets):
@@ -597,6 +744,14 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 sub = [t for t in live if t in inherited_ids]
                 if sub:
                     rels[rel_type]["inherited"] = sub
+            # Additive (I21): per-id provenance overriding the body's
+            # source and tier, present only for ids that differ.
+            per_link = link_prov.get(eid, {}).get(rel_type)
+            if per_link:
+                sub_prov = {t: per_link[t] for t in live if t in per_link}
+                if sub_prov:
+                    rels[rel_type]["link_prov"] = sub_prov
+                    _relabel_body(rels[rel_type], prov, sub_prov)
         entity["rels"] = rels
 
         # Add entity-level provenance
@@ -690,6 +845,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             # and CVEs a cwe_inherited list; readers of older indexes treat
             # every link as direct.
             "inherited_links": True,
+            # Additive (I21): rel bodies may carry a "link_prov" map of
+            # id -> {source, tier, ...} for CTID (official) and inferred
+            # links; readers of older indexes use the body's source/tier.
+            "link_provenance": True,
+            "ctid_unknown_techniques": len(ctid_unknown),
         },
         "entities": entities,
     }

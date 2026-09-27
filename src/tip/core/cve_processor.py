@@ -22,6 +22,8 @@ from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
 from tip.core.epss_processor import EPSSProcessor, EPSSSnapshot
 from tip.core.id_normalize import cwe_number, cwe_parents, split_cwe_list
+from tip.core.ctid_processor import load_ctid_db
+from tip.core.technique_inference import extra_technique_links
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
 config = get_config()
@@ -89,6 +91,11 @@ class CVEProcessor:
     epss_snapshot: Optional[EPSSSnapshot] = None
     # Why EPSS was unavailable in the last process_file, or None.
     last_epss_error: Optional[str] = None
+    # ctid_db.json's per-CVE map, read in process_file after the database
+    # step wrote it. None means unavailable: records are then written
+    # without TECHNIQUES_CTID and TECHNIQUES_INFERRED, and the entity index
+    # generator derives both itself (I21).
+    ctid_db: Optional[Dict[str, Any]] = None
 
     def __init__(self):
         self.config = config
@@ -638,6 +645,19 @@ class CVEProcessor:
                                 "source": "cisa_vulnrichment",
                             }
 
+                # Step 7a: techniques beyond the CWE chain (I21): MITRE CTID
+                # analyst mappings, and one inferred exploitation technique
+                # from the CVSS vector when no other source gave any. Kept in
+                # their own lists; APT and D3FEND steps use the chain only.
+                if self.ctid_db is not None:
+                    cvss_now = result[cve_id].get("CVSS")
+                    result[cve_id].update(extra_technique_links(
+                        links["TECHNIQUES"],
+                        links["TECHNIQUES_INHERITED"],
+                        self.ctid_db.get(cve_id),
+                        cvss_now.get("vector") if isinstance(cvss_now, dict) else None,
+                    ))
+
                 # Step 7b: FIRST EPSS score, percentile and score date.
                 if self.epss_snapshot is not None:
                     epss = self.epss_snapshot.lookup(cve_id)
@@ -709,6 +729,15 @@ class CVEProcessor:
             self.last_epss_error = str(e)
             self.logger.error(f"EPSS unavailable; CVE records are written without it: {e}")
 
+    def _load_ctid(self) -> None:
+        """Read ctid_db.json as the database step left it this run."""
+        self.ctid_db = load_ctid_db(config.get('database.ctid.file', 'docs/data/ctid_db.json'))
+        if self.ctid_db is None:
+            self.logger.warning(
+                "ctid_db.json unavailable; CVE records are written without CTID "
+                "and inferred techniques, and the entity index derives them"
+            )
+
     def process_file(self, input_file: Optional[str] = None) -> bool:
         """Process CVE data from file"""
         file_path = input_file or self.cve_file
@@ -740,6 +769,7 @@ class CVEProcessor:
         # Process through pipeline
         try:
             self._load_epss()
+            self._load_ctid()
             results = self.process_cve_pipeline(cve_data)
             # Successful records are saved even when the run fails below:
             # they are correct, failed CVEs keep their previous record, and

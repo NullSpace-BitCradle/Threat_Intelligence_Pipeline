@@ -52,6 +52,9 @@ jobs:
       - name: Update reference databases
         env:
           PYTHONPATH: src
+          # The CTID step lists the mappings-explorer tree through the GitHub
+          # API; the token lifts the per-IP limit. Sent as a header only.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python run_pipeline.py --db-only
 
       # Runs only when the pipeline step succeeded (default if: success()), so a

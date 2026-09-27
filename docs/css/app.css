@@ -610,6 +610,35 @@
     margin-top: 2px;
 }
 
+/* I21: per-link provenance. CTID: a MITRE analyst mapped the technique
+   (official). Inferred: the lowest tier, a starting point from the CVSS
+   vector. Both differ from chain (derived) and inherited (dashed) links. */
+.prov-inferred { background: rgba(148,163,184,0.15); color: var(--text-secondary); }
+.ctid-badge,
+.inferred-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-left: 8px;
+}
+.ctid-badge { border: 1px solid var(--severity-low); color: var(--severity-low); }
+.inferred-badge { border: 1px dotted var(--text-secondary); color: var(--text-secondary); font-style: italic; }
+.entity-card-official { border-left: 3px solid var(--severity-low); }
+.entity-card-inferred { border-style: dotted; }
+.related-item-tiered .ctid-badge,
+.related-item-tiered .inferred-badge { margin-left: auto; flex-shrink: 0; }
+.graph-node-ctid circle { stroke: var(--severity-low); stroke-width: 2; }
+.graph-node-inferred circle {
+    stroke: var(--text-secondary);
+    stroke-width: 1.5;
+    stroke-dasharray: 1 2;
+    fill-opacity: 0.4;
+}
+.graph-link-inferred { stroke-dasharray: 1 3; }
+
 /* ===== GRAPH PANEL ===== */
 .graph-header {
     font-size: 11px;
