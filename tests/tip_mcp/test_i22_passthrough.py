@@ -120,15 +120,19 @@ def test_shard_fallback_adds_defend_rels_with_semantics(tmp_path: Path) -> None:
 
 
 def test_shard_apt_groups_field_maps_to_apt_group(tmp_path: Path) -> None:
-    # No real record carries APT_GROUPS today; if one ever does, it must land
-    # in the graph vocabulary.
-    payload = dict(_RICH_PAYLOAD, APT_GROUPS=["g0007"])
+    # I32 shards carry attributed groups with their evidence; they land in
+    # the graph vocabulary as official ATT&CK links. A bare id is an older
+    # overlap guess and gives nothing.
+    payload = dict(_RICH_PAYLOAD, APT_GROUPS=[
+        {"id": "g0007", "name": "APT28", "via": "C0051", "via_type": "campaign"}, "g0016"])
     _write_indexes(tmp_path, {})
     shards = _write_shard(tmp_path, "CVE-2023-44487", payload)
     ld = IndexLoader(tmp_path, shards_dir=shards)
     ld.load()
     rels = lookup_entity_impl(ld, "CVE-2023-44487")["data"]["rels"]
-    assert {"target_id": "G0007", "rel_type": "apt_group", "source": "shard"} in rels
+    apt = [r for r in rels if r["rel_type"] == "apt_group"]
+    assert apt == [{"target_id": "G0007", "rel_type": "apt_group", "source": "MITRE ATT&CK",
+                    "tier": "official", "via": "C0051", "via_type": "campaign"}]
 
 
 def test_curated_cve_entity_path_enriched_from_shard(tmp_path: Path) -> None:

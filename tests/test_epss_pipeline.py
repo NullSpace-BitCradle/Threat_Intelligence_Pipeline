@@ -108,7 +108,7 @@ def _processor(tmp_path, monkeypatch):
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.apt_processor = SimpleNamespace(lookup_by_techniques=lambda t: [])
+    proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: [], load=lambda: False)
     proc.jsonl_manager = JSONLManager()
     proc.cve_file = str(tmp_path / "cve.jsonl")
     with open(proc.cve_file, "w") as f:

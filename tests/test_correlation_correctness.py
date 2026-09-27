@@ -44,7 +44,7 @@ def _bare_processor():
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.apt_processor = SimpleNamespace(lookup_by_techniques=lambda t: [])
+    proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: [], load=lambda: False)
     return proc
 
 
@@ -121,7 +121,8 @@ def test_generator_links_existing_bare_shards_resolvably(tmp_path):
     assert rels["cwe"]["ids"] == ["CWE-74", "CWE-79"]
     assert rels["technique"]["ids"] == ["T1059"]
     assert rels["capec"]["ids"] == ["CAPEC-63"]
-    assert rels["apt_group"]["ids"] == ["G0007"]
+    # G0007 uses T1059, but ATT&CK cites no CVE for it: no link (I32).
+    assert "apt_group" not in rels
     assert rels["defend"]["ids"] == ["D3-EAL"]
     assert "CVE-2024-0001" in ei["entities"]["CWE-74"]["rels"]["cve"]["ids"]
 
@@ -150,7 +151,8 @@ def test_layer2_rule(tmp_path):
     _write_fixture(tmp_path, {
         "CVE-2024-0001": {"CWE": ["CWE-79"]},                       # KEV
         "CVE-2024-0002": {"CWE": []},                               # KEV, no CWE
-        "CVE-2024-0003": {"CWE": ["CWE-79"], "APT_GROUPS": [{"id": "G0007"}]},
+        "CVE-2024-0003": {"CWE": ["CWE-79"], "APT_GROUPS": [
+            {"id": "G0007", "via": "G0007", "via_type": "intrusion-set"}]},
         "CVE-2024-0004": {"CWE": ["CWE-79"], "VULNRICHMENT": active},
         "CVE-2024-0005": {"CWE": ["CWE-79"]},                       # SSVC active via db
         "CVE-2024-0006": {"CWE": ["CWE-79"], "VULNRICHMENT": {"ssvcExploitStatus": "none"}},

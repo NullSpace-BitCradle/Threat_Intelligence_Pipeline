@@ -38,7 +38,8 @@ def test_generator_record_carries_additive_epss():
 
 
 SHARD = {
-    "CVE-2024-0001": {"CWE": ["CWE-79"], "TECHNIQUES": ["1059"], "APT_GROUPS": ["G0007"]},  # APT-linked
+    "CVE-2024-0001": {"CWE": ["CWE-79"], "TECHNIQUES": ["1059"],                  # APT-linked
+                      "APT_GROUPS": [{"id": "G0007", "via": "G0007", "via_type": "intrusion-set"}]},
     "CVE-2024-0002": {"CWE": ["CWE-79"]},                                         # KEV
     "CVE-2024-0003": {"CWE": ["CWE-79"]},                                         # not curated
 }

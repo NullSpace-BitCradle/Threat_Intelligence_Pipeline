@@ -49,8 +49,11 @@ def _processor():
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
     seen_techs: list = []
+    # I32: attribution is looked up by CVE id; a stub with no technique
+    # lookup proves the processor never asks for one.
     proc.apt_processor = SimpleNamespace(
-        lookup_by_techniques=lambda t: seen_techs.append(sorted(t)) or [{"id": "G0007", "name": "APT28"}])
+        lookup_attributions=lambda c: seen_techs.append(c) or [
+            {"id": "G0007", "name": "APT28", "via": "G0007", "via_type": "intrusion-set"}])
     proc.get_defend_techniques = lambda t: DEFEND.get(t, [])
     return proc, seen_techs
 
@@ -107,12 +110,12 @@ def test_isc3_defend_inherited_flag():
     assert all("inherited" not in d for d in DEFEND["1190"])
 
 
-def test_isc3_apt_lookup_uses_direct_and_inherited_techniques():
-    """APT linkage is out of I29's scope: the lookup keeps the same technique
-    set it had, minus what only pillar parents supplied."""
+def test_isc3_apt_groups_come_from_attribution_not_techniques():
+    """I32 replaced the technique lookup: APT_GROUPS is what ATT&CK cites
+    for the CVE, with its evidence, whatever techniques the CVE reaches."""
     rec, seen = _run(["CWE-79"])
-    assert seen == [["1059", "1190"]]
-    assert rec["APT_GROUPS"][0]["id"] == "G0007"
+    assert seen == ["CVE-2024-0001"]
+    assert rec["APT_GROUPS"] == [{"id": "G0007", "name": "APT28", "via": "G0007", "via_type": "intrusion-set"}]
 
 
 def test_isc4_no_pillar_is_ever_inherited():
@@ -261,12 +264,13 @@ def test_isc7_inherited_subsets_both_directions(tmp_path):
     assert rels["technique"]["ids"] == ["T1059", "T1190"] and rels["technique"]["inherited"] == ["T1190"]
     assert rels["defend"]["ids"] == ["D3-EAL", "D3-NTA"] and rels["defend"]["inherited"] == ["D3-NTA"]
     assert rels["owasp"]["ids"] == ["A03:2021", "A05:2021"] and rels["owasp"]["inherited"] == ["A05:2021"]
-    assert rels["apt_group"]["ids"] == ["G0007", "G0016"] and rels["apt_group"]["inherited"] == ["G0016"]
+    # I32: techniques never link APT groups, direct or inherited.
+    assert "apt_group" not in rels
     # Tier and source per rel type are unchanged (format constraint).
     assert rels["technique"]["tier"] == "derived"
     # Reverse edges: the other CVE reaches the same targets directly.
     for target, rel in (("CAPEC-66", "cve"), ("T1190", "cve"), ("D3-NTA", "cve"),
-                        ("A05:2021", "cve"), ("G0016", "cve")):
+                        ("A05:2021", "cve")):
         body = ents[target]["rels"][rel]
         assert body["ids"] == ["CVE-2024-0001", "CVE-2024-0002"], target
         assert body["inherited"] == ["CVE-2024-0001"], target

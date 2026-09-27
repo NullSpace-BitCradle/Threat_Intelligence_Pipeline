@@ -24,7 +24,7 @@ from tip.utils.error_handler import (
 from tip.utils.atomic_io import write_reference_db, count_records, count_groups
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
-from tip.core.apt_processor import APTProcessor
+from tip.core.apt_processor import APTProcessor, attributions_collapsed
 from tip.core.epss_processor import EPSSProcessor, count_epss
 from tip.core.ctid_processor import CTIDProcessor, count_ctid
 
@@ -522,6 +522,14 @@ class DatabaseManager:
                 self.logger.info(f"{db_name}: nothing to write, existing file kept")
                 return True
 
+            if db_name == 'groups':
+                # I32: the floor counts groups, not citations; refuse a
+                # file whose CVE attributions collapsed, and keep the
+                # published one. Not fresh, so freshness shows the age.
+                refused = attributions_collapsed(data, db_config['file'])
+                if refused:
+                    self.logger.warning(f"groups: not written: {refused}")
+                    return True
             counter = count_groups if db_name == 'groups' else count_records
             self._save_database(data, db_config['file'], counter)
             if db_name == 'defend' and self._d3fend_degraded:

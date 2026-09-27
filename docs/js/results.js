@@ -162,6 +162,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     // in their own lists, each entry naming its source.
     addShardLinkTier(related, payload.TECHNIQUES_CTID, 'official');
     addShardLinkTier(related, payload.TECHNIQUES_INFERRED, 'inferred');
+    addShardAptGroups(related, payload.APT_GROUPS);
 
     var shardDetail = {
         description: description,
@@ -674,10 +675,12 @@ function isCtidProv(prov) {
 }
 
 // How one link was made: 'CTID' (an analyst mapping), 'via CTID' (a D3FEND
-// defense reached through a CTID technique, derived), 'inferred', or
-// 'chain' for every link without a per-link entry.
+// defense reached through a CTID technique, derived), 'inferred', 'cited'
+// (ATT&CK cites the CVE for an APT group, I32), or 'chain' for every link
+// without a per-link entry.
 function linkKind(prov) {
     if (!prov) return 'chain';
+    if (prov.via) return 'cited';
     // Tier first: an inferred rule's text cites its agreement with CTID.
     if (prov.tier === 'inferred') return 'inferred';
     if (String(prov.source || '').indexOf('CTID') !== -1) return prov.tier === 'official' ? 'CTID' : 'via CTID';
@@ -687,7 +690,7 @@ function linkKind(prov) {
 // "2 chain, 1 inferred" or "3 CTID": the sources a rel type's links
 // actually have, or '' when none has a per-link entry (older data).
 function linkBreakdown(relData, withChain) {
-    var counts = { 'chain': 0, 'CTID': 0, 'via CTID': 0, 'inferred': 0 };
+    var counts = { 'chain': 0, 'CTID': 0, 'via CTID': 0, 'inferred': 0, 'cited': 0 };
     var any = false;
     (relData.ids || []).forEach(function(id) {
         var prov = linkProvOf(relData, id);
@@ -695,7 +698,7 @@ function linkBreakdown(relData, withChain) {
         counts[linkKind(prov)]++;
     });
     if (!any) return '';
-    return ['chain', 'CTID', 'via CTID', 'inferred'].filter(function(k) {
+    return ['chain', 'CTID', 'via CTID', 'inferred', 'cited'].filter(function(k) {
         return counts[k] > 0 && (withChain || k !== 'chain');
     }).map(function(k) { return counts[k] + ' ' + k; }).join(', ');
 }
@@ -719,12 +722,38 @@ function inferredTooltip(prov, relType) {
     return 'Inferred, not a sourced mapping. ' + (prov.source || 'TIP inference from the CVSS vector') + '.';
 }
 
+// I32: the ATT&CK object that cites a CVE for an APT group. A relationship
+// has no ATT&CK id of its own, so it is named by its source and target.
+function citedLabel(prov) {
+    var via = String(prov.via || '');
+    if (prov.via_type === 'relationship' && prov.via_target) {
+        return 'ATT&CK: ' + via + ' \u2192 ' + String(prov.via_target);
+    }
+    return 'ATT&CK: ' + via;
+}
+
+function citedTooltip(prov) {
+    var via = String(prov.via || '');
+    if (prov.via_type === 'intrusion-set') {
+        return 'MITRE ATT&CK cites this CVE in the group\'s ATT&CK entry or its references (' + via + ').';
+    }
+    if (prov.via_type === 'campaign') {
+        return 'MITRE ATT&CK cites this CVE in campaign ' + via + ', which it attributes to the group.';
+    }
+    var target = prov.via_target ? ' to ' + String(prov.via_target) : '';
+    return 'MITRE ATT&CK cites this CVE on the relationship from ' + via + target + '.';
+}
+
 function makeLinkTierBadge(prov, relType) {
     if (!prov) return null;
     var badge = document.createElement('span');
     badge.style.cursor = 'help';
     var kind = linkKind(prov);
-    if (kind === 'CTID' || kind === 'via CTID') {
+    if (kind === 'cited') {
+        badge.className = 'cited-badge';
+        badge.textContent = citedLabel(prov);
+        badge.title = citedTooltip(prov);
+    } else if (kind === 'CTID' || kind === 'via CTID') {
         badge.className = 'ctid-badge';
         badge.textContent = kind;
         badge.title = ctidTooltip(prov, relType);
@@ -766,6 +795,27 @@ function addShardLinkTier(related, list, tier) {
             rel.entities.push(getEntity(id) || { id: id, type: 'technique', name: id });
         }
         rel.inherited = rel.inherited.filter(function(x) { return x !== id; });
+    });
+}
+
+// I32 shards: APT_GROUPS lists the groups ATT&CK cites for the CVE, each
+// with its citing object. An entry without one is an older technique-overlap
+// guess and is not shown.
+function addShardAptGroups(related, list) {
+    if (!Array.isArray(list)) return;
+    list.forEach(function(entry) {
+        if (!entry || typeof entry !== 'object' || !entry.id || !entry.via || !entry.via_type) return;
+        var id = String(entry.id).toUpperCase();
+        var rel = related.apt_group;
+        if (!rel) {
+            rel = related.apt_group = { ids: [], source: 'MITRE ATT&CK', tier: 'official', inherited: [], linkProv: {}, entities: [] };
+        }
+        if (rel.ids.indexOf(id) !== -1) return;
+        var prov = { source: 'MITRE ATT&CK', tier: 'official', via: String(entry.via), via_type: String(entry.via_type) };
+        if (entry.via_target) prov.via_target = String(entry.via_target);
+        rel.linkProv[id] = prov;
+        rel.ids.push(id);
+        rel.entities.push(getEntity(id) || { id: id, type: 'apt_group', name: entry.name || id });
     });
 }
 

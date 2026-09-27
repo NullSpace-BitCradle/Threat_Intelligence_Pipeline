@@ -152,10 +152,14 @@ def project_epss(data: Any) -> Optional[Dict[str, float]]:
 
 def project_entities(data: Any) -> Optional[Dict[str, Dict[str, Any]]]:
     """entity_index.json to {cve: {cvss, cwe, technique, apt_group}} for the
-    curated CVE tier."""
+    curated CVE tier. apt_group holds the groups ATT&CK cites for the CVE."""
     entities = data.get("entities") if isinstance(data, dict) else None
     if not isinstance(entities, dict):
         return None
+    # I32: an index without the apt_attribution flag linked CVEs to groups
+    # by technique overlap; its groups are not taken as related ids.
+    meta = data.get("meta")
+    attributed = isinstance(meta, dict) and meta.get("apt_attribution") is True
     out: Dict[str, Dict[str, Any]] = {}
     for key, ent in entities.items():
         if not isinstance(ent, dict) or ent.get("type") != "cve":
@@ -168,6 +172,8 @@ def project_entities(data: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         if not isinstance(rels, dict):
             rels = {}
         for rel_type in RELATED_TYPES:
+            if rel_type == "apt_group" and not attributed:
+                continue
             body = rels.get(rel_type)
             ids = body.get("ids") if isinstance(body, dict) else None
             if isinstance(ids, list):

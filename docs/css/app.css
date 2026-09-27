@@ -615,6 +615,7 @@
    vector. Both differ from chain (derived) and inherited (dashed) links. */
 .prov-inferred { background: rgba(148,163,184,0.15); color: var(--text-secondary); }
 .ctid-badge,
+.cited-badge,
 .inferred-badge {
     font-size: 10px;
     font-weight: 600;
@@ -625,10 +626,12 @@
     margin-left: 8px;
 }
 .ctid-badge { border: 1px solid var(--severity-low); color: var(--severity-low); }
+.cited-badge { border: 1px solid var(--severity-low); color: var(--severity-low); text-transform: none; }
 .inferred-badge { border: 1px dotted var(--text-secondary); color: var(--text-secondary); font-style: italic; }
 .entity-card-official { border-left: 3px solid var(--severity-low); }
 .entity-card-inferred { border-style: dotted; }
 .related-item-tiered .ctid-badge,
+.related-item-tiered .cited-badge,
 .related-item-tiered .inferred-badge { margin-left: auto; flex-shrink: 0; }
 .graph-node-ctid circle { stroke: var(--severity-low); stroke-width: 2; }
 .graph-node-inferred circle {

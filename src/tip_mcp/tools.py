@@ -44,6 +44,8 @@ GRAPH_TYPES = (
 )
 # Legacy names accepted on input and mapped to the graph name.
 TYPE_ALIASES = {"d3fend": "defend", "apt": "apt_group"}
+# Source of a CVE to APT group link: ATT&CK cites the CVE for the group (I32).
+ATTRIBUTION_SOURCE = "MITRE ATT&CK"
 # Pseudo-type: CVE targets whose entity carries kev=true.
 KEV_TYPE = "kev"
 
@@ -114,16 +116,13 @@ def _norm_technique(value: Any) -> str:
     return s.upper() if s[:1] in ("t", "T") and _TECH_NUM_RE.match(s[1:]) else s
 
 
-def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dict]:
+def _shard_rels(payload: dict) -> list[dict]:
     """Project a shard CVE payload's enrichment lists into rel dicts.
 
     Returns {target_id, rel_type, source} entries in the graph vocabulary
     (cwe, capec, technique, owasp, defend, apt_group), with IDs normalized to
-    the graph's form. When a loader is given, ATT&CK groups known to use a
-    linked technique are added as apt_group rels, the same technique overlap
-    the entity-index generator uses (shards carry no APT_GROUPS today).
-    Used by both lookup_entity and pivot_from_entity so the two tools project
-    the same graph out of a shard.
+    the graph's form. Used by both lookup_entity and pivot_from_entity so the
+    two tools project the same graph out of a shard.
 
     I29 shards list ids reached only through an inherited parent CWE in
     CAPEC_INHERITED, TECHNIQUES_INHERITED and OWASP_INHERITED, and flag such
@@ -135,7 +134,12 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
     TECHNIQUES_INFERRED (one technique inferred from the CVSS vector). Those
     technique rels carry their own source and tier (official, inferred) and
     mapping_type, comment or rule; a CTID statement wins over a chain path
-    to the same technique. APT groups stay on the chain techniques.
+    to the same technique.
+
+    I32 shards list in APT_GROUPS the groups ATT&CK cites for the CVE, each
+    with its citing object (via, via_type, via_target); those rels are
+    official, sourced to MITRE ATT&CK. An entry without ``via`` is an older
+    technique-overlap guess and gives no rel.
     """
     rels: list[dict] = []
     seen: set[tuple[str, str]] = set()
@@ -172,12 +176,9 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
     # CTID first: its statement outranks a chain path to the same technique.
     for entry in payload.get(CTID_FIELD, []) or []:
         add_extra(entry, CTID_TIER)
-    techniques: list[tuple[str, bool]] = []
     for inh, suffix in both:
         for tech in payload.get("TECHNIQUES" + suffix, []) or []:
-            tech_id = _norm_technique(tech)
-            techniques.append((tech_id, inh))
-            add(tech_id, "technique", inherited=inh)
+            add(_norm_technique(tech), "technique", inherited=inh)
     for entry in payload.get(INFERRED_FIELD, []) or []:
         add_extra(entry, INFERRED_TIER)
     for inh, suffix in both:
@@ -192,33 +193,16 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
             rel["relationship"] = defend["relationship"]
         if defend.get("name") is not None:
             rel["name"] = defend["name"]
-    # APT groups: inherited exactly when every technique behind the group is
-    # (the processor lists each group's techniques_overlap; a bare id carries
-    # none, so it is inherited only when the shard has no direct technique).
-    # Direct groups are added first, so a group reached both ways is direct.
-    direct_techs = {t for t, inh in techniques if not inh}
-    inherited_techs = {t for t, inh in techniques if inh}
-    groups_found: list[tuple[str, str, bool]] = []
     for group in payload.get("APT_GROUPS", []) or []:
-        if isinstance(group, dict):
-            gid = str(group.get("id") or "").strip().upper()
-            overlap = {_norm_technique(t) for t in group.get("techniques_overlap") or []}
-            inh = bool(overlap) and overlap <= inherited_techs and not overlap & direct_techs
-        else:
-            gid = str(group or "").strip().upper()
-            inh = bool(inherited_techs) and not direct_techs
-        if gid:
-            groups_found.append((gid, "shard", inh))
-    if loader is not None:
-        for tech_id, inh in techniques:
-            tech = loader.entities.get(tech_id)
-            if not tech:
-                continue
-            groups = (tech.get("rels") or {}).get("apt_group") or {}
-            for gid in groups.get("ids", []) or []:
-                groups_found.append((str(gid), "graph (technique overlap)", inh))
-    for gid, source, inh in sorted(groups_found, key=lambda g: g[2]):
-        add(gid, "apt_group", source, inherited=inh)
+        if not isinstance(group, dict) or not group.get("via") or not group.get("via_type"):
+            continue
+        rel = add(str(group.get("id") or "").strip().upper(), "apt_group", ATTRIBUTION_SOURCE)
+        if rel is None:
+            continue
+        rel["tier"] = "official"
+        for key in ("via", "via_type", "via_target"):
+            if group.get(key):
+                rel[key] = str(group[key])
     return rels
 
 
@@ -229,7 +213,7 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
 
 
 def _build_shard_record(
-    cve_id: str, payload: dict, shard_name: str, loader: Optional[IndexLoader] = None
+    cve_id: str, payload: dict, shard_name: str
 ) -> dict:
     """Project a shard CVE payload onto the same shape as an entity record.
 
@@ -248,7 +232,7 @@ def _build_shard_record(
         "phase": "vulnerability",
         "kev": bool(kev.get("inKEV")) if isinstance(kev, dict) else bool(kev),
         "description": description,
-        "rels": _shard_rels(payload, loader),
+        "rels": _shard_rels(payload),
     }
     if "CWE_INHERITED" in payload:
         record["cwe_inherited"] = [_norm_ref(c, "CWE-") for c in payload.get("CWE_INHERITED") or []]
@@ -392,7 +376,7 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
             return _shard_error(exc)
         if shard_hit is not None:
             payload, shard_name = shard_hit
-            record = _build_shard_record(entity_id, payload, shard_name, loader)
+            record = _build_shard_record(entity_id, payload, shard_name)
             record["epss"], epss_source = _resolve_epss(loader, record["id"], record.get("epss"), "shard")
             return ok_response(
                 record,
@@ -472,7 +456,7 @@ def pivot_from_entity_impl(
         if shard_hit is not None:
             payload, shard_name = shard_hit
             hits = []
-            for rel in _shard_rels(payload, loader):
+            for rel in _shard_rels(payload):
                 tid = rel["target_id"]
                 rtype = rel["rel_type"]
                 target = loader.entities.get(tid)

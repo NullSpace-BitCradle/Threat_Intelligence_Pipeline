@@ -36,7 +36,8 @@ def _processor(ctid_db=CTID_DB):
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
     seen: list = []
-    proc.apt_processor = SimpleNamespace(lookup_by_techniques=lambda t: seen.append(sorted(t)) or [])
+    # I32: APT groups come from ATT&CK attribution, looked up by CVE id.
+    proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: seen.append(c) or [])
     proc.get_defend_techniques = lambda t: []
     proc.ctid_db = ctid_db
     return proc, seen
@@ -60,8 +61,8 @@ def test_ctid_techniques_get_their_own_field_with_source():
     assert rec["TECHNIQUES_CTID"][0]["comment"] == "Crafted XML."
     # CTID fills the slot, so nothing is inferred.
     assert rec["TECHNIQUES_INFERRED"] == []
-    # APT linkage stays on the chain (Layer 2 is unchanged).
-    assert seen == []
+    # No technique, chain or CTID, ever links an APT group (I32).
+    assert seen == ["CVE-2024-0002"] and "APT_GROUPS" not in rec
 
 
 def test_memory_safety_cve_gets_an_inferred_technique_with_its_rule():
@@ -71,7 +72,7 @@ def test_memory_safety_cve_gets_an_inferred_technique_with_its_rule():
     (inf,) = rec["TECHNIQUES_INFERRED"]
     assert inf["id"] == "T1068" and inf["rule"] == "local-full-impact"
     assert "CVSS" in inf["source"]
-    assert seen == []
+    assert seen == ["CVE-2024-0003"] and "APT_GROUPS" not in rec
 
 
 def test_chain_technique_blocks_inference_in_the_processor():
@@ -194,8 +195,8 @@ def test_ctid_overrides_an_inherited_chain_link(tmp_path):
     assert "inherited" not in defend
     assert defend["link_prov"]["D3-NTA"]["tier"] == "derived"
     assert "D3-EAL" not in defend["link_prov"]  # the chain reaches it directly
-    # APT groups keep their I29 labels (chain only).
-    assert ents["CVE-2024-0001"]["rels"]["apt_group"]["inherited"] == ["G0016"]
+    # No technique, chain or CTID, links an APT group (I32).
+    assert "apt_group" not in ents["CVE-2024-0001"]["rels"]
 
 
 def test_chain_cve_gets_no_inferred_link(tmp_path):

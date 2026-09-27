@@ -29,6 +29,9 @@ from tip_intel.link_tiers import CTID_DEFEND_SOURCE, INFERRED_DEFEND_SOURCE, INF
 
 _jsonl = JSONLManager()
 
+ATTRIBUTION_SOURCE = "MITRE ATT&CK"
+ATTRIBUTION_FIELDS = ("via", "via_type", "via_target")
+
 
 # Provenance metadata — entity-level derived from type
 ENTITY_PROVENANCE = {
@@ -54,8 +57,9 @@ REL_PROVENANCE = {
     ('defend', 'cve'):    {'source': 'Pipeline (Technique→D3FEND chain)', 'tier': 'derived'},
     ('cve', 'owasp'):     {'source': 'Pipeline (CWE→OWASP mapping)', 'tier': 'derived'},
     ('owasp', 'cve'):     {'source': 'Pipeline (CWE→OWASP mapping)', 'tier': 'derived'},
-    ('cve', 'apt_group'): {'source': 'Pipeline (technique overlap)', 'tier': 'derived'},
-    ('apt_group', 'cve'): {'source': 'Pipeline (technique overlap)', 'tier': 'derived'},
+    # I32: a CVE links to a group only where ATT&CK cites the CVE for it.
+    ('cve', 'apt_group'): {'source': ATTRIBUTION_SOURCE, 'tier': 'official'},
+    ('apt_group', 'cve'): {'source': ATTRIBUTION_SOURCE, 'tier': 'official'},
     ('cwe', 'capec'):     {'source': 'MITRE CWE Database', 'tier': 'official'},
     ('capec', 'cwe'):     {'source': 'MITRE CWE Database', 'tier': 'official'},
     ('capec', 'technique'): {'source': 'MITRE CAPEC Database', 'tier': 'official'},
@@ -238,15 +242,39 @@ def _inferred_prov(link: dict) -> dict:
             "rule": link.get("rule")}
 
 
-def _is_layer2(cve_id: str, cve_data: dict, kev_db: dict, vulnrich_db: dict) -> bool:
+def cve_attributions(cve_id: str, cve_data: dict, attributions: dict | None) -> list[dict]:
+    """APT groups ATT&CK cites for one CVE (I32): [{id, via, via_type, via_target?}].
+
+    groups_db.json's attributions win, since they are refreshed daily and
+    shards weekly (the same rule as CTID). Without them (a groups_db.json
+    from before I32) the shard's APT_GROUPS entries are used, but only
+    entries that carry their evidence: an older entry with no ``via`` was a
+    technique-overlap guess and never becomes a link.
+    """
+    if attributions is not None:
+        entries = attributions.get(cve_id) or []
+    else:
+        entries = cve_data.get("APT_GROUPS") or []
+    out = []
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("id") and entry.get("via") and entry.get("via_type"):
+            out.append({"id": str(entry["id"]).upper(),
+                        **{k: str(entry[k]) for k in ATTRIBUTION_FIELDS if entry.get(k)}})
+    return out
+
+
+def _is_layer2(cve_id: str, cve_data: dict, kev_db: dict, vulnrich_db: dict,
+               attributions: dict | None = None) -> bool:
     """Layer 2 (curated CVE) rule: in KEV, APT-linked, or SSVC exploitation active.
+
+    APT-linked means ATT&CK cites the CVE for a group (cve_attributions).
 
     Plain vulnrichment membership no longer qualifies: a full resync restores
     ~136k entries and would balloon entity_index.json, and a wipe would shrink
     it (ISA Decisions 2026-09-26 11:40). SSVC comes from the shard
     VULNRICHMENT block, falling back to vulnrichment_db.json.
     """
-    if cve_id in kev_db or cve_data.get("APT_GROUPS"):
+    if cve_id in kev_db or cve_attributions(cve_id, cve_data, attributions):
         return True
     for source in (cve_data.get("VULNRICHMENT"), vulnrich_db.get(cve_id)):
         if isinstance(source, dict) and str(source.get("ssvcExploitStatus", "")).lower() == "active":
@@ -393,7 +421,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     print("Loading groups database...")
     groups_db = _load_json(data_dir / "groups_db.json")
     groups = groups_db.get("groups", {})
-    technique_to_groups = groups_db.get("technique_to_groups", {})
+    # I32: {cve: [{id, via, via_type, via_target?}]}; None for a
+    # groups_db.json written before attribution existed.
+    raw_attributions = groups_db.get("attributions")
+    attributions = raw_attributions if isinstance(raw_attributions, dict) else None
     group_aliases: dict[str, list[str]] = {}
 
     for group_id, group_data in groups.items():
@@ -495,7 +526,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
 
     # ── 8. Load all CVE JSONL files ───────────────────────────────
     # Only index "interesting" CVEs in entity_index (Layer 2): in CISA KEV,
-    # linked to an APT group, or carrying CISA vulnrichment data. These are
+    # cited by ATT&CK for an APT group, or SSVC exploitation active. These are
     # the CVEs we want to render with the full relationship graph.
     #
     # The 'CVSS >= 7.0' criterion was tried and dropped: with NVD CVSS now
@@ -541,7 +572,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 shard_cve_ids.add(cve_id)
                 # Layer 2 gate (authoritative; see _is_layer2). A curated CVE
                 # is kept even without CWE data so every KEV CVE is indexed.
-                if not _is_layer2(cve_id, cve_data, kev_db, vulnrich_db):
+                if not _is_layer2(cve_id, cve_data, kev_db, vulnrich_db, attributions):
                     if not cve_data.get("CWE"):
                         cve_skipped += 1
                     else:
@@ -596,6 +627,18 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             return float(vr_cvss["score"])
         return None
 
+    def link_attributions(cve_id: str, cve_data: dict) -> None:
+        """I32: link the APT groups ATT&CK cites for this CVE, the citing
+        object carried on each link in both directions."""
+        for entry in cve_attributions(cve_id, cve_data, attributions):
+            gid = entry["id"]
+            if entities.get(gid, {}).get("type") != "apt_group":
+                continue
+            link(cve_id, "apt_group", gid, "cve")
+            prov = {"source": ATTRIBUTION_SOURCE, "tier": "official",
+                    **{k: entry[k] for k in ATTRIBUTION_FIELDS if k in entry}}
+            set_prov(cve_id, "apt_group", gid, "cve", prov, dict(prov))
+
     for cve_id, cve_data in all_cve_data:
         is_kev = cve_id in kev_db
 
@@ -640,16 +683,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
 
         tech_direct, tech_inh = split(cve_data.get("TECHNIQUES", []), cve_data.get("TECHNIQUES_INHERITED", []),
                                       normalize_technique_id)
-        groups_direct: set[str] = set()
-        groups_inh: set[str] = set()
         defend_direct: set[str] = set()
         defend_inh: set[str] = set()
         for tech_id in tech_direct + tech_inh:
             is_inh = tech_id in tech_inh
             link(cve_id, "technique", tech_id, "cve")
-            for gid in technique_to_groups.get(tech_id, []):
-                link(cve_id, "apt_group", gid, "cve")
-                (groups_inh if is_inh else groups_direct).add(gid)
             # Chain through to D3FEND: CVE -> technique -> defend
             for did in technique_to_defend.get(tech_id, set()):
                 if did in entities:
@@ -670,12 +708,12 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 link(cve_id, "defend", did, "cve")
                 (defend_inh if entry_inh else defend_direct).add(did)
 
-        for gid in groups_inh - groups_direct:
-            mark_inherited(cve_id, "apt_group", gid, "cve")
         for did in defend_inh - defend_direct:
             mark_inherited(cve_id, "defend", did, "cve")
 
-        # I21: CTID and inferred techniques. APT groups stay on the chain.
+        link_attributions(cve_id, cve_data)
+
+        # I21: CTID and inferred techniques.
         ctid_links, inferred_links = technique_extras(cve_id, cve_data, ctid_db, record.get("cvss_vector"))
         reached = {d: {"direct"} for d in defend_direct}
         for d in defend_inh - defend_direct:
@@ -701,6 +739,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         kev_cves.add(cve_id)
         # No shard, so no chain and no vector: CTID links only.
         link_extras(cve_id, technique_extras(cve_id, {}, ctid_db, None)[0], [], {})
+        link_attributions(cve_id, {})
         cve_count += 1
 
     print(f"  Indexed {cve_count} interesting CVEs ({len(kev_only)} KEV-only without a shard record; "
@@ -850,6 +889,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
             # links; readers of older indexes use the body's source/tier.
             "link_provenance": True,
             "ctid_unknown_techniques": len(ctid_unknown),
+            # Additive (I32): CVE to APT group links are ATT&CK citations
+            # only, each with its evidence in link_prov (via, via_type,
+            # via_target). Readers drop the CVE to group links of an index
+            # without this flag: those were technique-overlap guesses.
+            "apt_attribution": True,
         },
         "entities": entities,
     }

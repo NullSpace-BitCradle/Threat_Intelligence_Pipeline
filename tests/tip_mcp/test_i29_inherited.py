@@ -275,35 +275,30 @@ def test_chain_uncredited_assigned_path_falls_back_to_inherited_parent(tmp_path)
     assert b["via_capecs"] == ["CAPEC-900"]
 
 
-def test_shard_apt_groups_flagged_like_their_techniques(tmp_path):
-    """APT_GROUPS entries (processor dicts with techniques_overlap, or bare
-    ids) are inherited exactly when every technique behind them is."""
-    shard = dict(NEW_SHARD, APT_GROUPS=[
-        {"id": "G0001", "techniques_overlap": ["9001"]},          # inherited technique only
-        {"id": "G0002", "techniques_overlap": ["9001", "9002"]},  # also a direct one
-        {"id": "G0003", "techniques_overlap": ["T9002"]},         # direct only
-        "g0004",                                                  # no overlap info, shard has direct
-    ])
-    ld = _load(tmp_path, _graph(), META, shard={"CVE-2021-0009": shard})
-    hits = {h["id"]: h.get("inherited")
-            for h in pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"]}
-    assert hits == {"G0001": True, "G0002": None, "G0003": None, "G0004": None}
-
-    only_inh = dict(NEW_SHARD, TECHNIQUES=[], APT_GROUPS=["G0004"])
-    (tmp_path / "x").mkdir()
-    ld2 = _load(tmp_path / "x", _graph(), META, shard={"CVE-2021-0009": only_inh})
-    hits2 = {h["id"]: h.get("inherited")
-             for h in pivot_from_entity_impl(ld2, "CVE-2021-0009", "apt_group")["data"]}
-    assert hits2 == {"G0004": True}
-
-
-def test_shard_apt_group_direct_wins_over_inherited_duplicate(tmp_path):
-    """A group listed in APT_GROUPS through an inherited technique but also
-    reached through a direct technique in the graph is not inherited."""
+def test_shard_overlap_apt_groups_give_no_rels(tmp_path):
+    """I32: APT_GROUPS entries without evidence (older processor dicts with
+    techniques_overlap, or bare ids) are overlap guesses and give no rel,
+    and the graph's groups for a linked technique are never projected."""
     g = _graph()
-    g["T9002"]["rels"]["apt_group"] = _rel(["G0001"], "MITRE ATT&CK", "official")
-    shard = dict(NEW_SHARD, APT_GROUPS=[{"id": "G0001", "techniques_overlap": ["9001"]}])
+    g["T9002"]["rels"]["apt_group"] = _rel(["G0005"], "MITRE ATT&CK", "official")
+    shard = dict(NEW_SHARD, APT_GROUPS=[
+        {"id": "G0001", "techniques_overlap": ["9001"]},
+        {"id": "G0003", "techniques_overlap": ["T9002"]},
+        "g0004",
+    ])
     ld = _load(tmp_path, g, META, shard={"CVE-2021-0009": shard})
-    hits = {h["id"]: h.get("inherited")
-            for h in pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"]}
-    assert hits == {"G0001": None}
+    assert pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"] == []
+    rels = lookup_entity_impl(ld, "CVE-2021-0009")["data"]["rels"]
+    assert [r for r in rels if r["rel_type"] == "apt_group"] == []
+
+
+def test_shard_attributed_apt_group_is_official_never_inherited(tmp_path):
+    """An attributed entry is ATT&CK's statement: official, with its
+    evidence, and not inherited even when every technique of the CVE is."""
+    shard = dict(NEW_SHARD, TECHNIQUES=[], APT_GROUPS=[
+        {"id": "G0001", "via": "G0001", "via_type": "relationship", "via_target": "T9001"}])
+    ld = _load(tmp_path, _graph(), META, shard={"CVE-2021-0009": shard})
+    (hit,) = pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"]
+    assert hit["id"] == "G0001" and hit["tier"] == "official" and hit["source"] == "MITRE ATT&CK"
+    assert (hit["via"], hit["via_type"], hit["via_target"]) == ("G0001", "relationship", "T9001")
+    assert "inherited" not in hit
