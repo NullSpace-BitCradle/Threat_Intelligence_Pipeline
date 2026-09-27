@@ -126,6 +126,94 @@ def test_isc1_one_cve_many_groups_sorted():
     ]
 
 
+def test_isc1_space_form_and_lowercase_ids_are_matched_and_normalized():
+    """ATT&CK prose writes "CVE 2012-0158" (G0089), and reference URLs carry
+    lowercase ids (G0143, G1021 with CVE-2021-44228); both count, normalized."""
+    group = _obj("intrusion-set", "gx", "G0089", "Group X.", name="X")
+    bundle = {"objects": [group, T1203, T1190,
+                          _rel("s1", group, T1203, description="Exploited CVE 2012-0158 in documents."),
+                          _rel("s2", group, T1190, refs=[
+                              {"source_name": "Blog", "url": "https://x.test/cve-2021-44228-log4j"}])]}
+    assert extract_attributions(bundle) == {
+        "CVE-2012-0158": [{"id": "G0089", "via": "G0089", "via_type": "relationship", "via_target": "T1203"}],
+        "CVE-2021-44228": [{"id": "G0089", "via": "G0089", "via_type": "relationship", "via_target": "T1190"}],
+    }
+
+
+def test_isc1_group_relationship_outranks_campaign_relationship():
+    """The CVE-2019-0604 and G1055 shape: the group's own relationship and a
+    relationship of a campaign attributed to it both cite the CVE on T1190.
+    The group's relationship wins, though the campaign id sorts first."""
+    group = _obj("intrusion-set", "g1055", "G1055", "Group.", name="G")
+    camp = _obj("campaign", "c5", "C0005", "Campaign.", name="C")
+    bundle = {"objects": [group, camp, T1190,
+                          _rel("a", camp, group, rel_type="attributed-to"),
+                          _rel("b", camp, T1190, description="Exploited CVE-2019-0604."),
+                          _rel("c", group, T1190, description="Exploited CVE-2019-0604.")]}
+    assert extract_attributions(bundle)["CVE-2019-0604"] == [
+        {"id": "G1055", "via": "G1055", "via_type": "relationship", "via_target": "T1190"}]
+    # Without the group's own relationship the campaign's still links.
+    bundle["objects"] = bundle["objects"][:-1]
+    assert extract_attributions(bundle)["CVE-2019-0604"] == [
+        {"id": "G1055", "via": "C0005", "via_type": "relationship", "via_target": "T1190"}]
+
+
+# ── Attribution collapse guard ──────────────────────────────────────
+
+def _manager_write(path: Path, data: dict) -> Any:
+    import tip.core.database_manager as dm_mod
+    manager = dm_mod.DatabaseManager()
+    manager.fresh_writes = set()
+    manager.databases["groups"]["file"] = str(path)
+    manager.databases["groups"]["processor"] = lambda *a: data
+    return manager, manager.update_database("groups")
+
+
+def _pairs(n: int) -> dict:
+    return {f"CVE-2020-{i:04d}": [{"id": "G0001", "via": "G0001", "via_type": "intrusion-set"}] for i in range(n)}
+
+
+def test_collapsed_attributions_are_not_written(tmp_path):
+    path = tmp_path / "groups_db.json"
+    existing = dict(_groups_db(), attributions=_pairs(10))
+    path.write_text(json.dumps(existing))
+    manager, ok = _manager_write(path, dict(_groups_db(), attributions=_pairs(4)))
+    assert ok is True  # the step keeps the published file, it does not fail the run
+    assert "groups" not in manager.fresh_writes
+    assert json.loads(path.read_text()) == existing
+    # Exactly half is not a collapse.
+    manager, ok = _manager_write(path, dict(_groups_db(), attributions=_pairs(5)))
+    assert "groups" in manager.fresh_writes
+    assert len(json.loads(path.read_text())["attributions"]) == 5
+
+
+def test_zero_attributions_are_not_written(tmp_path):
+    path = tmp_path / "groups_db.json"
+    path.write_text(json.dumps(dict(_groups_db(), attributions=_pairs(3))))
+    manager, _ = _manager_write(path, dict(_groups_db(), attributions={}))
+    assert len(json.loads(path.read_text())["attributions"]) == 3
+    assert "groups" not in manager.fresh_writes
+
+
+def test_bootstrap_without_existing_attributions_writes(tmp_path):
+    path = tmp_path / "groups_db.json"
+    path.write_text(json.dumps(_legacy_groups_db()))
+    manager, ok = _manager_write(path, _groups_db())
+    assert ok is True and "groups" in manager.fresh_writes
+    assert json.loads(path.read_text())["attributions"] == EXPECTED
+
+
+def test_apt_processor_update_refuses_collapse(tmp_path, monkeypatch):
+    path = tmp_path / "groups_db.json"
+    existing = dict(_groups_db(), attributions=_pairs(20))  # BUNDLE gives 7
+    path.write_text(json.dumps(existing))
+    proc = APTProcessor()
+    proc.db_path = str(path)
+    monkeypatch.setattr(proc, "download", lambda: BUNDLE)
+    assert proc.update() is False
+    assert json.loads(path.read_text()) == existing
+
+
 def test_isc1_groups_db_carries_attributions():
     db = APTProcessor()._process_stix_data(BUNDLE)
     assert db["attributions"] == EXPECTED

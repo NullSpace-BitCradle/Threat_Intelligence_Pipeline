@@ -19,11 +19,14 @@ from tip.utils.atomic_io import write_reference_db, count_groups
 
 config = get_config()
 
-CVE_RE = re.compile(r"CVE-\d{4}-\d{4,}")
+# ATT&CK prose also writes "CVE 2012-0158", and reference URLs carry
+# lowercase ids; every match is normalized to CVE-YYYY-NNNN.
+CVE_RE = re.compile(r"CVE[- ](\d{4})-(\d{4,})", re.I)
 
 # Evidence order when several ATT&CK objects cite one CVE for one group: the
-# group's own description, then an attributed campaign, then a relationship.
-VIA_RANK = {"intrusion-set": 0, "campaign": 1, "relationship": 2}
+# group's own ATT&CK entry, then an attributed campaign, then the group's own
+# relationship, then a campaign's relationship. Ties break by id.
+VIA_RANK = {"intrusion-set": 0, "campaign": 1, "group-relationship": 2, "campaign-relationship": 3}
 
 
 def _is_live(obj: Dict[str, Any]) -> bool:
@@ -37,13 +40,17 @@ def _attack_id(obj: Dict[str, Any]) -> str:
     return ""
 
 
+def _find_cves(text: str) -> Set[str]:
+    return {f"CVE-{year}-{num}" for year, num in CVE_RE.findall(text)}
+
+
 def _cited_cves(obj: Dict[str, Any]) -> Set[str]:
     """CVE ids in an object's description and external references."""
-    found = set(CVE_RE.findall(str(obj.get("description") or "")))
+    found = _find_cves(str(obj.get("description") or ""))
     for ref in obj.get("external_references") or []:
         if isinstance(ref, dict):
             for key in ("external_id", "description", "url"):
-                found.update(CVE_RE.findall(str(ref.get(key) or "")))
+                found.update(_find_cves(str(ref.get(key) or "")))
     return found
 
 
@@ -62,6 +69,8 @@ def extract_attributions(stix_data: Dict[str, Any]) -> Dict[str, List[Dict[str, 
     entry names the relationship's source as ``via`` and its target (a
     technique or software id) as ``via_target``. When several objects cite
     the same pair, the entry keeps the first by VIA_RANK, then by id.
+    CVE ids are matched with a space or a hyphen after "CVE", in any case,
+    and normalized to CVE-YYYY-NNNN.
     """
     objects = [o for o in stix_data.get("objects", []) if isinstance(o, dict)]
     groups: Dict[str, str] = {}
@@ -86,15 +95,15 @@ def extract_attributions(stix_data: Dict[str, Any]) -> Dict[str, List[Dict[str, 
                 and obj.get("source_ref") in campaigns and obj.get("target_ref") in groups):
             campaign_groups[str(obj["source_ref"])].add(groups[str(obj["target_ref"])])
 
-    best: Dict[Tuple[str, str], Dict[str, str]] = {}
+    best: Dict[Tuple[str, str], Tuple[Tuple[int, str, str], Dict[str, str]]] = {}
 
-    def cite(cves: Iterable[str], group_ids: Iterable[str], evidence: Dict[str, str]) -> None:
-        key_rank = (VIA_RANK[evidence["via_type"]], evidence["via"], evidence.get("via_target", ""))
+    def cite(cves: Iterable[str], group_ids: Iterable[str], evidence: Dict[str, str], tier: str) -> None:
+        key_rank = (VIA_RANK[tier], evidence["via"], evidence.get("via_target", ""))
         for cve in cves:
             for gid in group_ids:
-                held: Optional[Dict[str, str]] = best.get((cve, gid))
-                if held is None or key_rank < (VIA_RANK[held["via_type"]], held["via"], held.get("via_target", "")):
-                    best[(cve, gid)] = {"id": gid, **evidence}
+                held: Optional[Tuple[Tuple[int, str, str], Dict[str, str]]] = best.get((cve, gid))
+                if held is None or key_rank < held[0]:
+                    best[(cve, gid)] = (key_rank, {"id": gid, **evidence})
 
     for obj in objects:
         if not _is_live(obj):
@@ -102,28 +111,60 @@ def extract_attributions(stix_data: Dict[str, Any]) -> Dict[str, List[Dict[str, 
         stix_id = str(obj.get("id") or "")
         otype = obj.get("type")
         if otype == "intrusion-set" and stix_id in groups:
-            cite(_cited_cves(obj), [groups[stix_id]], {"via": groups[stix_id], "via_type": "intrusion-set"})
+            cite(_cited_cves(obj), [groups[stix_id]], {"via": groups[stix_id], "via_type": "intrusion-set"},
+                 "intrusion-set")
         elif otype == "campaign" and stix_id in campaigns:
             cite(_cited_cves(obj), campaign_groups.get(stix_id, set()),
-                 {"via": campaigns[stix_id], "via_type": "campaign"})
+                 {"via": campaigns[stix_id], "via_type": "campaign"}, "campaign")
         elif otype == "relationship":
             source = str(obj.get("source_ref") or "")
             if source in groups:
-                owner, group_ids = groups[source], {groups[source]}
+                owner, group_ids, tier = groups[source], {groups[source]}, "group-relationship"
             elif source in campaigns:
-                owner, group_ids = campaigns[source], campaign_groups.get(source, set())
+                owner, group_ids, tier = campaigns[source], campaign_groups.get(source, set()), "campaign-relationship"
             else:
                 continue
             evidence = {"via": owner, "via_type": "relationship"}
             target = attack_ids.get(str(obj.get("target_ref") or ""))
             if target:
                 evidence["via_target"] = target
-            cite(_cited_cves(obj), group_ids, evidence)
+            cite(_cited_cves(obj), group_ids, evidence, tier)
 
     out: Dict[str, List[Dict[str, str]]] = defaultdict(list)
-    for (cve, _gid), entry in sorted(best.items()):
+    for (cve, _gid), (_rank, entry) in sorted(best.items()):
         out[cve].append(entry)
     return dict(out)
+
+
+def count_attribution_pairs(data: Any) -> Optional[int]:
+    """CVE to group pairs in a groups database, or None when it has no
+    attributions key (written before I32)."""
+    attributions = data.get("attributions") if isinstance(data, dict) else None
+    if not isinstance(attributions, dict):
+        return None
+    return sum(len(v) for v in attributions.values() if isinstance(v, list))
+
+
+def attributions_collapsed(new_data: Dict[str, Any], existing_path: "str | Path") -> Optional[str]:
+    """Why a new groups database must not replace the existing file, or None.
+
+    The groups floor counts groups, not citations, so a bundle whose CVE
+    citations vanished would pass it. A write is refused when the new pair
+    count is under half the existing file's. An existing file without
+    attributions (or none at all) is a bootstrap and never refused.
+    """
+    path = Path(existing_path)
+    if not path.is_file():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            old = count_attribution_pairs(json.load(f))
+    except (OSError, ValueError):
+        return None
+    new = count_attribution_pairs(new_data) or 0
+    if old and new < old / 2:
+        return f"attribution pairs fell from {old} to {new}, under half; existing {path.name} kept"
+    return None
 
 
 class APTProcessor:
@@ -253,7 +294,12 @@ class APTProcessor:
         """Download, process, and save groups database"""
         try:
             stix_data = self.download()
-            self.groups_db = self._process_stix_data(stix_data)
+            data = self._process_stix_data(stix_data)
+            refused = attributions_collapsed(data, self.db_path)
+            if refused:
+                self.logger.warning(f"Groups database not written: {refused}")
+                return False
+            self.groups_db = data
             self._save(self.groups_db)
             return True
         except Exception as e:
