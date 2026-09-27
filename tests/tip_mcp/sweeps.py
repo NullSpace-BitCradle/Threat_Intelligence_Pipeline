@@ -63,6 +63,8 @@ def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[di
             out.append({"technique": tid, "kind": "cwe", "id": cwe["id"], "tier": cwe["tier"]})
     for cve in chain["cves"]:
         hops = [tech_cve_tier]
+        if cve.get("inherited_cwes"):
+            hops.append("derived")
         for cwe_id in cve["via_cwes"]:
             hops.append(cwes[cwe_id]["tier"] if cwe_id in cwes else None)
         if cve["tier"] in STRONG and any(h not in STRONG for h in hops):
@@ -71,6 +73,28 @@ def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[di
         if capec["tier"] in STRONG and _rel(loader, capec["id"], "technique").get("tier") not in STRONG:
             out.append({"technique": tid, "kind": "capec", "id": capec["id"], "tier": capec["tier"]})
     return out
+
+
+def chain_inherited_cwe_violations(loader: IndexLoader) -> list[dict]:
+    """I29: a chain CVE is explained through inherited CWEs only when none
+    of its NVD-assigned CWEs explains it; those CWEs are the CVE's own
+    cwe_inherited, never assigned ones; and the CVE is then derived."""
+    bad: list[dict] = []
+    for tid, ent in loader.entities.items():
+        if ent.get("type") != "technique":
+            continue
+        chain = build_attack_chain_impl(loader, tid, limit=BIG)["data"]
+        for cve in chain["cves"]:
+            inh = cve.get("inherited_cwes") or []
+            if not inh:
+                continue
+            cve_ent = loader.entities.get(cve["id"]) or {}
+            assigned = set(_rel(loader, cve["id"], "cwe").get("ids") or [])
+            parents = set(cve_ent.get("cwe_inherited") or [])
+            if not set(inh) <= parents or set(inh) & assigned or set(cve["via_cwes"]) != set(inh) \
+                    or cve["tier"] in STRONG:
+                bad.append({"technique": tid, "cve": cve["id"], "inherited_cwes": inh})
+    return bad
 
 
 def defense_tier_violations(loader: IndexLoader, cve_id: str, defenses: list[dict]) -> list[dict]:
