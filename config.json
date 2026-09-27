@@ -44,6 +44,10 @@
             "file": "docs/data/vulnrichment_db.json",
             "state_file": "docs/data/vulnrichment_state.json"
         },
+        "epss": {
+            "url": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz",
+            "file": "docs/data/epss_curated.json"
+        },
         "groups": {
             "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json",
             "file": "docs/data/groups_db.json"
