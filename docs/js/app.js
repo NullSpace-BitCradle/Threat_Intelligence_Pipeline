@@ -70,12 +70,13 @@ function handleRoute() {
 
     // Route: #/changes, #/changes/<event type>, #/watching (I7, I8). Tested
     // before the generic #/<type>/<id> route, which would swallow them.
-    var changesMatch = hash.match(/^#\/changes(?:\/(\w+))?$/);
+    // A trailing slash is accepted on both.
+    var changesMatch = hash.match(/^#\/changes(?:\/(\w*))?\/?$/);
     if (changesMatch) {
         showChangesPage(changesMatch[1] || '', gen);
         return;
     }
-    if (hash === '#/watching') {
+    if (hash === '#/watching' || hash === '#/watching/') {
         showWatchingPage(gen);
         return;
     }

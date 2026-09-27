@@ -184,6 +184,56 @@ def test_changes_lists_every_event_and_filters_by_type(page: Page) -> None:
     assert errors == []
 
 
+@pytest.mark.parametrize("route, rows", [
+    ("#/changes/", 7), ("#/changes/epss_jump/", 1), ("#/watching/", 0),
+])
+def test_trailing_slash_routes(page: Page, route: str, rows: int) -> None:
+    errors = _errors(page)
+    _serve(page)
+    _go(page, route)
+    expect(page.locator("#page-feed")).to_be_visible(timeout=TIMEOUT_MS)
+    if rows:
+        expect(page.locator("#change-list .change-row")).to_have_count(rows, timeout=TIMEOUT_MS)
+    else:
+        expect(page.locator("#feed-title")).to_have_text("Watching")
+    expect(page.locator("#page-results")).to_be_hidden()
+    assert errors == []
+
+
+HOSTILE = "<img src=x onerror=\"window.__xss=1\">"
+
+
+def test_hostile_values_that_pass_validation_render_as_text(page: Page) -> None:
+    """Every string the validators accept but the pipeline never wrote:
+    vendor, product, before and after values, and a watched id."""
+    doc = {"since": "2026-09-01", "events": [
+        {"date": "2026-09-26", "type": "kev_added", "cve": "CVE-2026-0666", "before": None,
+         "after": {"date_added": HOSTILE, "due_date": HOSTILE},
+         "related": {"vendor": HOSTILE, "product": HOSTILE, "cwe": [HOSTILE]}},
+        {"date": "2026-09-25", "type": "ssvc_exploitation_changed", "cve": "CVE-2026-0667",
+         "before": HOSTILE, "after": HOSTILE, "related": {"vendor": HOSTILE}},
+        {"date": "2026-09-24", "type": "kev_removed", "cve": "CVE-2026-0668",
+         "before": {"date_added": HOSTILE}, "after": None, "related": {"vendor": HOSTILE, "product": HOSTILE}},
+    ]}
+    errors = _errors(page)
+    _serve(page, gzip.compress(json.dumps(doc).encode()))
+    _watch(page, [{"type": "kev_vendor", "id": HOSTILE}, {"type": "cwe", "id": HOSTILE},
+                  {"type": "kev_product", "id": HOSTILE + "/" + HOSTILE}])
+    _go(page, "")
+    expect(page.locator("#watch-summary")).to_contain_text("changes for your watchlist this week", timeout=TIMEOUT_MS)
+    for route, text in (("#/changes", "Entered KEV"), ("#/watching", "watching KEV vendor")):
+        page.evaluate("h => { window.location.hash = h; }", route)
+        expect(page.locator("#feed-body")).to_contain_text(text, timeout=TIMEOUT_MS)
+        expect(page.locator("#feed-body")).to_contain_text(HOSTILE)
+        assert page.locator("img").count() == 0
+    page.evaluate("h => { window.location.hash = h; }", "#/")
+    expect(page.locator("#stats-bar")).not_to_be_empty(timeout=TIMEOUT_MS)
+    page.wait_for_timeout(300)
+    assert page.locator("img").count() == 0
+    assert page.evaluate("() => window.__xss") is None
+    assert errors == []
+
+
 # ISC-8: corrupt storage and a missing or malformed log render safely.
 
 @pytest.mark.parametrize("raw", [
