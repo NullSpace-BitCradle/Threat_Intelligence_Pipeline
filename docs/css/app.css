@@ -301,7 +301,8 @@
 .result-body {
     display: grid;
     grid-template-columns: 1fr 760px;
-    height: calc(100vh - 57px);
+    /* --stale-banner-h is set by freshness.js while a stale banner shows. */
+    height: calc(100vh - 57px - var(--stale-banner-h, 0px));
 }
 
 .result-main {

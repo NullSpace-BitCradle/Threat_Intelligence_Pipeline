@@ -96,6 +96,13 @@ function renderFreshness(entries, now) {
                 ' (' + formatFreshnessAge(s.hours) + '; expected ' + s.entry.cadence + ')';
         }).join('; ') + '. Recent data runs may have failed.';
         document.body.insertBefore(banner, document.body.firstChild);
+        // The results layout is sized to the viewport; take the banner's
+        // height out of it so the page does not grow a second scrollbar.
+        var fit = function() {
+            document.documentElement.style.setProperty('--stale-banner-h', banner.offsetHeight + 'px');
+        };
+        fit();
+        window.addEventListener('resize', fit);
     }
 }
 
