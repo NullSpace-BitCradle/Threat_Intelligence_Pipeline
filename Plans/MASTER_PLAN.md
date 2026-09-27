@@ -39,13 +39,13 @@ On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review
 
 ## 3. Current state, measured
 
-Measured on `main` at `8848172` on 2026-09-27.
+Measured on `main` at `7cc25b6` on 2026-09-27, after that day's weekly run.
 
-**Entity index** (`docs/data/entity_index.json`, v1.5): 4,342 entities, 7.81 MB, generated 2026-09-27T02:57Z.
+**Entity index** (`docs/data/entity_index.json`, v1.5): 4,348 entities, 13.25 MB, generated 2026-09-27T19:27Z. It was 7.81 MB before the first weekly run with I29, I21, and I32 data; the growth has not been broken down by field yet.
 
 | Type | Count |
 |------|------:|
-| cve | 1,728 |
+| cve | 1,734 |
 | cwe | 969 |
 | technique | 697 |
 | capec | 559 |
@@ -54,15 +54,15 @@ Measured on `main` at `8848172` on 2026-09-27.
 | campaign | 56 |
 | owasp | 10 |
 
-- The curated CVE tier (Layer 2) is KEV, or APT-linked, or SSVC exploitation `active`.
-- The index has 0 dangling relationship targets by construction.
-- The published index predates the first weekly run with the I29 shard format. Inherited markers arrive with the next weekly run.
+- The curated CVE tier (Layer 2) is KEV, or APT-linked by ATT&CK citation, or SSVC exploitation `active`: 1,726 KEV CVEs, 6 cited CVEs outside KEV, and 2 SSVC `active` CVEs outside KEV.
+- The index has 0 dangling relationship targets by construction; the generator dropped 1,104 on this build and counts them in `meta.dropped_dangling_rels`.
+- APT links come only from ATT&CK citations: `groups_db.json` holds 199 pairs over 118 CVEs, and 117 curated CVEs carry a link.
 
-**All-CVE tier.** `docs/data/cve_ids_index.json` holds 398,446 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 114.7 MB in total. `docs/` is 176.8 MB.
+**All-CVE tier.** `docs/data/cve_ids_index.json` holds 398,520 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 132.6 MB in total. `docs/` is 180 MB.
 
-**Reference data.** KEV: 1,726 entries. Vulnrichment: 188,261 entries, after a full resync on 2026-09-27 that followed the truncated-compare fix (`536b805`, PR #1); it held 2,567 before.
+**Reference data.** KEV: 1,726 entries. Vulnrichment: 188,262 entries. EPSS: the curated file scores all 1,734 curated CVEs daily.
 
-**Tests.** 396 unit tests and 33 Playwright smoke tests. `mypy` is clean on 27 source files. CI gates `src/tip_mcp` coverage at 90% (measured 96.8%).
+**Tests.** 834 unit tests and 107 Playwright smoke tests. `mypy` is clean on 33 source files. CI gates `src/tip_mcp` coverage at 90% (measured 96.67%).
 
 **CI and repo.**
 
@@ -73,10 +73,10 @@ Measured on `main` at `8848172` on 2026-09-27.
 - CodeQL runs as GitHub's default setup. Dependabot covers pip and GitHub Actions.
 - Actions are pinned to commit SHAs. Three hash-locked lockfiles carry a 7-day cooldown and install with `--require-hashes`.
 - Data runs fail closed, share one concurrency group, build on the latest `main`, and never force push.
-- The repo is about 2.6 GB on GitHub, mostly history growth (see I17).
-- A ruleset on `main` blocks force push and deletion. It requires no checks yet (see I33).
+- The repo is about 2.9 GB on GitHub, mostly history growth (see I17).
+- A ruleset on `main` blocks force push and deletion. It requires no checks, by decision (I33, dropped 2026-09-27).
 
-**MCP.** Six tools on `mcp` 2.2.0: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`, `build_attack_chain`, `get_defenses`, `kev_status`. The repo root carries `.mcp.json`. `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`.
+**MCP.** Seven tools on `mcp` 2.2.0: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`, `build_attack_chain`, `get_defenses`, `kev_status`, `recent_changes`. The repo root carries `.mcp.json`. `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`.
 
 ## 4. Roadmap
 

@@ -1,5 +1,5 @@
 /**
- * TIP Relationship Graph — D3 force-directed layout
+ * TIP Relationship Graph: D3 force-directed layout
  * Renders entity connections in the right panel.
  */
 

@@ -1,5 +1,5 @@
 /**
- * TIP Entity System — Pure Data Layer
+ * TIP Entity System: Pure Data Layer
  * Provides TYPE_CONFIG, index loading, search, and entity lookup.
  * No DOM rendering. Called by app.js, results.js, and graph.js.
  */

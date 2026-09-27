@@ -1,5 +1,5 @@
 /**
- * TIP App — Router, search, landing page, theme, mode detection.
+ * TIP App: Router, search, landing page, theme, mode detection.
  */
 
 // ── Page Management ────────────────────────────────────────────
@@ -179,7 +179,7 @@ function navigateToEntity(query) {
         allResults = allResults.concat(grouped[type]);
     }
 
-    // Check for exact name match (case-insensitive) — prefer that over multi-result page
+    // Check for exact name match (case-insensitive): prefer that over multi-result page
     var q = query.toLowerCase();
     for (var i = 0; i < allResults.length; i++) {
         if (allResults[i].id.toLowerCase() === q ||
@@ -448,7 +448,7 @@ async function initLanding() {
         statsBar.appendChild(span);
     }
 
-    // Quick access — load KEV data for recent entries
+    // Quick access: load KEV data for recent entries
     try {
         var kevRes = await fetch('data/kev_db.json');
         if (kevRes.ok) {

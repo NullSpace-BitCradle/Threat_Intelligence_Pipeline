@@ -1,5 +1,5 @@
 /**
- * TIP Results — renders entity detail pages (header, summary, tabs, tab content).
+ * TIP Results: renders entity detail pages (header, summary, tabs, tab content).
  * Uses safe DOM methods throughout (textContent, createElement). No innerHTML.
  */
 
@@ -258,7 +258,7 @@ function renderEntityHeader(container, entity, related, detail) {
         badges.appendChild(sevBadge);
     }
 
-    // Triage badges (CVE) — render-if-present so they light up wherever the
+    // Triage badges (CVE): render-if-present so they light up wherever the
     // data is attached (KEV detail and SSVC ride in via `detail`). `detail`
     // may be undefined; never assume it.
     if (entity.type === 'cve') {
@@ -271,7 +271,7 @@ function renderEntityHeader(container, entity, related, detail) {
             kevBadge.style.color = '#d63031';
             kevBadge.textContent = 'KEV';
             if (kevDetail && kevDetail.dueDate) {
-                kevBadge.title = 'CISA KEV — remediation due ' + kevDetail.dueDate;
+                kevBadge.title = 'CISA KEV: remediation due ' + kevDetail.dueDate;
             }
             badges.appendChild(kevBadge);
         }
@@ -887,7 +887,7 @@ function renderOverviewContent(panel, entity, detail, related) {
         content.appendChild(descSection);
     }
 
-    // References (CVE) — render the actual NVD-linked URLs as click-through
+    // References (CVE): render the actual NVD-linked URLs as click-through
     // links rather than only a count. Each href is validated to http(s).
     if (entity.type === 'cve' && Array.isArray(entity.references) && entity.references.length > 0) {
         var refSection = document.createElement('div');
