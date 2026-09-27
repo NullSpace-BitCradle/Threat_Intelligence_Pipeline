@@ -382,6 +382,17 @@ function normalizeRelId(relType, id) {
     return s;
 }
 
+function normalizeLinkProv(relType, raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for (const [id, prov] of Object.entries(raw)) {
+        if (prov && typeof prov === 'object' && typeof prov.tier === 'string') {
+            out[normalizeRelId(relType, id)] = prov;
+        }
+    }
+    return out;
+}
+
 function getRelatedEntities(entityId) {
     const entity = getEntity(entityId);
     if (!entity || !entity.rels) return {};
@@ -395,6 +406,9 @@ function getRelatedEntities(entityId) {
             // Additive (I29): ids reached only through an inherited parent
             // CWE. Older indexes have none, so nothing is marked.
             inherited: (relData.inherited || []).map(id => normalizeRelId(relType, id)),
+            // Additive (I21): per-link provenance for CTID (official) and
+            // inferred links, keyed by id. Older indexes have none.
+            linkProv: normalizeLinkProv(relType, relData.link_prov),
             entities: ids.map(id => getEntity(id)).filter(Boolean)
         };
     }

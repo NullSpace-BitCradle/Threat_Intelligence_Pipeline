@@ -52,6 +52,8 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
         // I29: ids reached only through an inherited parent CWE. Older
         // indexes and shards have none, so no node is marked.
         const inheritedIds = relData.inherited || [];
+        // I21: CTID (official) and inferred links, per id.
+        const linkProv = relData.linkProv || {};
         for (const relId of ids) {
             if (nodeSet.has(relId)) continue;
             const relEntity = getEntity(relId);
@@ -60,14 +62,18 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
             // renders the shape of the relationship set.
             const effectiveEntity = relEntity || { name: relId, type: relType };
             nodeSet.add(relId);
+            const lp = linkProv[relId];
+            const linkTier = lp && lp.tier === 'inferred' ? 'inferred'
+                : (lp && lp.tier === 'official' && String(lp.source || '').indexOf('CTID') !== -1 ? 'ctid' : null);
             nodes.push({
                 id: relId,
                 name: effectiveEntity.name || relId,
                 type: effectiveEntity.type || relType,
                 r: GRAPH_NODE_SIZES.primary,
-                inherited: inheritedIds.indexOf(relId) !== -1
+                inherited: inheritedIds.indexOf(relId) !== -1,
+                linkTier: linkTier
             });
-            links.push({ source: entityId, target: relId, inherited: inheritedIds.indexOf(relId) !== -1 });
+            links.push({ source: entityId, target: relId, inherited: inheritedIds.indexOf(relId) !== -1, linkTier: linkTier });
         }
     }
 
@@ -101,7 +107,7 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
         .selectAll('line')
         .data(links)
         .join('line')
-        .attr('class', d => d.inherited ? 'graph-link-inherited' : null)
+        .attr('class', d => d.inherited ? 'graph-link-inherited' : (d.linkTier ? 'graph-link-' + d.linkTier : null))
         .attr('stroke', 'var(--border)')
         .attr('stroke-width', 1)
         .attr('stroke-opacity', 0.6);
@@ -110,7 +116,7 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
         .selectAll('g')
         .data(nodes)
         .join('g')
-        .attr('class', d => d.inherited ? 'graph-node-inherited' : null)
+        .attr('class', d => d.inherited ? 'graph-node-inherited' : (d.linkTier ? 'graph-node-' + d.linkTier : null))
         .style('cursor', 'pointer')
         .on('click', (event, d) => {
             if (!d.isCenter) {
@@ -139,7 +145,9 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
     // Tooltip on hover
     node.append('title')
         .text(d => d.id + (d.name !== d.id ? ' \u2014 ' + d.name : '') +
-            (d.inherited ? ' (inherited via parent CWE)' : ''));
+            (d.inherited ? ' (inherited via parent CWE)' : '') +
+            (d.linkTier === 'ctid' ? ' (MITRE CTID analyst mapping)' : '') +
+            (d.linkTier === 'inferred' ? ' (inferred from the CVSS vector)' : ''));
 
     simulation.on('tick', () => {
         // Keep nodes within bounds
