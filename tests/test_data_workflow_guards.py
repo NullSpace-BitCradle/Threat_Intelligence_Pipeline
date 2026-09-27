@@ -107,13 +107,151 @@ def test_no_expressions_inside_run_blocks(name):
         assert "${{" not in body, f"{name}:{lineno} interpolates an expression in run:"
 
 
+def _unquote(value):
+    v = value.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+        return v[1:-1]
+    return v
+
+
+def _strip_comment(line):
+    """Drop a trailing # comment that is outside quotes."""
+    quote = None
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i].rstrip()
+    return line.rstrip()
+
+
+_KEY = re.compile(r"""^(["']?)([A-Za-z0-9_.-]+)\1\s*:(?:\s+(.*))?$""")
+
+
+def _entries(text):
+    """Every mapping entry in a workflow as (path, key, value).
+
+    A small indentation-aware reader for the YAML subset workflows use (no
+    PyYAML dependency): path is the tuple of parent keys, list markers are
+    transparent, keys may be quoted and spaced before the colon, and a block
+    scalar (| or >) value is its joined body.
+    """
+    lines = text.splitlines()
+    stack = []  # (indent, key)
+    out = []
+    i = 0
+    while i < len(lines):
+        raw = lines[i]
+        i += 1
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        m = re.match(r"^(\s*)((?:-\s+)*)(.*)$", raw)
+        indent = len(m.group(1)) + len(m.group(2))
+        km = _KEY.match(_strip_comment(m.group(3)))
+        if not km:
+            continue
+        key, value = km.group(2), (km.group(3) or "")
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+        if re.fullmatch(r"[|>][-+0-9]*", value.strip()):
+            body = []
+            while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent):
+                body.append(lines[i])
+                i += 1
+            value = "\n".join(body)
+        out.append((tuple(k for _, k in stack), key, value))
+        stack.append((indent, key))
+    return out
+
+
+def _flow_pairs(value):
+    """key: value pairs of a flow mapping such as { issues: write }."""
+    v = value.strip()
+    if not (v.startswith("{") and v.endswith("}")):
+        return []
+    pairs = []
+    for part in v[1:-1].split(","):
+        if ":" in part:
+            k, _, val = part.partition(":")
+            pairs.append((_unquote(k), _unquote(val)))
+    return pairs
+
+
+def _permission_grants(text):
+    """(scope, permission, level) for every permission in a workflow; scope is
+    the job id, or "" for the workflow level."""
+    grants = []
+    for path, key, value in _entries(text):
+        full = path + (key,)
+        if "permissions" not in full:
+            continue
+        where = full.index("permissions")
+        scope = full[1] if full[0] == "jobs" and where >= 2 else ""
+        if key == "permissions":
+            pairs = _flow_pairs(value)
+            if pairs:
+                grants.extend((scope, k, v) for k, v in pairs)
+            elif _unquote(value):
+                grants.append((scope, "*", _unquote(value)))  # read-all, write-all
+        elif path and path[-1] == "permissions":
+            grants.append((scope, key, _unquote(value)))
+    return grants
+
+
+def _expression_sinks(text):
+    """Values a shell or script interpreter parses: run: blocks and with:
+    script: inputs (actions/github-script style)."""
+    return [
+        (key, value) for path, key, value in _entries(text)
+        if key == "run" or (key == "script" and path and path[-1] == "with")
+    ]
+
+
+PERMISSION_TRAPS = [
+    ("jobs:\n  other:\n    permissions:\n      issues: write\n", {("other", "issues", "write")}),
+    ("jobs:\n  other:\n    permissions:\n      'issues' : \"write\"  # sneaky\n",
+     {("other", "issues", "write")}),
+    ("jobs:\n  other:\n    permissions: { contents: read, issues: write }\n",
+     {("other", "contents", "read"), ("other", "issues", "write")}),
+    ("permissions: write-all\njobs:\n  a:\n    runs-on: x\n", {("", "*", "write-all")}),
+    ("permissions:\n  issues: write\njobs:\n  a:\n    runs-on: x\n", {("", "issues", "write")}),
+]
+
+
+@pytest.mark.parametrize("text, expected", PERMISSION_TRAPS)
+def test_permission_parser_sees_every_spelling(text, expected):
+    """The guard would catch each spelling (guards the guard)."""
+    assert set(_permission_grants(text)) == expected
+
+
+def test_script_input_parser_sees_expressions():
+    bad = ("      - uses: actions/github-script@0123456789012345678901234567890123456789\n"
+           "        with:\n          script: |\n            core.info('${{ github.ref }}')\n")
+    assert any("${{" in v for _, v in _expression_sinks(bad))
+
+
+@pytest.mark.parametrize("name", ALL_WORKFLOWS)
+def test_no_write_all_anywhere(name):
+    text = (WORKFLOWS / name).read_text()
+    assert not [v for _, _, v in _entries(text) if "write-all" in v]
+    assert not [g for g in _permission_grants(text) if g[2] == "write-all"]
+
+
 @pytest.mark.parametrize("name", ALL_WORKFLOWS)
 def test_issues_write_only_on_alerting_jobs(name):
-    text = (WORKFLOWS / name).read_text()
-    top = text.split("\njobs:\n", 1)[0]
-    assert "issues:" not in top, "issues permission must be job-level only"
-    with_issues = {job for job, body in _jobs(text).items() if "issues: write" in body}
+    grants = _permission_grants((WORKFLOWS / name).read_text())
+    with_issues = {scope for scope, perm, level in grants if perm == "issues" and level == "write"}
+    assert "" not in with_issues, "issues permission must be job-level only"
     assert with_issues == ALERTING_JOBS.get(name, set())
+
+
+@pytest.mark.parametrize("name", ALL_WORKFLOWS)
+def test_no_expressions_in_script_inputs(name):
+    for key, value in _expression_sinks((WORKFLOWS / name).read_text()):
+        assert "${{" not in value, f"{name}: expression inside {key}:"
 
 
 @pytest.mark.parametrize("name", DATA_WORKFLOWS)
@@ -135,6 +273,7 @@ def test_data_workflow_alerts_on_failure_and_closes_on_success(name):
     fail = _step(text, "Alert on failure")
     assert "if: failure() || cancelled()" in fail
     assert "RUN_OUTCOME: ${{ job.status }}" in fail
+    assert "REPO_OWNER: ${{ github.repository_owner }}" in fail
     ok = _step(text, "Close failure alert on success")
     assert "if: success()" in ok
     assert "RUN_OUTCOME: success" in ok
@@ -147,7 +286,8 @@ def test_live_canary_checks_freshness_even_after_smoke_failure():
     text = (WORKFLOWS / "smoke-test.yml").read_text()
     job = _jobs(text)["smoke-live"]
     step = _step(job, "Check published data freshness")
-    assert "if: always()" in step
+    assert "if: always() && github.ref == 'refs/heads/main'" in step
+    assert "REPO_OWNER: ${{ github.repository_owner }}" in step
     assert "FRESHNESS_URL: https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/data/freshness.json" in step
     assert "run: python3 scripts/pipeline_alert.py stale" in step
     assert "pipeline_alert" not in _jobs(text)["smoke-local"]

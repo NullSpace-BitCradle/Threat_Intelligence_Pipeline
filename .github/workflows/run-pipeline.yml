@@ -90,6 +90,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_OUTCOME: ${{ job.status }}
+          REPO_OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 scripts/pipeline_alert.py run
 
