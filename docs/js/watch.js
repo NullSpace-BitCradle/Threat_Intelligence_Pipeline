@@ -122,10 +122,27 @@ function parseChanges(doc) {
         events.push({ date: ev.date, type: ev.type, cve: ev.cve, before: ev.before, after: ev.after, related: rel });
     }
     events.sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    var truncated = (typeof doc.truncated === 'number' && doc.truncated > 0 && isFinite(doc.truncated)) ? Math.floor(doc.truncated) : 0;
     return {
         since: (typeof doc.since === 'string' && CHANGE_DATE_RE.test(doc.since)) ? doc.since : null,
-        events: events
+        events: events,
+        truncated: truncated,
+        truncatedThrough: (truncated && typeof doc.truncated_through === 'string' && CHANGE_DATE_RE.test(doc.truncated_through))
+            ? doc.truncated_through : null
     };
+}
+
+// Said wherever a list is shown: the log hit its size cap and dropped older
+// events, so the list is incomplete on and before that date.
+function appendTruncationNote(body, log) {
+    if (!log.truncated) return;
+    var note = document.createElement('div');
+    note.className = 'feed-summary feed-truncated';
+    note.id = 'feed-truncated';
+    note.textContent = log.truncated + ' older change' + (log.truncated === 1 ? ' was' : 's were') +
+        ' dropped to keep the log under its size cap' +
+        (log.truncatedThrough ? '; changes on or before ' + log.truncatedThrough + ' may be missing.' : '.');
+    body.appendChild(note);
 }
 
 var changesLoading = null;
@@ -340,6 +357,7 @@ async function showChangesPage(typeFilter, gen) {
     summary.textContent = events.length + ' change' + (events.length === 1 ? '' : 's') + ' in the last 30 days' +
         (res.log.since ? ' (log started ' + res.log.since + ')' : '');
     body.appendChild(summary);
+    appendTruncationNote(body, res.log);
 
     var list = document.createElement('div');
     list.className = 'change-list';
@@ -397,6 +415,7 @@ async function showWatchingPage(gen) {
     summary.className = 'feed-summary';
     summary.textContent = matched.length + ' change' + (matched.length === 1 ? '' : 's') + ' for your watchlist in the last 30 days';
     body.appendChild(summary);
+    appendTruncationNote(body, res.log);
     var list = document.createElement('div');
     list.className = 'change-list';
     list.id = 'change-list';

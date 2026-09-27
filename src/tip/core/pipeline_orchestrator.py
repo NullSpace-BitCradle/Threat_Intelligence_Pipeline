@@ -537,6 +537,11 @@ class PipelineOrchestrator:
             summary = change_log.record_changes(
                 before, paths, succeeded_sources(self.results), paths['log']
             )
+            if summary.get('truncated'):
+                log_warning(
+                    f"Change log over its cap of {change_log.MAX_EVENTS} events: "
+                    f"dropped the {summary['truncated']} oldest"
+                )
             if summary.get('written'):
                 log_info(
                     f"Change log: {summary['new_events']} new events from "

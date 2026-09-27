@@ -1293,4 +1293,11 @@ def recent_changes_impl(
         count=min(len(events), limit), total=len(events),
         since=log["since"], window_days=log["window_days"],
     )
+    if log.get("truncated"):
+        meta["truncated"] = log["truncated"]
+        meta["truncated_through"] = log.get("truncated_through")
+        meta["note"] = (
+            f"The log hit its event cap: {log['truncated']} older events on or before "
+            f"{log.get('truncated_through')} were dropped."
+        )
     return ok_response({"events": _capped(events, limit)}, meta=meta)

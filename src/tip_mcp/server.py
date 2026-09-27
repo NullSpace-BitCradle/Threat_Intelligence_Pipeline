@@ -165,8 +165,9 @@ def recent_changes(
     curated_added, curated_removed. entity_id keeps only events whose CVE or
     related ids, vendor, or product match it (case-insensitive), so a CWE,
     technique, APT group id, or vendor name works as a watch. Capped at limit
-    (default 50); meta.total has the full count. No change log yet returns ok
-    with no events and meta.note.
+    (default 50); meta.total has the full count. When the log hit its event
+    cap, meta.truncated counts the dropped older events and meta.note says
+    so. No change log yet returns ok with no events and meta.note.
     """
     return recent_changes_impl(_loader, entity_id, type, limit)
 

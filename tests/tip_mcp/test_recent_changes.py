@@ -131,3 +131,15 @@ def test_log_is_read_once_and_reset_by_load(fixture_data_dir, tmp_path):
     assert recent_changes_impl(ld)["meta"]["total"] == 0  # fixtures have no log
     ld.load()
     assert ld.changes is None and "not found" in (ld.changes_error or "")
+
+
+def test_truncated_log_says_so_in_meta(tmp_path):
+    ld = _loader(tmp_path, change_log.render_log(EVENTS, "2026-09-01", 12, "2026-09-02"))
+    res = recent_changes_impl(ld, entity_id="CWE-22")
+    assert _cves(res) == ["CVE-2026-1234"]
+    assert res["meta"]["truncated"] == 12 and res["meta"]["truncated_through"] == "2026-09-02"
+    assert "12 older events on or before 2026-09-02 were dropped" in res["meta"]["note"]
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    meta = recent_changes_impl(_loader(plain, change_log.render_log(EVENTS, "2026-09-01")))["meta"]
+    assert "truncated" not in meta and "note" not in meta

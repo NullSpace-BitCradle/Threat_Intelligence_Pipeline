@@ -226,6 +226,7 @@ def test_first_run_with_prior_state_and_no_log_records_only_real_changes(tmp_pat
     assert summary["written"] and summary["new_events"] == 1
     assert doc["since"] == DAY and doc["window_days"] == 30 and doc["schema"] == 1
     assert [e["cve"] for e in doc["events"]] == ["CVE-2026-1234"]
+    assert "truncated" not in doc and "truncated_through" not in doc
 
 
 @pytest.mark.parametrize("garbage", [b"not gzip", gzip.compress(b"{nope"), gzip.compress(b"[]")])
@@ -349,6 +350,86 @@ def test_unreadable_existing_log_starts_over_and_says_so(tmp_path):
     assert doc["since"] == DAY and [e["type"] for e in doc["events"]] == ["kev_removed"]
 
 
+# ── ISC-4: the event cap ───────────────────────────────────────
+
+WORST_CASE = Path(__file__).parent / "fixtures" / "changes_worst_case.json.gz"
+SIZE_BAR = 150_000
+
+
+def _kev_days(root: Path, n: int):
+    """A KEV before/after pair adding n CVEs, and the paths. The base is large
+    enough that the adds pass the baseline rule."""
+    paths = _paths(root)
+    base = _kev(**{f"CVE-2020-{i:04d}": ("a", "b", "V", "P") for i in range(100)})
+    _write(paths["kev"], base)
+    before = cl.snapshot_sources(paths)
+    added = _kev(**{f"CVE-2026-{i:05d}": ("x", "y", "V", "P") for i in range(n)})
+    _write(paths["kev"], dict(base, **added))
+    return before, paths
+
+
+def test_cap_drops_the_oldest_events_and_says_so(tmp_path, monkeypatch):
+    monkeypatch.setattr(cl, "MAX_EVENTS", 4)
+    log = tmp_path / "docs" / "data" / "changes.json.gz"
+    old = [_ev("2026-09-20", cve="CVE-OLDEST"), _ev("2026-09-25", cve="CVE-OLD")]
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_bytes(cl.render_log(old, "2026-09-01"))
+    before, paths = _kev_days(tmp_path, 3)
+    summary = cl.record_changes(before, paths, ["kev"], log, now=NOW)
+    doc = _read_log(log)
+    # Three new events today plus the newer of the two old ones.
+    assert [e["cve"] for e in doc["events"]] == ["CVE-2026-00000", "CVE-2026-00001", "CVE-2026-00002", "CVE-OLD"]
+    assert summary["truncated"] == 1
+    assert (doc["truncated"], doc["truncated_through"]) == (1, "2026-09-20")
+
+
+def test_truncation_carries_while_in_window_then_expires(tmp_path, monkeypatch):
+    monkeypatch.setattr(cl, "MAX_EVENTS", 2)
+    log = tmp_path / "docs" / "data" / "changes.json.gz"
+    before, paths = _kev_days(tmp_path, 3)
+    cl.record_changes(before, paths, ["kev"], log, now=NOW)
+    assert (_read_log(log)["truncated"], _read_log(log)["truncated_through"]) == (1, DAY)
+    # Two more on a later day push today's two out: the count adds up.
+    later = cl.snapshot_sources(paths)
+    _write(paths["kev"], dict(json.loads(paths["kev"].read_text()),
+                              **_kev(**{"CVE-2026-90001": ("x", "y", "V", "P"), "CVE-2026-90002": ("x", "y", "V", "P")})))
+    cl.record_changes(later, paths, ["kev"], log, now=datetime(2026, 10, 1, tzinfo=timezone.utc))
+    doc = _read_log(log)
+    assert [e["cve"] for e in doc["events"]] == ["CVE-2026-90001", "CVE-2026-90002"]
+    assert (doc["truncated"], doc["truncated_through"]) == (3, DAY)
+    # Once the dropped days leave the window, so does the note.
+    assert cl.carry_truncation(doc, [], "2026-10-28") == (0, None)
+    assert cl.carry_truncation(doc, [], "2026-10-27") == (3, DAY)
+
+
+@pytest.mark.parametrize("meta", [{"truncated": "3", "truncated_through": DAY}, {"truncated": 3}, {}])
+def test_malformed_truncation_meta_is_not_carried(meta):
+    assert cl.carry_truncation(meta, [], DAY) == (0, None)
+
+
+def test_worst_case_probe_is_under_the_bar_once_capped(tmp_path):
+    """The stacked worst case, built by this writer from the 2026-09-20 to
+    2026-09-27 data commits plus a heavy EPSS week, 30 days of first SSVC
+    decisions, and an EPSS model release (8,288 events). Uncapped it is over
+    150 KB; through record_changes it is under."""
+    assert len(WORST_CASE.read_bytes()) > SIZE_BAR
+    doc = _read_log(WORST_CASE)
+    assert len(doc["events"]) == 8288
+    log = tmp_path / "docs" / "data" / "changes.json.gz"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_bytes(WORST_CASE.read_bytes())
+    before, paths = _kev_days(tmp_path, 1)
+    summary = cl.record_changes(before, paths, ["kev"], log, now=datetime(2026, 9, 27, tzinfo=timezone.utc))
+    capped = _read_log(log)
+    assert len(capped["events"]) == cl.MAX_EVENTS
+    assert summary["truncated"] == 8288 + 1 - cl.MAX_EVENTS == capped["truncated"]
+    assert len(log.read_bytes()) < SIZE_BAR
+    # The newest events survived and only older ones went.
+    newest = max(e["date"] for e in doc["events"])
+    assert capped["events"][0]["date"] == newest
+    assert capped["truncated_through"] <= min(e["date"] for e in capped["events"])
+
+
 # ── Through the real orchestrator ──────────────────────────────
 
 ALL_DB_OK = {k: True for k in ("capec", "cwe", "techniques", "defend", "kev", "vulnrichment", "groups", "epss", "ctid")}
@@ -403,6 +484,18 @@ def test_success_without_fresh_data_records_nothing(orch, monkeypatch):
     _stub_db(o, monkeypatch, paths, dict(ALL_DB_OK), set())
     o.run_database_updates_only()
     assert not log.exists()
+
+
+def test_capped_run_warns_and_reports_the_drop(orch, monkeypatch, caplog):
+    o, paths, log = orch
+    monkeypatch.setattr(cl, "MAX_EVENTS", 1)
+    _stub_db(o, monkeypatch, paths, dict(ALL_DB_OK), ALL_DB_OK)
+    warned = []
+    monkeypatch.setattr(po, "log_warning", warned.append)
+    summary = o.run_database_updates_only()
+    assert po.exit_code_for(summary) == 0
+    assert summary["changes"]["truncated"] == 1
+    assert any("dropped the 1 oldest" in w for w in warned)
 
 
 def test_change_log_failure_does_not_fail_the_run(orch, monkeypatch):

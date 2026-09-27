@@ -304,6 +304,10 @@ class IndexLoader:
                         "since": doc.get("since") if isinstance(doc.get("since"), str) else None,
                         "window_days": doc.get("window_days") if isinstance(doc.get("window_days"), int) else None,
                         "events": [e for e in events if _valid_event(e)],
+                        "truncated": doc.get("truncated") if isinstance(doc.get("truncated"), int) else None,
+                        "truncated_through": (
+                            doc.get("truncated_through") if isinstance(doc.get("truncated_through"), str) else None
+                        ),
                     }
                 elif self._changes_error is None:
                     self._changes_error = "changes.json.gz has the wrong shape: expected an object with an 'events' list"

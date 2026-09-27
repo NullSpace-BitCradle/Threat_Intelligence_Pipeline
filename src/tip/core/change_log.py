@@ -13,13 +13,18 @@ Rules the log keeps:
   "added" events.
 * Only successful steps. The orchestrator passes the sources whose step
   succeeded and wrote fresh data; every other source adds nothing.
-* Bounded. Events older than ``WINDOW_DAYS`` are pruned on every write.
+* Bounded. Events older than ``WINDOW_DAYS`` are pruned on every write, then
+  at most ``MAX_EVENTS`` are kept, newest first. When the cap drops events,
+  meta ``truncated`` counts the dropped events still inside the window and
+  ``truncated_through`` is the newest date among them, so a reader knows the
+  log is incomplete on and before that date. Both keys are absent otherwise.
 * Deterministic and atomic. Sorted keys, compact JSON, fixed gzip header, one
   atomic replace; identical content gives identical bytes and no git change.
 
 Format (additive; readers ignore keys they do not know)::
 
     {"schema": 1, "window_days": 30, "since": "2026-09-28",
+     "truncated": 12, "truncated_through": "2026-09-02",
      "events": [{"date": "2026-09-28", "type": "kev_added",
                  "cve": "CVE-2026-1234", "before": null,
                  "after": {"date_added": "...", "due_date": "...", "ransomware": "..."},
@@ -40,6 +45,14 @@ from tip.utils.atomic_io import PathLike, atomic_write_bytes, deterministic_gzip
 
 SCHEMA_VERSION = 1
 WINDOW_DAYS = 30
+
+# Hard cap on events kept after the window prune; the oldest go first. Sized
+# on the stacked worst case (a replayed week with the curated set rebuilding,
+# a heavy EPSS week, 30 days of first SSVC decisions, and an EPSS model
+# release moving every curated CVE): 8,288 events, 155 KB gzipped; capped at
+# 6,500 it is 135 KB, under the 150 KB bar. A count, not a byte limit: events
+# with much longer related lists than the probe's would weigh more.
+MAX_EVENTS = 6500
 
 # EPSS: a move of at least this much, or a crossing of EPSS_LINE, is a jump.
 EPSS_JUMP = 0.1
@@ -330,7 +343,7 @@ def merge_events(existing: Iterable[Event], new: Iterable[Event], today: str) ->
     same CVE keeps the day's net change: the first before, the latest after,
     and drops the event when those are equal.
     """
-    cutoff = (date.fromisoformat(today) - timedelta(days=WINDOW_DAYS - 1)).isoformat()
+    cutoff = window_start(today)
     merged: Dict[Tuple[str, str, str], Event] = {}
     for ev in existing:
         if _valid_event(ev) and ev["date"] >= cutoff:
@@ -348,8 +361,40 @@ def merge_events(existing: Iterable[Event], new: Iterable[Event], today: str) ->
     return sorted(events, key=lambda e: e["date"], reverse=True)
 
 
-def render_log(events: List[Event], since: str) -> bytes:
-    doc = {"schema": SCHEMA_VERSION, "window_days": WINDOW_DAYS, "since": since, "events": events}
+def window_start(today: str) -> str:
+    """First day inside the window that ends on ``today``."""
+    return (date.fromisoformat(today) - timedelta(days=WINDOW_DAYS - 1)).isoformat()
+
+
+def cap_events(events: List[Event]) -> Tuple[List[Event], List[Event]]:
+    """(kept, dropped) for events ordered newest first."""
+    return events[:MAX_EVENTS], events[MAX_EVENTS:]
+
+
+def carry_truncation(
+    existing: Optional[Mapping[str, Any]], dropped: List[Event], today: str
+) -> Tuple[int, Optional[str]]:
+    """Truncation count and date after this write: the previous file's, while
+    its date is still inside the window, plus the events dropped now."""
+    count, through = 0, None
+    if existing:
+        old_count, old_through = existing.get("truncated"), existing.get("truncated_through")
+        if isinstance(old_count, int) and isinstance(old_through, str) and old_through >= window_start(today):
+            count, through = old_count, old_through
+    if dropped:
+        count += len(dropped)
+        newest = max(e["date"] for e in dropped)
+        through = newest if through is None else max(through, newest)
+    return count, through
+
+
+def render_log(
+    events: List[Event], since: str, truncated: int = 0, truncated_through: Optional[str] = None
+) -> bytes:
+    doc: Dict[str, Any] = {"schema": SCHEMA_VERSION, "window_days": WINDOW_DAYS, "since": since, "events": events}
+    if truncated and truncated_through:
+        doc["truncated"] = truncated
+        doc["truncated_through"] = truncated_through
     text = json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return deterministic_gzip(text.encode("utf-8"))
 
@@ -386,8 +431,11 @@ def record_changes(
     since = existing.get("since") if existing else None
     if not isinstance(since, str) or not since:
         since = day
-    events = merge_events((existing or {}).get("events", []), new, day)
-    data = render_log(events, since)
+    events, dropped = cap_events(merge_events((existing or {}).get("events", []), new, day))
+    truncated, through = carry_truncation(existing, dropped, day)
+    if dropped:
+        summary["truncated"] = len(dropped)
+    data = render_log(events, since, truncated, through)
     target = Path(log_path)
     if target.exists() and ok and target.read_bytes() == data:
         return summary

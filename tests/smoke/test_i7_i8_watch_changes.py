@@ -243,6 +243,28 @@ def test_missing_or_malformed_log_renders_safely(page: Page, status: int, body: 
     assert errors == []
 
 
+def test_truncated_log_says_older_changes_may_be_missing(page: Page) -> None:
+    errors = _errors(page)
+    _serve(page, gzip.compress(json.dumps(dict(FIXTURE, truncated=12, truncated_through="2026-09-02")).encode()))
+    _watch(page, WATCHLIST)
+    _go(page, "#/changes")
+    expect(page.locator("#feed-truncated")).to_have_text(
+        "12 older changes were dropped to keep the log under its size cap; "
+        "changes on or before 2026-09-02 may be missing.", timeout=TIMEOUT_MS)
+    _go(page, "#/watching")
+    expect(page.locator("#feed-truncated")).to_be_visible(timeout=TIMEOUT_MS)
+    _go(page, "#/changes/epss_jump")
+    expect(page.locator("#change-list .change-row")).to_have_count(1, timeout=TIMEOUT_MS)
+    assert errors == []
+
+
+def test_untruncated_log_has_no_note(page: Page) -> None:
+    _serve(page, gzip.compress(json.dumps(dict(FIXTURE, truncated="many")).encode()))
+    _go(page, "#/changes")
+    expect(page.locator("#change-list .change-row")).to_have_count(7, timeout=TIMEOUT_MS)
+    expect(page.locator("#feed-truncated")).to_have_count(0)
+
+
 def test_malformed_events_are_skipped(page: Page) -> None:
     doc = {"events": [FIXTURE["events"][0], {"date": "yesterday", "type": "kev_added", "cve": "CVE-2026-0001"},
                       {"date": "2026-09-26", "type": "unknown_type", "cve": "CVE-2026-0002"},
