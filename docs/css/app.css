@@ -571,6 +571,23 @@
 .prov-authoritative { background: rgba(59,130,246,0.15); color: var(--accent); }
 .prov-derived { background: rgba(234,179,8,0.15); color: var(--severity-medium); }
 
+/* I29: link reached only through an inherited parent CWE */
+.inherited-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px dashed var(--severity-medium);
+    color: var(--severity-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-left: 8px;
+    cursor: help;
+}
+
+.entity-card-inherited { border-style: dashed; }
+.inherited-chip { border-style: dashed; }
+
 /* ===== GRAPH PANEL ===== */
 .graph-header {
     font-size: 11px;

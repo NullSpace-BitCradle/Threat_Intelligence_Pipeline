@@ -312,6 +312,9 @@ function getRelatedEntities(entityId) {
             ids: ids,
             source: relData.source || '',
             tier: relData.tier || 'derived',
+            // Additive (I29): ids reached only through an inherited parent
+            // CWE. Older indexes have none, so nothing is marked.
+            inherited: (relData.inherited || []).map(id => normalizeRelId(relType, id)),
             entities: ids.map(id => getEntity(id)).filter(Boolean)
         };
     }

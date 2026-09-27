@@ -117,21 +117,31 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     if (Array.isArray(payload.REFERENCES) && payload.REFERENCES.length > 0) {
         synthEntity.references = payload.REFERENCES;
     }
+    var cweNorm = function(x) { return String(x).indexOf('CWE-') === 0 ? x : 'CWE-' + x; };
+    // I29 shards keep inherited parent CWEs apart; legacy shards have none.
+    if (Array.isArray(payload.CWE_INHERITED)) {
+        synthEntity.cwe_inherited = payload.CWE_INHERITED.map(cweNorm);
+    }
 
     // Build relationship structure from the shard's enrichment lists.
     var related = {};
+    // Direct lists plus the I29 _INHERITED lists (ids reached only through
+    // an inherited parent CWE), which are marked on the page.
     var relMap = [
-        ['cwe', payload.CWE, function(x) { return String(x).indexOf('CWE-') === 0 ? x : 'CWE-' + x; }],
-        ['capec', payload.CAPEC, function(x) { return String(x).indexOf('CAPEC-') === 0 ? x : 'CAPEC-' + x; }],
-        ['technique', payload.TECHNIQUES, function(x) { return String(x).indexOf('T') === 0 ? x : 'T' + x; }],
-        ['owasp', payload.OWASP, function(x) { return x; }]
+        ['cwe', payload.CWE, null, cweNorm],
+        ['capec', payload.CAPEC, payload.CAPEC_INHERITED, function(x) { return String(x).indexOf('CAPEC-') === 0 ? x : 'CAPEC-' + x; }],
+        ['technique', payload.TECHNIQUES, payload.TECHNIQUES_INHERITED, function(x) { return String(x).indexOf('T') === 0 ? x : 'T' + x; }],
+        ['owasp', payload.OWASP, payload.OWASP_INHERITED, function(x) { return x; }]
     ];
     for (var rm = 0; rm < relMap.length; rm++) {
         var relType = relMap[rm][0];
-        var rawList = relMap[rm][1] || [];
-        var normalize = relMap[rm][2];
-        if (!Array.isArray(rawList) || rawList.length === 0) continue;
+        var rawList = Array.isArray(relMap[rm][1]) ? relMap[rm][1] : [];
+        var rawInherited = Array.isArray(relMap[rm][2]) ? relMap[rm][2] : [];
+        var normalize = relMap[rm][3];
         var ids = rawList.map(normalize);
+        var inheritedIds = rawInherited.map(normalize).filter(function(id) { return ids.indexOf(id) === -1; });
+        ids = ids.concat(inheritedIds);
+        if (ids.length === 0) continue;
         var resolved = ids.map(function(id) {
             var ent = getEntity(id);
             return ent || { id: id, type: relType, name: id };
@@ -140,6 +150,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
             ids: ids,
             source: 'shard',
             tier: 'shard',
+            inherited: inheritedIds,
             entities: resolved
         };
     }
@@ -410,7 +421,7 @@ function renderDetailTabs(container, entity, related, detail) {
     var overviewPanel = document.createElement('div');
     overviewPanel.id = 'tab-overview';
     overviewPanel.className = 'tab-panel active';
-    renderOverviewContent(overviewPanel, entity, detail);
+    renderOverviewContent(overviewPanel, entity, detail, related);
     panelContainer.appendChild(overviewPanel);
 
     // ── Framework relationship tabs ──
@@ -463,12 +474,25 @@ function renderDetailTabs(container, entity, related, detail) {
 
             card.appendChild(left);
 
+            // I29: a link reached only through an inherited parent CWE gets
+            // its marker next to the provenance badge.
+            const isInherited = relData.inherited && relData.inherited.indexOf(relEntity.id) !== -1;
+            let badgeHost = card;
+            if (isInherited) {
+                card.classList.add('entity-card-inherited');
+                badgeHost = document.createElement('span');
+                card.appendChild(badgeHost);
+            }
+
             // Provenance badge
             if (relData.tier) {
                 const prov = document.createElement('span');
                 prov.className = 'prov-badge prov-' + relData.tier;
                 prov.textContent = relData.tier;
-                card.appendChild(prov);
+                badgeHost.appendChild(prov);
+            }
+            if (isInherited) {
+                badgeHost.appendChild(makeInheritedBadge(inheritedTooltip(entity, relType, relEntity, detail)));
             }
 
             list.appendChild(card);
@@ -515,9 +539,72 @@ function renderMarkdownText(container, text) {
     }
 }
 
-function renderOverviewContent(panel, entity, detail) {
+// ── Inherited links (I29) ─────────────────────────────────────
+// A CVE's CWEs are the ones NVD assigned; the pipeline also infers one level
+// of ChildOf parents (never MITRE CWE-1000 pillars). Anything reached only
+// through such a parent carries a visible "inherited" marker whose tooltip
+// names the parent. Indexes and shards without these fields render as before.
+
+function inheritedTooltip(entity, relType, relEntity, detail) {
+    if (entity.type === 'cwe' && relType === 'capec') {
+        var parents = (detail && detail.parents && detail.parents.length) ? detail.parents.join(', ') : 'its parent';
+        return 'Inherited: a CAPEC of an ancestor weakness (via ' + parents + '), not one MITRE lists for ' + entity.id + '.';
+    }
+    var cve = entity.type === 'cve' ? entity : relEntity;
+    var names = (cve && Array.isArray(cve.cwe_inherited) && cve.cwe_inherited.length)
+        ? cve.cwe_inherited.join(', ') : 'an inherited parent weakness';
+    return 'Inherited: ' + (cve && cve.id ? cve.id : 'the CVE') + ' reaches this only through parent ' +
+        names + ', not through a CWE NVD assigned.';
+}
+
+function makeInheritedBadge(tooltip) {
+    var badge = document.createElement('span');
+    badge.className = 'inherited-badge';
+    badge.textContent = 'inherited';
+    badge.title = tooltip;
+    return badge;
+}
+
+function addCweChipSection(content, label, ids, inherited) {
+    var section = document.createElement('div');
+    section.className = 'overview-section';
+    section.setAttribute('data-cwe-section', inherited ? 'inherited' : 'assigned');
+    var labelEl = document.createElement('div');
+    labelEl.className = 'overview-label';
+    labelEl.textContent = label;
+    section.appendChild(labelEl);
+    if (ids.length === 0) {
+        var none = document.createElement('span');
+        none.className = 'overview-text';
+        none.textContent = 'None';
+        section.appendChild(none);
+    }
+    ids.forEach(function(cid) {
+        var chip = document.createElement('span');
+        chip.className = 'overview-entity-link' + (inherited ? ' inherited-chip' : '');
+        chip.textContent = cid;
+        if (inherited) {
+            chip.title = 'Inferred: ' + cid + ' is a ChildOf parent of a weakness NVD assigned. NVD did not assign it.';
+            chip.appendChild(makeInheritedBadge(chip.title));
+        }
+        chip.addEventListener('click', function() { navigateToEntity(cid); });
+        section.appendChild(chip);
+    });
+    content.appendChild(section);
+}
+
+function renderOverviewContent(panel, entity, detail, related) {
     var content = document.createElement('div');
     content.className = 'overview-content';
+
+    // CVE weaknesses: NVD-assigned apart from inherited parents (I29 data only).
+    if (entity.type === 'cve' && Array.isArray(entity.cwe_inherited)) {
+        var assigned = (related && related.cwe) ? related.cwe.ids : [];
+        addCweChipSection(content, 'Weaknesses assigned by NVD', assigned, false);
+        if (entity.cwe_inherited.length > 0) {
+            addCweChipSection(content, 'Inherited parent weaknesses (inferred, not assigned by NVD)', entity.cwe_inherited, true);
+        }
+    }
 
     // Description (from detail DB or entity name)
     var desc = (detail && detail.description) ? detail.description : null;
