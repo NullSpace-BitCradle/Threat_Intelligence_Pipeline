@@ -45,8 +45,8 @@ vector). Per rule, the rule's technique against the analyst's mapping:
 
   rule                    fired  exploitation technique   any mapping type
   T1190 (AV:N, UI:N)         76  40 (53%)                 42 (55%)
-  T1204 (user interaction)   49  1 exact, 24 (49%) as a   1 exact, 25 (51%)
-                                 T1204 sub-technique
+  T1204 (user interaction)   49  24 (49%) T1204 or a sub-  25 (51%), 1 exact
+                                 technique, 1 exact
   T1068 (local, full C/I)    30  13 (43%)                 26 (87%)
 
 The analysts' other exploitation picks were T1078 Valid Accounts (T1190
@@ -79,8 +79,8 @@ RULES: Dict[str, tuple[str, str, str, str]] = {
     ),
     "user-interaction": (
         "T1204", "User Execution", "user interaction required, not physical",
-        "CTID analysts chose a T1204 sub-technique as the exploitation technique on 24 of 49 "
-        "KEV CVEs (49%), T1204 itself on 1",
+        "CTID analysts chose T1204 or one of its sub-techniques as the exploitation technique "
+        "on 24 of 49 KEV CVEs (49%), 1 of them T1204 itself",
     ),
     "local-full-impact": (
         "T1068", "Exploitation for Privilege Escalation", "AV:L, UI:N, high C and I impact",

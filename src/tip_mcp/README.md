@@ -103,7 +103,7 @@ path and the shard path.
   - `AV:N` and `UI:N` gives T1190 Exploit Public-Facing Application: the
     analyst's exploitation technique on 40 of 76 (53%).
   - User interaction required, not physical, gives T1204 User Execution:
-    a T1204 sub-technique on 24 of 49 (49%), T1204 itself on 1.
+    T1204 or one of its sub-techniques on 24 of 49 (49%), 1 of them T1204 itself.
   - `AV:L`, `UI:N`, high C and I impact gives T1068 Exploitation for
     Privilege Escalation, which CTID analysts usually record as the impact:
     their exploitation technique on 13 of 30 (43%), any mapping type on 26
