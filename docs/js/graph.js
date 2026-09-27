@@ -75,7 +75,9 @@ function renderGraph(container, entityId, overrideEntity, overrideRelated) {
                 linkTier: linkTier,
                 // A technique (or CVE) link is the mapping itself; any other
                 // type was reached through such a technique.
-                linkNote: !linkTier ? '' : (relType === 'technique' || relType === 'cve'
+                // I32: a CVE to APT group link names the ATT&CK object citing it.
+                linkNote: (lp && lp.via) ? ' (cited by MITRE ATT&CK: ' + lp.via + (lp.via_target ? ' to ' + lp.via_target : '') + ')'
+                    : !linkTier ? '' : (relType === 'technique' || relType === 'cve'
                     ? (linkTier === 'ctid' ? ' (MITRE CTID analyst mapping)' : ' (inferred from the CVSS vector)')
                     : (linkTier === 'ctid' ? ' (via a MITRE CTID mapped technique)' : ' (via an inferred technique)'))
             });

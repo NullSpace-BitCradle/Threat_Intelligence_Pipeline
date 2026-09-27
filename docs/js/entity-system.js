@@ -55,6 +55,7 @@ async function loadIndices() {
             throw new Error('entity_index.json has no entities map');
         }
         if (!si || typeof si !== 'object') throw new Error('search_index.json is not an object');
+        if (!ei.meta || ei.meta.apt_attribution !== true) dropOverlapAptLinks(ei.entities);
         entityIndex = ei;
         searchIndex = si;
         indexLoadError = null;
@@ -65,6 +66,17 @@ async function loadIndices() {
         indexLoadError = (e && e.message) ? e.message : String(e);
     } finally {
         indicesLoading = false;
+    }
+}
+
+// I32: an index written before attribution linked CVEs to APT groups by
+// technique overlap, not by any source's statement. Drop those links, both
+// directions; technique and campaign links to groups stay.
+function dropOverlapAptLinks(entities) {
+    const other = { cve: 'apt_group', apt_group: 'cve' };
+    for (const ent of Object.values(entities)) {
+        const rel = ent && other[ent.type];
+        if (rel && ent.rels && typeof ent.rels === 'object') delete ent.rels[rel];
     }
 }
 
