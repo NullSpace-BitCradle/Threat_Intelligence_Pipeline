@@ -18,6 +18,7 @@ var WORKLIST_COLUMNS = [
     { key: 'id', label: 'ID', sortable: true },
     { key: 'type', label: 'Type', sortable: true },
     { key: 'cvss', label: 'CVSS', sortable: true },
+    { key: 'epss', label: 'EPSS', sortable: true },
     { key: 'kev', label: 'KEV', sortable: true },
     { key: 'ransomware', label: 'Ransomware', sortable: true },
     { key: 'ssvc', label: 'SSVC', sortable: true },
@@ -42,7 +43,7 @@ function parseWorklistIds(raw) {
 
 async function resolveWorklistRow(id) {
     var row = {
-        id: id, type: '', name: '', cvss: null, severity: '',
+        id: id, type: '', name: '', cvss: null, severity: '', epss: null, epssInfo: null,
         kev: false, ransomware: '', ssvc: '', due: '', found: false
     };
     if (/^CVE-\d{4}-\d+$/i.test(id)) {
@@ -70,6 +71,9 @@ async function resolveWorklistRow(id) {
             if (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') {
                 row.ssvc = payload.VULNRICHMENT.ssvcExploitStatus || '';
             }
+            var ent = getEntity(id);
+            row.epssInfo = pickEpss(id, payload.EPSS || (ent && ent.epss));
+            if (row.epssInfo) row.epss = row.epssInfo.score;
         }
         return row;
     }
@@ -92,7 +96,7 @@ function sortWorklistRows(rows) {
     sorted.sort(function(a, b) {
         var av = a[key];
         var bv = b[key];
-        if (key === 'cvss') { av = (av === null ? -1 : av); bv = (bv === null ? -1 : bv); }
+        if (key === 'cvss' || key === 'epss') { av = (av === null ? -1 : av); bv = (bv === null ? -1 : bv); }
         else if (key === 'kev') { av = av ? 1 : 0; bv = bv ? 1 : 0; }
         else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
         if (av < bv) return -1 * dir;
@@ -134,7 +138,7 @@ function renderWorklistTable(container) {
                         WORKLIST_STATE.sortDir *= -1;
                     } else {
                         WORKLIST_STATE.sortKey = col.key;
-                        WORKLIST_STATE.sortDir = (col.key === 'cvss') ? -1 : 1;
+                        WORKLIST_STATE.sortDir = (col.key === 'cvss' || col.key === 'epss') ? -1 : 1;
                     }
                     renderWorklistTable(container);
                 });
@@ -168,6 +172,16 @@ function renderWorklistTable(container) {
                 cvssCell.textContent = row.found ? '-' : (row.loadError ? 'load failed' : 'not found');
             }
             tr.appendChild(cvssCell);
+            var epssCell = document.createElement('td');
+            epssCell.className = 'worklist-epss';
+            if (row.epssInfo) {
+                // Visible age: the score, its score date (MM-DD), and a
+                // "weekly" marker when it came from the shard, not the daily file.
+                epssCell.textContent = row.epssInfo.score + ' · ' + row.epssInfo.date.slice(5) +
+                    (row.epssInfo.cadence === 'weekly' ? ' weekly' : '');
+                epssCell.title = epssTitle(row.epssInfo);
+            }
+            tr.appendChild(epssCell);
             appendCell(tr, row.kev ? 'KEV' : '');
             var ransCell = document.createElement('td');
             ransCell.textContent = row.ransomware === 'Known' ? '⚠ Known' : (row.ransomware || '');
@@ -208,6 +222,7 @@ async function buildWorklist(raw, tableContainer, statusEl, gen) {
     var capNotice = worklistCapNotice(allIds.length);
     statusEl.textContent = (capNotice ? capNotice + ' ' : '') + 'Resolving ' + ids.length + ' entities...';
     tableContainer.textContent = '';
+    await loadEpssCurated();
     var rows = await Promise.all(ids.map(resolveWorklistRow));
     // The user navigated away or started another build while this one ran:
     // drop the result instead of overwriting the page or the URL.

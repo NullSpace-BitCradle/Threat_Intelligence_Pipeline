@@ -57,7 +57,8 @@ def lookup_entity(entity_id: str) -> dict[str, Any]:
     campaign identifiers (case and surrounding whitespace are ignored). CVEs
     outside the curated entity graph are served from the per-year shards.
     Returns a success envelope with the entity record and its relationships,
-    or a not_found error if the ID is unknown.
+    or a not_found error if the ID is unknown. CVE records carry epss
+    {score, percentile, date} from FIRST when scored, else null.
     """
     return lookup_entity_impl(_loader, entity_id)
 
@@ -139,7 +140,8 @@ def kev_status(cve_id: str) -> dict[str, Any]:
 
     Returns in_kev plus date_added, due_date, known_ransomware_campaign_use,
     required_action, vendor_project, and product from the CISA KEV catalog,
-    and the CISA SSVC decision when TIP has one. A CVE not in KEV returns ok
+    and the CISA SSVC decision when TIP has one, plus epss {score,
+    percentile, date} from FIRST when scored (else null). A CVE not in KEV returns ok
     with in_kev false and null KEV fields. A malformed CVE id is bad_param.
     """
     return kev_status_impl(_loader, cve_id)

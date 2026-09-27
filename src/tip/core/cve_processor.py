@@ -20,6 +20,7 @@ from tip.core.owasp_processor import OWASPProcessor
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor
+from tip.core.epss_processor import EPSSProcessor, EPSSSnapshot
 from tip.core.id_normalize import cwe_number, cwe_parents, split_cwe_list
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
@@ -81,6 +82,13 @@ class CVEProcessor:
     # Counts from the last process_cve_pipeline call: attempted, failed,
     # failed_ids. None before the first call.
     last_enrichment: Optional[Dict[str, Any]] = None
+    # EPSS source for process_file. The orchestrator hands in the database
+    # manager's processor so the bulk file is fetched once per run. None
+    # means no EPSS lookup at all (and no download).
+    epss_processor: Optional[EPSSProcessor] = None
+    epss_snapshot: Optional[EPSSSnapshot] = None
+    # Why EPSS was unavailable in the last process_file, or None.
+    last_epss_error: Optional[str] = None
 
     def __init__(self):
         self.config = config
@@ -114,6 +122,8 @@ class CVEProcessor:
         # Initialize APT Groups processor
         self.apt_processor = APTProcessor()
         self.apt_processor.load()
+
+        self.epss_processor = EPSSProcessor()
     
     def retrieve_cves_from_nvd(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieve CVEs from NVD API with progress tracking and resume capability.
@@ -628,6 +638,12 @@ class CVEProcessor:
                                 "source": "cisa_vulnrichment",
                             }
 
+                # Step 7b: FIRST EPSS score, percentile and score date.
+                if self.epss_snapshot is not None:
+                    epss = self.epss_snapshot.lookup(cve_id)
+                    if epss:
+                        result[cve_id]["EPSS"] = epss
+
                 # Step 8: APT Groups reverse lookup from techniques. APT
                 # linkage is outside I29, so it keeps its technique set
                 # (direct plus inherited); only pillar-driven links drop out.
@@ -679,6 +695,20 @@ class CVEProcessor:
             self.jsonl_manager.save_jsonl_incremental(db_file, cves)
             self.logger.info(f"Updated {len(cves)} CVEs in {db_file}")
     
+    def _load_epss(self) -> None:
+        """Fetch EPSS through the shared processor, once per run. A failure
+        leaves records without EPSS and is kept in last_epss_error so the
+        orchestrator does not report the step clean."""
+        self.last_epss_error = None
+        if self.epss_processor is None:
+            return
+        try:
+            self.epss_snapshot = self.epss_processor.fetch()
+        except Exception as e:
+            self.epss_snapshot = None
+            self.last_epss_error = str(e)
+            self.logger.error(f"EPSS unavailable; CVE records are written without it: {e}")
+
     def process_file(self, input_file: Optional[str] = None) -> bool:
         """Process CVE data from file"""
         file_path = input_file or self.cve_file
@@ -709,6 +739,7 @@ class CVEProcessor:
         
         # Process through pipeline
         try:
+            self._load_epss()
             results = self.process_cve_pipeline(cve_data)
             # Successful records are saved even when the run fails below:
             # they are correct, failed CVEs keep their previous record, and

@@ -18,7 +18,7 @@ session of all of them on real data is in [DEMO.md](DEMO.md).
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
 | `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus D3FEND defenses; every element carries the tier of its weakest hop | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
 | `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for exactly one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb when known; CVE-side defenses are derived | "Which D3FEND countermeasures map to T1499?" |
-| `kev_status(cve_id)` | KEV membership, date added, due date, ransomware use, required action, vendor, product, and SSVC when known | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
+| `kev_status(cve_id)` | KEV membership, date added, due date, ransomware use, required action, vendor, product, SSVC when known, and EPSS | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
 Every tool returns an envelope: `{ok: true, data, meta}` or
 `{ok: false, error: {code, message, hint?}}`. Error codes: `not_found`,
@@ -96,6 +96,17 @@ path and the shard path.
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
   KEV fields. SSVC comes from the entity record, else the shard, else null.
   If `kev_db.json` is missing, the graph's flag is used and `meta.note` says so.
+- **`epss`** (additive, I1): every CVE record from `lookup_entity` and every
+  `kev_status` result carries `epss: {score, percentile, date}` from FIRST's
+  EPSS, or `null` when FIRST has no score or TIP has none yet. `date` is the
+  score date, so a value is never shown without its age, and
+  `model_version` names the EPSS model when known. Between the daily
+  `docs/data/epss_curated.json` (curated CVEs only) and the weekly value on
+  the entity record or shard, the newer score date wins and the daily file
+  wins a tie; `meta.epss_source` names which one answered
+  (`epss_curated.json`, `entity_index.json`, `shard`, or `null`). A missing or
+  malformed daily file falls back without failing. Non-CVE entities carry no
+  `epss` key.
 
 ### IDs
 
@@ -196,7 +207,7 @@ Three layers, all served:
   2,971 curated CVEs (KEV, CISA vulnrichment, or APT-linked) with their CWE,
   CAPEC, technique, D3FEND, APT group, OWASP, and campaign links. CVE records
   carry description, CVSS, dates, references, and the `tip_intel` blocks
-  (`kev_detail`, `ssvc`, `cisa_cvss`, `cvss_version`, `cvss_source`) when the
+  (`kev_detail`, `ssvc`, `cisa_cvss`, `cvss_version`, `cvss_source`, `epss`) when the
   pipeline captured them, so these survive without the shards.
 - **All-IDs index** (`docs/data/cve_ids_index.json`): all 395,617 ingested CVE
   IDs. A CVE ID not listed there returns `not_found` without reading a shard.

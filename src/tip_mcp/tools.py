@@ -239,6 +239,32 @@ def _build_shard_record(
     return record
 
 
+def _resolve_epss(
+    loader: IndexLoader, cve_id: str, weekly: Optional[dict], weekly_source: Optional[str]
+) -> tuple[Optional[dict], Optional[str]]:
+    """EPSS {score, percentile, date, model_version?} for a CVE and where it
+    came from.
+
+    The value with the newer score date wins. The daily epss_curated.json
+    wins a tie, and it can lose to the weekly value on the entity record or
+    shard when it is older (a --cve-only run writes shards after the last
+    daily file). ISO dates compare correctly as strings.
+    """
+    daily_block: Optional[dict] = None
+    daily = loader.epss_curated
+    if daily is not None:
+        entry = daily["scores"].get(cve_id.upper())
+        if isinstance(entry, dict):
+            daily_block = cve_blocks.epss_block({"EPSS": {
+                **entry, "date": daily["date"], "model_version": daily.get("model_version"),
+            }})
+    if daily_block is not None and not (weekly and str(weekly.get("date", "")) > daily_block["date"]):
+        return daily_block, "epss_curated.json"
+    if weekly:
+        return weekly, weekly_source
+    return None, None
+
+
 def _not_found(loader: IndexLoader, entity_id: str) -> dict:
     hint = (
         "Only curated CVEs (KEV, CISA vulnrichment, APT-linked) are in the entity "
@@ -307,6 +333,7 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         record["rels"] = rels_out
 
         meta: dict = {"source": "entity_index.json", "rel_count": len(rels_out)}
+        indexed_epss = "epss" in record
         # The shard adds what the index does not carry: D3FEND relationship
         # semantics on defend rels, and intel blocks for indexes generated
         # before the generator emitted them. enrich() never overwrites.
@@ -319,6 +346,11 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
             if shard_hit is not None:
                 cve_blocks.enrich(record, shard_hit[0])
                 meta["enriched_from_shard"] = True
+            # Additive: every CVE record carries epss, null when unknown.
+            record["epss"], meta["epss_source"] = _resolve_epss(
+                loader, record["id"], record.get("epss"),
+                "entity_index.json" if indexed_epss else "shard",
+            )
         return ok_response(record, meta=meta)
 
     # Shard fallback: only for syntactically valid CVE IDs.
@@ -330,9 +362,13 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         if shard_hit is not None:
             payload, shard_name = shard_hit
             record = _build_shard_record(entity_id, payload, shard_name, loader)
+            record["epss"], epss_source = _resolve_epss(loader, record["id"], record.get("epss"), "shard")
             return ok_response(
                 record,
-                meta={"source": "shard", "shard": shard_name, "rel_count": len(record["rels"])},
+                meta={
+                    "source": "shard", "shard": shard_name, "rel_count": len(record["rels"]),
+                    "epss_source": epss_source,
+                },
             )
 
     return _not_found(loader, entity_id)
@@ -1076,6 +1112,13 @@ def kev_status_impl(loader: IndexLoader, cve_id: str) -> dict:
         ssvc_source = "shard" if ssvc else None
     data["ssvc"] = ssvc or None
     meta["ssvc_source"] = ssvc_source
+    if (ent or {}).get("epss"):
+        weekly, weekly_source = (ent or {}).get("epss"), "entity_index.json"
+    elif payload is not None:
+        weekly, weekly_source = cve_blocks.epss_block(payload), "shard"
+    else:
+        weekly, weekly_source = None, None
+    data["epss"], meta["epss_source"] = _resolve_epss(loader, cid, weekly, weekly_source)
     meta["in_entity_graph"] = ent is not None
     if ent is None and payload is None:
         meta.setdefault(

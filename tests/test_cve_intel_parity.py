@@ -50,6 +50,7 @@ RICH_PAYLOAD = {
         "vendorProject": "IETF",
         "product": "HTTP/2",
     },
+    "EPSS": {"score": 0.99999, "percentile": 0.99998, "date": "2026-09-26", "model_version": "v2026.06.15"},
     "VULNRICHMENT": {
         "ssvcExploitStatus": "active",
         "ssvcAutomatable": "no",
@@ -105,6 +106,7 @@ def test_contract_is_non_empty():
         "cisa_cvss",
         "cvss_version",
         "cvss_source",
+        "epss",
     }
 
 
@@ -143,3 +145,15 @@ def test_entity_path_serves_every_contract_field_without_shards(tmp_path: Path):
     for field in INTEL_FIELDS:
         assert field in cons, f"entity path dropped {field} with shards absent"
         assert cons[field] == prod[field], f"{field} differs across seam"
+
+
+def test_epss_value_is_copied_not_just_keyed(tmp_path: Path):
+    """The MCP always emits an epss key (null when unknown), so key presence
+    cannot catch enrich() dropping it. Every surface must carry the payload's
+    actual EPSS value, model_version included."""
+    expected = RICH_PAYLOAD["EPSS"]
+    for sub in ("shard", "entity"):
+        (tmp_path / sub).mkdir()
+    assert _producer_record(RICH_PAYLOAD).get("epss") == expected
+    assert _consumer_record(tmp_path / "shard", RICH_PAYLOAD)["epss"] == expected
+    assert _consumer_entity_path_record(tmp_path / "entity", RICH_PAYLOAD)["epss"] == expected
