@@ -239,3 +239,71 @@ def test_legacy_index_and_shard_output_has_no_inherited_fields(tmp_path):
     # Legacy shard CWE lists still project every listed CWE.
     hits = {h["id"] for h in outputs[2]["data"] if h["rel_type"] == "cwe"}
     assert hits == {"CWE-901", "CWE-900"}
+
+
+# Review fixes --------------------------------------------------------------------
+
+def test_chain_via_capecs_are_only_capecs_the_cve_credits(tmp_path):
+    """A CWE can reach a chain CAPEC the CVE itself no longer credits (e.g. a
+    pillar CAPEC the processor dropped). The CVE element never names it, and
+    a CWE whose chain CAPECs the CVE credits none of does not explain it."""
+    g = _graph()
+    g["CAPEC-901"] = {"type": "capec", "rels": {"technique": _rel(["T9001"], "MITRE CAPEC Database", "official")}}
+    g["CWE-900"]["rels"]["capec"] = _rel(["CAPEC-900", "CAPEC-901"], "MITRE CWE Database", "official")
+    g["CWE-903"] = {"type": "cwe", "rels": {"capec": _rel(["CAPEC-901"], "MITRE CWE Database", "official")}}
+    g["CVE-2020-0001"]["rels"]["cwe"] = _rel(["CWE-900", "CWE-903"], NVD, "authoritative")
+    g["CVE-2020-0001"]["rels"]["capec"] = _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)")
+    ld = _load(tmp_path, g, META)
+    cves = {c["id"]: c for c in build_attack_chain_impl(ld, "T9001")["data"]["cves"]}
+    a = cves["CVE-2020-0001"]
+    assert a["via_capecs"] == ["CAPEC-900"]
+    assert a["via_cwes"] == ["CWE-900"]
+    # A CVE with no capec rels at all (hand-built graphs) keeps the CWE path.
+    assert cves["CVE-2020-0002"]["via_capecs"] == ["CAPEC-900", "CAPEC-901"]
+
+
+def test_chain_uncredited_assigned_path_falls_back_to_inherited_parent(tmp_path):
+    """When the assigned CWE reaches the technique only through CAPECs the
+    CVE does not credit, the inherited parent that does is the explanation."""
+    g = _graph()
+    g["CAPEC-901"] = {"type": "capec", "rels": {"technique": _rel(["T9001"], "MITRE CAPEC Database", "official")}}
+    g["CWE-901"]["rels"]["capec"] = _rel(["CAPEC-901"], "MITRE CWE Database", "official")
+    g["CVE-2020-0002"]["rels"]["capec"] = _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)", "derived", ["CAPEC-900"])
+    ld = _load(tmp_path, g, META)
+    b = {c["id"]: c for c in build_attack_chain_impl(ld, "T9001")["data"]["cves"]}["CVE-2020-0002"]
+    assert b["via_cwes"] == ["CWE-900"] and b["inherited_cwes"] == ["CWE-900"]
+    assert b["via_capecs"] == ["CAPEC-900"]
+
+
+def test_shard_apt_groups_flagged_like_their_techniques(tmp_path):
+    """APT_GROUPS entries (processor dicts with techniques_overlap, or bare
+    ids) are inherited exactly when every technique behind them is."""
+    shard = dict(NEW_SHARD, APT_GROUPS=[
+        {"id": "G0001", "techniques_overlap": ["9001"]},          # inherited technique only
+        {"id": "G0002", "techniques_overlap": ["9001", "9002"]},  # also a direct one
+        {"id": "G0003", "techniques_overlap": ["T9002"]},         # direct only
+        "g0004",                                                  # no overlap info, shard has direct
+    ])
+    ld = _load(tmp_path, _graph(), META, shard={"CVE-2021-0009": shard})
+    hits = {h["id"]: h.get("inherited")
+            for h in pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"]}
+    assert hits == {"G0001": True, "G0002": None, "G0003": None, "G0004": None}
+
+    only_inh = dict(NEW_SHARD, TECHNIQUES=[], APT_GROUPS=["G0004"])
+    (tmp_path / "x").mkdir()
+    ld2 = _load(tmp_path / "x", _graph(), META, shard={"CVE-2021-0009": only_inh})
+    hits2 = {h["id"]: h.get("inherited")
+             for h in pivot_from_entity_impl(ld2, "CVE-2021-0009", "apt_group")["data"]}
+    assert hits2 == {"G0004": True}
+
+
+def test_shard_apt_group_direct_wins_over_inherited_duplicate(tmp_path):
+    """A group listed in APT_GROUPS through an inherited technique but also
+    reached through a direct technique in the graph is not inherited."""
+    g = _graph()
+    g["T9002"]["rels"]["apt_group"] = _rel(["G0001"], "MITRE ATT&CK", "official")
+    shard = dict(NEW_SHARD, APT_GROUPS=[{"id": "G0001", "techniques_overlap": ["9001"]}])
+    ld = _load(tmp_path, g, META, shard={"CVE-2021-0009": shard})
+    hits = {h["id"]: h.get("inherited")
+            for h in pivot_from_entity_impl(ld, "CVE-2021-0009", "apt_group")["data"]}
+    assert hits == {"G0001": None}

@@ -3,6 +3,7 @@
 Fixture data only; nothing is fetched.
 """
 import logging
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -125,16 +126,46 @@ def test_isc4_no_pillar_is_ever_inherited():
     assert ids.split_cwe_list(CWE_DB, ["CWE-664"]) == (["CWE-664"], [])
 
 
+_PILLAR_NUMS = {p[4:] for p in ids.CWE_PILLARS}
+# Any bracketed or braced literal (Python set/list/tuple/frozenset, JS array
+# or object), across lines.
+_LITERAL_RE = re.compile(r"[\[{(]([^\[\]{}()]*)[\]})]", re.DOTALL)
+_NUM_RE = re.compile(r"(?:CWE-?)?\b(\d+)\b", re.IGNORECASE)
+
+
+def _pillar_literals(text: str) -> list[set[str]]:
+    """Literals naming 3+ distinct pillar numbers (bare or CWE-prefixed)."""
+    out = []
+    for m in _LITERAL_RE.finditer(text):
+        nums = {n for n in _NUM_RE.findall(m.group(1)) if n in _PILLAR_NUMS}
+        if len(nums) >= 3:
+            out.append(nums)
+    return out
+
+
+def test_isc5_pillar_literal_scan_catches_a_second_copy():
+    """The scan below would catch the copies a second pillar list could take."""
+    assert _pillar_literals('X = frozenset({"CWE-284", "CWE-435",\n "CWE-664"})')
+    assert _pillar_literals("const P = [664, 682, 691];")
+    assert _pillar_literals("p = ('693', '697', '703')")
+    assert not _pillar_literals('x = ["CWE-79", "CWE-664", "CWE-400"]')
+
+
 def test_isc5_pillar_constant_defined_once():
-    """No second pillar list in the code: CWE-693 and CWE-710 appear together
-    in one file only (pure Python, so CI needs no rg)."""
+    """The pillar set is id_normalize.CWE_PILLARS, parsed from that module's
+    source, and no other literal in src, scripts, or docs/js names 3+ pillars."""
+    source = (REPO / "src" / "tip" / "core" / "id_normalize.py").read_text(encoding="utf-8")
+    m = re.search(r"^CWE_PILLARS = frozenset\((\{.*?\})\)", source, re.DOTALL | re.MULTILINE)
+    assert m, "CWE_PILLARS literal not found in id_normalize.py"
+    assert {f"CWE-{n}" for n in _NUM_RE.findall(m.group(1))} == set(ids.CWE_PILLARS)
+    assert len(ids.CWE_PILLARS) == 10
+
     hits = []
     for path in list((REPO / "src").rglob("*.py")) + list((REPO / "scripts").rglob("*.py")) \
             + list((REPO / "docs" / "js").rglob("*.js")):
-        text = path.read_text(encoding="utf-8")
-        if "693" in text and "710" in text and "284" in text:
-            hits.append(path.relative_to(REPO).as_posix())
-    assert hits == ["src/tip/core/id_normalize.py"]
+        for nums in _pillar_literals(path.read_text(encoding="utf-8")):
+            hits.append((path.relative_to(REPO).as_posix(), len(nums)))
+    assert hits == [("src/tip/core/id_normalize.py", 10)]
 
 
 def test_derive_is_pure_and_matches_processor():

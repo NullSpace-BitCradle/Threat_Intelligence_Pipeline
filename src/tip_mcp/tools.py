@@ -160,9 +160,23 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
             rel["relationship"] = defend["relationship"]
         if defend.get("name") is not None:
             rel["name"] = defend["name"]
-    for gid in payload.get("APT_GROUPS", []) or []:
+    # APT groups: inherited exactly when every technique behind the group is
+    # (the processor lists each group's techniques_overlap; a bare id carries
+    # none, so it is inherited only when the shard has no direct technique).
+    # Direct groups are added first, so a group reached both ways is direct.
+    direct_techs = {t for t, inh in techniques if not inh}
+    inherited_techs = {t for t, inh in techniques if inh}
+    groups_found: list[tuple[str, str, bool]] = []
+    for group in payload.get("APT_GROUPS", []) or []:
+        if isinstance(group, dict):
+            gid = str(group.get("id") or "").strip().upper()
+            overlap = {_norm_technique(t) for t in group.get("techniques_overlap") or []}
+            inh = bool(overlap) and overlap <= inherited_techs and not overlap & direct_techs
+        else:
+            gid = str(group or "").strip().upper()
+            inh = bool(inherited_techs) and not direct_techs
         if gid:
-            add(str(gid).strip().upper(), "apt_group")
+            groups_found.append((gid, "shard", inh))
     if loader is not None:
         for tech_id, inh in techniques:
             tech = loader.entities.get(tech_id)
@@ -170,7 +184,9 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
                 continue
             groups = (tech.get("rels") or {}).get("apt_group") or {}
             for gid in groups.get("ids", []) or []:
-                add(str(gid), "apt_group", "graph (technique overlap)", inherited=inh)
+                groups_found.append((str(gid), "graph (technique overlap)", inh))
+    for gid, source, inh in sorted(groups_found, key=lambda g: g[2]):
+        add(gid, "apt_group", source, inherited=inh)
     return rels
 
 
@@ -612,9 +628,9 @@ def build_attack_chain_impl(
     The CVE set is exactly the technique's own cve rels. The CAPECs are those
     whose capec -> technique rel names the technique (the graph stores that
     edge on the CAPEC, so the loader's reverse adjacency finds it). For each
-    CVE, via_cwes are its CWEs that link to one of those CAPECs and
-    via_capecs the CAPECs reached; a CVE with no such CWE still appears, with
-    empty via lists. cwes lists only the CWEs some returned CVE goes through.
+    CVE, via_cwes are its CWEs that link to one of those CAPECs the CVE
+    itself credits and via_capecs the credited CAPECs reached; a CVE with no
+    such CWE still appears, with empty via lists. cwes lists only the CWEs some returned CVE goes through.
 
     Every element carries the source and tier of its weakest hop. A CWE to
     CAPEC hop not in the CWE's own RelatedAttackPatterns (cwe_db.json) was
@@ -699,13 +715,22 @@ def build_attack_chain_impl(
         via_capecs: set[str] = set()
         inherited_cwes: list[str] = []
         hops = [tech_cve_hop]
+        # The CAPECs the CVE itself credits. A CWE can reach a chain CAPEC
+        # the CVE does not credit (a pillar CAPEC the processor dropped, say);
+        # that CAPEC never explains the CVE. A CVE with no capec rels at all
+        # (hand-built graphs; every real CVE has them) is not filtered.
+        cve_capecs = set(_rels_to(loader, cve_id, "capec", "cve"))
+
+        def credited(ce: dict) -> list[str]:
+            return [c for c in ce["via_capecs"] if not cve_capecs or c in cve_capecs]
+
         cve_cwes = _rels_to(loader, cve_id, "cwe", "cve")
         for cwe_id in sorted(cve_cwes, key=_id_key):
             ce = cwe_entry(cwe_id)
-            if ce is None:
+            if ce is None or not credited(ce):
                 continue
             via_cwes.append(cwe_id)
-            via_capecs.update(ce["via_capecs"])
+            via_capecs.update(credited(ce))
             cwes[cwe_id] = ce
             hops += [cve_cwes[cwe_id], (ce["source"], ce["tier"])]
         if not via_cwes:
@@ -713,11 +738,11 @@ def build_attack_chain_impl(
             # inherited parent CWEs (I29), flagged and derived.
             for cwe_id in sorted((str(c) for c in ent.get("cwe_inherited") or []), key=_id_key):
                 ce = cwe_entry(cwe_id)
-                if ce is None:
+                if ce is None or not credited(ce):
                     continue
                 via_cwes.append(cwe_id)
                 inherited_cwes.append(cwe_id)
-                via_capecs.update(ce["via_capecs"])
+                via_capecs.update(credited(ce))
                 cwes[cwe_id] = ce
                 parent_cwes.add(cwe_id)
                 hops += [(INHERITED_CWE_SOURCE, "derived"), (ce["source"], ce["tier"])]
