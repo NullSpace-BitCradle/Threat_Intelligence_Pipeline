@@ -24,7 +24,8 @@ from tip.utils.performance_optimizer import (
     performance_timer, get_performance_summary
 )
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_text, jsonl_bytes
-from tip.utils.freshness import record_freshness
+from tip.utils.freshness import record_freshness, succeeded_sources
+from tip.core import change_log
 
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
@@ -36,6 +37,8 @@ class PipelineOrchestrator:
         self.start_time = datetime.now()
         self.results: Dict[str, Dict[str, Any]] = {}
         self.config = config
+        # Published state before this run's writes, for the change log (I8).
+        self._before: Optional[Dict[str, Any]] = None
         
         # Initialize components
         self.db_manager = DatabaseManager()
@@ -55,7 +58,9 @@ class PipelineOrchestrator:
             if not force_update and not self._updates_needed():
                 log_info("No updates needed - all databases are current")
                 return self._create_summary()
-            
+
+            self._snapshot_before()
+
             # Step 1: Update databases
             log_info("Step 1: Updating databases...")
             db_results = self._update_databases()
@@ -449,6 +454,12 @@ class PipelineOrchestrator:
             'performance': perf_summary
         }
         
+        # Not a step: the change log never turns a run red, so it lives
+        # beside results, not in it.
+        changes = self._record_changes()
+        if changes is not None:
+            summary['changes'] = changes
+
         # Save summary to file
         summary_file = Path('results/update_summary.json')
         summary_file.parent.mkdir(exist_ok=True)
@@ -489,6 +500,53 @@ class PipelineOrchestrator:
         except Exception as e:
             log_warning(f"Failed to record data freshness: {e}")
 
+    def _change_paths(self) -> Dict[str, Path]:
+        """Source files the change log diffs, and the log itself."""
+        log = Path(self.config.get('files.changes', 'docs/data/changes.json.gz'))
+        return {
+            'kev': Path(self.config.get('database.kev.file', 'docs/data/kev_db.json')),
+            'vulnrichment': Path(self.config.get('database.vulnrichment.file', 'docs/data/vulnrichment_db.json')),
+            'epss': Path(self.config.get('database.epss.file', 'docs/data/epss_curated.json')),
+            'entity_index': log.parent / 'entity_index.json',
+            'log': log,
+        }
+
+    def _snapshot_before(self) -> None:
+        """Snapshot the published state each source is about to replace
+        (I8). The workflows sync to main first, so this is the last
+        published state. A failure only means no events this run."""
+        try:
+            paths = self._change_paths()
+            self._before = change_log.snapshot_sources(
+                {s: paths[s] for s in change_log.SOURCES}
+            )
+        except Exception as e:
+            log_warning(f"Change log snapshot failed; no change events this run: {e}")
+            self._before = None
+
+    def _record_changes(self) -> Optional[Dict[str, Any]]:
+        """Merge this run's change events into the log. Only sources whose
+        step succeeded with fresh data add events; a failure here is logged
+        and never turns the run red."""
+        before = getattr(self, '_before', None)
+        if before is None:
+            return None
+        self._before = None
+        try:
+            paths = self._change_paths()
+            summary = change_log.record_changes(
+                before, paths, succeeded_sources(self.results), paths['log']
+            )
+            if summary.get('written'):
+                log_info(
+                    f"Change log: {summary['new_events']} new events from "
+                    f"{', '.join(summary['diffed'])}"
+                )
+            return summary
+        except Exception as e:
+            log_warning(f"Failed to record change events: {e}")
+            return {'error': str(e)}
+
     def _update_last_update_time(self):
         """Update the last update timestamp"""
         try:
@@ -501,6 +559,7 @@ class PipelineOrchestrator:
     def run_database_updates_only(self) -> Dict[str, Any]:
         """Run only database updates"""
         log_info("Running database updates only...")
+        self._snapshot_before()
         self._update_databases()
         return self._create_summary()
     
