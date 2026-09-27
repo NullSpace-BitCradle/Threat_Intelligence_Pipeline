@@ -12259,5 +12259,1430 @@
         "T1684": [
             "G1057"
         ]
+    },
+    "attributions": {
+        "CVE-2001-0507": [
+            {
+                "id": "G1016",
+                "via": "G1016",
+                "via_type": "relationship",
+                "via_target": "T1574.001"
+            }
+        ],
+        "CVE-2009-0927": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2009-3129": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2009-4324": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2010-3333": [
+            {
+                "id": "G0134",
+                "via": "G0134",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1007",
+                "via": "G1007",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2010-4398": [
+            {
+                "id": "G0037",
+                "via": "G0037",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2010-5326": [
+            {
+                "id": "G1016",
+                "via": "G1016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2011-0609": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2011-0611": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0035",
+                "via": "G0035",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2011-2005": [
+            {
+                "id": "G0037",
+                "via": "G0037",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2012-0158": [
+            {
+                "id": "G0005",
+                "via": "G0005",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0018",
+                "via": "G0018",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0081",
+                "via": "G0081",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0089",
+                "via": "G0089",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0098",
+                "via": "G0098",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0100",
+                "via": "G0100",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0134",
+                "via": "G0134",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1002",
+                "via": "G1002",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1007",
+                "via": "G1007",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2012-1856": [
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2012-1889": [
+            {
+                "id": "G0001",
+                "via": "G0001",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2012-4792": [
+            {
+                "id": "G0001",
+                "via": "G0001",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2013-3660": [
+            {
+                "id": "G0037",
+                "via": "G0037",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2013-3893": [
+            {
+                "id": "G0001",
+                "via": "G0001",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2013-3906": [
+            {
+                "id": "G0034",
+                "via": "G0034",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2014-0322": [
+            {
+                "id": "G0001",
+                "via": "G0001",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2014-1761": [
+            {
+                "id": "G0100",
+                "via": "G0100",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2014-1776": [
+            {
+                "id": "G0022",
+                "via": "G0022",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2014-4076": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2014-4114": [
+            {
+                "id": "G0034",
+                "via": "G0034",
+                "via_type": "relationship",
+                "via_target": "T1027"
+            },
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0060",
+                "via": "G0060",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2014-6324": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2014-6352": [
+            {
+                "id": "G0098",
+                "via": "G0098",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2015-1641": [
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0142",
+                "via": "G0142",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2015-1701": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2015-2291": [
+            {
+                "id": "G1015",
+                "via": "G1015",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2015-2387": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2015-3113": [
+            {
+                "id": "G0022",
+                "via": "G0022",
+                "via_type": "intrusion-set"
+            }
+        ],
+        "CVE-2015-4902": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1211"
+            }
+        ],
+        "CVE-2015-5119": [
+            {
+                "id": "G0098",
+                "via": "G0098",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2015-7450": [
+            {
+                "id": "G1016",
+                "via": "G1016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2015-8651": [
+            {
+                "id": "G0012",
+                "via": "G0012",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2016-0051": [
+            {
+                "id": "G0107",
+                "via": "G0107",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2016-0167": [
+            {
+                "id": "G0061",
+                "via": "G0061",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2016-4117": [
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2016-7255": [
+            {
+                "id": "G0050",
+                "via": "G0050",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2017-0005": [
+            {
+                "id": "G0128",
+                "via": "G0128",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2017-0199": [
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0062",
+                "via": "G0062",
+                "via_type": "intrusion-set"
+            },
+            {
+                "id": "G0065",
+                "via": "G0065",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0069",
+                "via": "G0069",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0080",
+                "via": "G0080",
+                "via_type": "intrusion-set"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0098",
+                "via": "G0098",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0129",
+                "via": "G0129",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2017-0213": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            },
+            {
+                "id": "G0064",
+                "via": "G0064",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2017-0262": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2017-0263": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2017-1000486": [
+            {
+                "id": "G1016",
+                "via": "G1016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2017-10271": [
+            {
+                "id": "G0106",
+                "via": "G0106",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2017-11774": [
+            {
+                "id": "G0049",
+                "via": "G0049",
+                "via_type": "relationship",
+                "via_target": "T1137.004"
+            },
+            {
+                "id": "G0064",
+                "via": "G0064",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2017-11882": [
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0049",
+                "via": "G0049",
+                "via_type": "intrusion-set"
+            },
+            {
+                "id": "G0050",
+                "via": "G0050",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0065",
+                "via": "G0065",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0080",
+                "via": "G0080",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0081",
+                "via": "G0081",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0100",
+                "via": "G0100",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0121",
+                "via": "G0121",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0142",
+                "via": "G0142",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1002",
+                "via": "G1002",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1031",
+                "via": "G1031",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2017-3066": [
+            {
+                "id": "G0106",
+                "via": "G0106",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2017-7269": [
+            {
+                "id": "G0098",
+                "via": "G0098",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2017-8570": [
+            {
+                "id": "G0040",
+                "via": "G0040",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0080",
+                "via": "G0080",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2017-8759": [
+            {
+                "id": "G0065",
+                "via": "G0065",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0080",
+                "via": "G0080",
+                "via_type": "relationship",
+                "via_target": "S0154"
+            }
+        ],
+        "CVE-2018-0171": [
+            {
+                "id": "G1045",
+                "via": "G1045",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2018-0798": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0060",
+                "via": "G0060",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0126",
+                "via": "G0126",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1002",
+                "via": "G1002",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2018-0802": [
+            {
+                "id": "G0060",
+                "via": "G0060",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0081",
+                "via": "G0081",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0100",
+                "via": "G0100",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0142",
+                "via": "G0142",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G1002",
+                "via": "G1002",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2018-13379": [
+            {
+                "id": "G0016",
+                "via": "G0016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0035",
+                "via": "G0035",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1030",
+                "via": "G1030",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1040",
+                "via": "G1040",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2018-20250": [
+            {
+                "id": "G0064",
+                "via": "G0064",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2018-4878": [
+            {
+                "id": "G0032",
+                "via": "G0032",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2018-8174": [
+            {
+                "id": "G0080",
+                "via": "G0080",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            },
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2019-0604": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1055",
+                "via": "G1055",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2019-0803": [
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2019-11510": [
+            {
+                "id": "G0016",
+                "via": "G0016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2019-18935": [
+            {
+                "id": "G0108",
+                "via": "G0108",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2019-19781": [
+            {
+                "id": "G0016",
+                "via": "G0016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0035",
+                "via": "G0035",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1071.001"
+            }
+        ],
+        "CVE-2019-19871": [
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1059.004"
+            }
+        ],
+        "CVE-2019-3396": [
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2019-9489": [
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2019-9670": [
+            {
+                "id": "G0016",
+                "via": "G0016",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2020-0674": [
+            {
+                "id": "G0121",
+                "via": "G0121",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2020-0688": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0016",
+                "via": "C0024",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0035",
+                "via": "G0035",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0069",
+                "via": "G0069",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0094",
+                "via": "G0094",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2020-10189": [
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1071.001"
+            }
+        ],
+        "CVE-2020-12812": [
+            {
+                "id": "G1040",
+                "via": "G1040",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2020-1380": [
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2020-1472": [
+            {
+                "id": "G0035",
+                "via": "G0035",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            },
+            {
+                "id": "G0045",
+                "via": "G0045",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            },
+            {
+                "id": "G0046",
+                "via": "G0046",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            },
+            {
+                "id": "G0069",
+                "via": "G0069",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            },
+            {
+                "id": "G0102",
+                "via": "G0102",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            },
+            {
+                "id": "G1006",
+                "via": "G1006",
+                "via_type": "relationship",
+                "via_target": "T1210"
+            }
+        ],
+        "CVE-2020-17144": [
+            {
+                "id": "G0007",
+                "via": "G0007",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2020-26411": [
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2020-5902": [
+            {
+                "id": "G0135",
+                "via": "G0135",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2020-8468": [
+            {
+                "id": "G0131",
+                "via": "G0131",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2021-1732": [
+            {
+                "id": "G1002",
+                "via": "G1002",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            },
+            {
+                "id": "G1019",
+                "via": "G1019",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2021-21974": [
+            {
+                "id": "G1041",
+                "via": "G1041",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2021-26084": [
+            {
+                "id": "G1003",
+                "via": "G1003",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-26411": [
+            {
+                "id": "G0067",
+                "via": "G0067",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2021-26855": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1595.002"
+            },
+            {
+                "id": "G0096",
+                "via": "G0096",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1022",
+                "via": "G1022",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-26857": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1595.002"
+            }
+        ],
+        "CVE-2021-26858": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1595.002"
+            }
+        ],
+        "CVE-2021-27065": [
+            {
+                "id": "G0027",
+                "via": "G0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1595.002"
+            }
+        ],
+        "CVE-2021-31207": [
+            {
+                "id": "G0046",
+                "via": "G0046",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-34473": [
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-34523": [
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-35464": [
+            {
+                "id": "G1015",
+                "via": "C0027",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-36934": [
+            {
+                "id": "G0016",
+                "via": "G0016",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2021-40444": [
+            {
+                "id": "G1011",
+                "via": "G1011",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2021-44207": [
+            {
+                "id": "G0096",
+                "via": "C0017",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2021-44228": [
+            {
+                "id": "G0059",
+                "via": "G0059",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0096",
+                "via": "C0017",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0125",
+                "via": "G0125",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G0143",
+                "via": "G0143",
+                "via_type": "relationship",
+                "via_target": "T1595.002"
+            },
+            {
+                "id": "G1021",
+                "via": "G1021",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1041",
+                "via": "G1041",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2022-0609": [
+            {
+                "id": "G1049",
+                "via": "C0057",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2022-0847": [
+            {
+                "id": "G1041",
+                "via": "G1041",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2022-22948": [
+            {
+                "id": "G1048",
+                "via": "G1048",
+                "via_type": "relationship",
+                "via_target": "T1212"
+            }
+        ],
+        "CVE-2022-27518": [
+            {
+                "id": "G0004",
+                "via": "C0052",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1023",
+                "via": "C0052",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2022-38028": [
+            {
+                "id": "G0007",
+                "via": "C0051",
+                "via_type": "campaign"
+            }
+        ],
+        "CVE-2022-41040": [
+            {
+                "id": "G1003",
+                "via": "G1003",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            },
+            {
+                "id": "G1040",
+                "via": "G1040",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2022-41082": [
+            {
+                "id": "G1040",
+                "via": "G1040",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2022-41328": [
+            {
+                "id": "G1048",
+                "via": "G1048",
+                "via_type": "relationship",
+                "via_target": "T1587.004"
+            }
+        ],
+        "CVE-2022-42475": [
+            {
+                "id": "G1048",
+                "via": "G1048",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2022-47966": [
+            {
+                "id": "G1053",
+                "via": "G1053",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2023-20867": [
+            {
+                "id": "G1048",
+                "via": "G1048",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2023-29300": [
+            {
+                "id": "G1053",
+                "via": "G1053",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2023-34048": [
+            {
+                "id": "G1048",
+                "via": "G1048",
+                "via_type": "relationship",
+                "via_target": "T1203"
+            }
+        ],
+        "CVE-2023-3519": [
+            {
+                "id": "G1032",
+                "via": "G1032",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2023-38203": [
+            {
+                "id": "G1053",
+                "via": "G1053",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2023-48788": [
+            {
+                "id": "G1051",
+                "via": "G1051",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2023-4966": [
+            {
+                "id": "G1053",
+                "via": "G1053",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2024-1709": [
+            {
+                "id": "G1051",
+                "via": "G1051",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2024-20399": [
+            {
+                "id": "G1047",
+                "via": "G1047",
+                "via_type": "intrusion-set"
+            }
+        ],
+        "CVE-2024-30088": [
+            {
+                "id": "G0049",
+                "via": "G0049",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2024-37085": [
+            {
+                "id": "G1043",
+                "via": "G1043",
+                "via_type": "relationship",
+                "via_target": "T1068"
+            }
+        ],
+        "CVE-2024-39717": [
+            {
+                "id": "G1017",
+                "via": "C0039",
+                "via_type": "campaign"
+            }
+        ],
+        "CVE-2025-21590": [
+            {
+                "id": "G1048",
+                "via": "C0056",
+                "via_type": "relationship",
+                "via_target": "T1055"
+            }
+        ],
+        "CVE-2025-55182": [
+            {
+                "id": "G1056",
+                "via": "G1056",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2026-33634": [
+            {
+                "id": "G1056",
+                "via": "G1056",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
+        "CVE-2026-35273": [
+            {
+                "id": "G1057",
+                "via": "G1057",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ]
     }
 }
