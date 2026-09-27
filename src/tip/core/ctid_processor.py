@@ -30,11 +30,10 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger
 from tip.utils.atomic_io import write_reference_db
+from tip_intel.link_tiers import CTID_SOURCE as SOURCE, CTID_TIER as TIER
 
 config = get_config()
 
-SOURCE = "MITRE CTID Mappings Explorer (KEV)"
-TIER = "official"
 REPO = "center-for-threat-informed-defense/mappings-explorer"
 BRANCH = "main"
 DEFAULT_TREE_URL = f"https://api.github.com/repos/{REPO}/git/trees/{BRANCH}?recursive=1"

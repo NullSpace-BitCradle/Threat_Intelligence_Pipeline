@@ -42,8 +42,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from tip.core.ctid_processor import SOURCE as CTID_SOURCE, ctid_techniques
 from tip.core.id_normalize import normalize_technique_id
+from tip_intel.link_tiers import INFERRED_TIER
 
-INFERRED_TIER = "inferred"
 
 # rule id -> (technique id, technique name, one-line condition)
 RULES: Dict[str, tuple[str, str, str]] = {

@@ -56,6 +56,33 @@ def _read_json(path: Path, label: str) -> Any:
         raise IndexNotLoadedError(f"{label} unreadable: {exc}") from exc
 
 
+# Per-link fields a rel body's link_prov entry may carry besides source and
+# tier (I21): CTID mapping_type and analyst comment, the inference rule.
+LINK_EXTRA_FIELDS = ("mapping_type", "rule", "comment")
+
+
+def link_provenance(body: Any, target_id: Any) -> dict:
+    """{source, tier, ...} of one link in a rel body.
+
+    I21 indexes carry an additive ``link_prov`` map (id -> {source, tier,
+    mapping_type | rule | comment}) for links whose provenance differs from
+    the body's: CTID official and inferred technique links and the D3FEND
+    defenses reached only through them. Every other link, and every link of
+    an older index, takes the body's source and tier.
+    """
+    if not isinstance(body, dict):
+        return {"source": None, "tier": None}
+    per = body.get("link_prov")
+    entry = per.get(str(target_id)) if isinstance(per, dict) else None
+    if isinstance(entry, dict) and entry.get("tier") is not None:
+        out = {"source": entry.get("source"), "tier": entry.get("tier")}
+        for key in LINK_EXTRA_FIELDS:
+            if entry.get(key) is not None:
+                out[key] = entry[key]
+        return out
+    return {"source": body.get("source"), "tier": body.get("tier")}
+
+
 class IndexLoader:
     """Loads and holds the TIP entity graph and search index in memory."""
 
@@ -173,8 +200,9 @@ class IndexLoader:
                     if not isinstance(body, dict):
                         continue
                     for tid in body.get("ids", []) or []:
+                        prov = link_provenance(body, tid)
                         rev.setdefault(str(tid), {}).setdefault(src_type, []).append(
-                            (eid, rel_type, body.get("source"), body.get("tier"))
+                            (eid, rel_type, prov.get("source"), prov.get("tier"))
                         )
             self._reverse = rev
         return self._reverse

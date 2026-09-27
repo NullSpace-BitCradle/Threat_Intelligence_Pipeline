@@ -18,8 +18,16 @@ import re
 from typing import Any, Optional
 
 from tip_intel import cve_blocks
+from tip_intel.link_tiers import (
+    CTID_FIELD,
+    CTID_SOURCE,
+    CTID_TIER,
+    INFERRED_FIELD,
+    INFERRED_TIER,
+    TIER_RANK,
+)
 
-from .loader import IndexLoader, IndexNotLoadedError, ShardReadError
+from .loader import LINK_EXTRA_FIELDS, IndexLoader, IndexNotLoadedError, ShardReadError, link_provenance
 from .schema import ErrorCode, error_response, ok_response
 
 # Types as the entity graph names them.
@@ -121,6 +129,12 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
     DEFEND entries; those rels carry inherited: true. CWE rels are the
     NVD-assigned CWEs only (the parents are the record's cwe_inherited), as
     in the entity index. Legacy shards produce no inherited flag.
+
+    I21 shards add TECHNIQUES_CTID (MITRE CTID analyst mappings) and
+    TECHNIQUES_INFERRED (one technique inferred from the CVSS vector). Those
+    technique rels carry their own source and tier (official, inferred) and
+    mapping_type, comment or rule; a CTID statement wins over a chain path
+    to the same technique. APT groups stay on the chain techniques.
     """
     rels: list[dict] = []
     seen: set[tuple[str, str]] = set()
@@ -135,6 +149,18 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
         rels.append(rel)
         return rel
 
+    def add_extra(entry: Any, tier: str) -> None:
+        if not isinstance(entry, dict) or not entry.get("id"):
+            return
+        default = CTID_SOURCE if tier == CTID_TIER else "TIP inference"
+        rel = add(_norm_technique(entry["id"]), "technique", str(entry.get("source") or default))
+        if rel is None:
+            return
+        rel["tier"] = tier
+        for key in LINK_EXTRA_FIELDS:
+            if entry.get(key) is not None:
+                rel[key] = entry[key]
+
     # Direct lists first, so an id in both is never flagged inherited.
     both = ((False, ""), (True, "_INHERITED"))
     for cwe in payload.get("CWE", []) or []:
@@ -142,12 +168,17 @@ def _shard_rels(payload: dict, loader: Optional[IndexLoader] = None) -> list[dic
     for inh, suffix in both:
         for capec in payload.get("CAPEC" + suffix, []) or []:
             add(_norm_ref(capec, "CAPEC-"), "capec", inherited=inh)
+    # CTID first: its statement outranks a chain path to the same technique.
+    for entry in payload.get(CTID_FIELD, []) or []:
+        add_extra(entry, CTID_TIER)
     techniques: list[tuple[str, bool]] = []
     for inh, suffix in both:
         for tech in payload.get("TECHNIQUES" + suffix, []) or []:
             tech_id = _norm_technique(tech)
             techniques.append((tech_id, inh))
             add(tech_id, "technique", inherited=inh)
+    for entry in payload.get(INFERRED_FIELD, []) or []:
+        add_extra(entry, INFERRED_TIER)
     for inh, suffix in both:
         for owasp in payload.get("OWASP" + suffix, []) or []:
             add(str(owasp).strip(), "owasp", inherited=inh)
@@ -309,13 +340,12 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         for rel_type, rel_body in (entity.get("rels") or {}).items():
             marked = set(rel_body.get("inherited") or [])
             for tid in rel_body.get("ids", []):
-                rel = {
-                    "target_id": tid,
-                    "rel_type": rel_type,
-                    "source": rel_body.get("source"),
-                }
-                if rel_body.get("tier") is not None:
-                    rel["tier"] = rel_body["tier"]
+                # Per-link provenance (I21): CTID and inferred links carry
+                # their own source and tier, never the body's chain label.
+                prov = link_provenance(rel_body, tid)
+                rel = {"target_id": tid, "rel_type": rel_type, **prov}
+                if rel.get("tier") is None:
+                    rel.pop("tier")
                 if tid in marked:
                     rel["inherited"] = True
                 rels_out.append(rel)
@@ -422,9 +452,9 @@ def pivot_from_entity_impl(
                     "name": target.get("name"),
                     "rel_type": rel_type,
                     # Provenance of the link itself (additive), so a
-                    # derived mapping never reads as a stated fact.
-                    "source": rel_body.get("source"),
-                    "tier": rel_body.get("tier"),
+                    # derived mapping never reads as a stated fact; per
+                    # link when the index says so (I21).
+                    **link_provenance(rel_body, tid),
                 }
                 # Additive (I29): reached only through an inherited parent CWE.
                 if tid in marked:
@@ -461,10 +491,14 @@ def pivot_from_entity_impl(
                     "name": name,
                     "rel_type": rtype,
                     # Shard enrichment lists are pipeline output, not a
-                    # source's own statement, so they are derived.
-                    "source": "Pipeline (shard enrichment)",
-                    "tier": "derived",
+                    # source's own statement, so they are derived. CTID and
+                    # inferred technique rels carry their own (I21).
+                    "source": rel["source"] if rel.get("tier") else "Pipeline (shard enrichment)",
+                    "tier": rel.get("tier") or "derived",
                 }
+                for key in LINK_EXTRA_FIELDS:
+                    if rel.get(key) is not None:
+                        shard_hit_rel[key] = rel[key]
                 if rel.get("inherited"):
                     shard_hit_rel["inherited"] = True
                 hits.append(shard_hit_rel)
@@ -605,9 +639,9 @@ def _capped(items: list, limit: int) -> list:
     return items[:limit]
 
 
-# Provenance tiers, strongest first. An element composed of several hops is
-# only as strong as its weakest hop; an unknown tier ranks below derived.
-TIER_RANK = {"authoritative": 3, "official": 2, "derived": 1}
+# Provenance tiers (tip_intel.link_tiers.TIER_RANK): authoritative >
+# official > derived > inferred. An element composed of several hops is only
+# as strong as its weakest hop; an unknown tier ranks below inferred.
 INHERITED_SOURCE = "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)"
 INHERITED_CWE_SOURCE = "TIP processor (CWE inherited as a ChildOf parent of an NVD-assigned CWE)"
 UNVERIFIED_SOURCE = "TIP graph (CWE to CAPEC hop unverified: cwe_db.json unavailable)"
@@ -619,7 +653,7 @@ Hop = tuple[Any, Any]  # (source, tier)
 
 def _weakest(hops: list[Hop]) -> Hop:
     """The (source, tier) of the weakest hop; the first one wins a tie."""
-    return min(hops, key=lambda h: TIER_RANK.get(h[1], 0) if isinstance(h[1], str) else 0)
+    return min(hops, key=lambda h: TIER_RANK.get(h[1], -1) if isinstance(h[1], str) else -1)
 
 
 def _kev_listed(entry: Optional[dict]) -> bool:
@@ -643,7 +677,8 @@ def _rels_to(loader: IndexLoader, eid: str, rel_type: str, back_rel: str) -> dic
     out: dict[str, Hop] = {}
     body = ((loader.entities.get(eid) or {}).get("rels") or {}).get(rel_type) or {}
     for tid in body.get("ids", []) or []:
-        out[str(tid)] = (body.get("source"), body.get("tier"))
+        prov = link_provenance(body, tid)
+        out[str(tid)] = (prov["source"], prov["tier"])
     for src_id, rtype, source, tier in loader.reverse_adjacency.get(eid, {}).get(rel_type, []):
         if rtype == back_rel:
             out[src_id] = _weakest([out[src_id], (source, tier)]) if src_id in out else (source, tier)
@@ -738,9 +773,10 @@ def build_attack_chain_impl(
         return entry
 
     tbody = (tech.get("rels") or {}).get("cve") or {}
-    tech_cve_hop: Hop = (tbody.get("source"), tbody.get("tier"))
     own_cves = list(dict.fromkeys(str(c) for c in tbody.get("ids", []) or []))
     tech_inherited = {str(c) for c in tbody.get("inherited") or []}
+    raw_link_prov = tbody.get("link_prov")
+    per_link: dict = raw_link_prov if isinstance(raw_link_prov, dict) else {}
 
     cves: list[dict] = []
     cwes: dict[str, dict] = {}
@@ -750,7 +786,12 @@ def build_attack_chain_impl(
         via_cwes: list[str] = []
         via_capecs: set[str] = set()
         inherited_cwes: list[str] = []
-        hops = [tech_cve_hop]
+        # The technique -> CVE link itself (I21: per link). A CTID or
+        # inferred link is labeled by its own source and tier; any CWE path
+        # listed for it is supporting context, not what makes the link.
+        link = link_provenance(tbody, cve_id)
+        cve_side = link_provenance(((ent.get("rels") or {}).get("technique") or {}), key)
+        hops = [(link["source"], link["tier"])]
         # The CAPECs the CVE itself credits. A CWE can reach a chain CAPEC
         # the CVE does not credit (a pillar CAPEC the processor dropped, say);
         # that CAPEC never explains the CVE. A CVE with no capec rels at all
@@ -782,7 +823,7 @@ def build_attack_chain_impl(
                 cwes[cwe_id] = ce
                 parent_cwes.add(cwe_id)
                 hops += [(INHERITED_CWE_SOURCE, "derived"), (ce["source"], ce["tier"])]
-        source, tier = _weakest(hops)
+        source, tier = (link["source"], link["tier"]) if cve_id in per_link else _weakest(hops)
         element = {
             "id": cve_id,
             "name": ent.get("name"),
@@ -793,7 +834,14 @@ def build_attack_chain_impl(
             "via_capecs": sorted(via_capecs, key=_id_key),
             "source": source,
             "tier": tier,
+            # Additive (I21): the provenance of the technique -> CVE link.
+            "link_source": link["source"],
+            "link_tier": link["tier"],
         }
+        for extra in LINK_EXTRA_FIELDS:
+            value = link.get(extra, cve_side.get(extra) if cve_side.get("tier") == link["tier"] else None)
+            if value is not None:
+                element[extra] = value
         # Additive (I29), present only when true.
         if inherited_cwes:
             element["inherited_cwes"] = inherited_cwes
@@ -833,10 +881,13 @@ def build_attack_chain_impl(
         "source": "entity_index.json",
         "walk": (
             "cves: the technique's own cve rels; each explained by cve -> cwe -> "
-            "capec -> technique; defenses: technique -> defend"
+            "capec -> technique; defenses: technique -> defend. A CVE linked by "
+            "MITRE CTID (official) or by inference (inferred) is labeled by that link."
         ),
         "totals": totals,
         "cves_without_path": unexplained,
+        "link_tiers": {t: sum(1 for c in cve_list if c["link_tier"] == t)
+                       for t in sorted({c["link_tier"] for c in cve_list if isinstance(c["link_tier"], str)})},
         "limit": limit,
         "truncated": any(n > limit for n in totals.values()),
     }
@@ -958,6 +1009,8 @@ def get_defenses_impl(
     # and (defend id, source, tier, inherited) of the CVE's own defend rels.
     techniques: list[tuple[str, Any, Any, bool]] = []
     own: list[tuple[str, Any, Any, bool]] = []
+    # Technique id -> the provenance of the CVE -> technique link (I21).
+    tech_links: dict[str, dict] = {}
     payload: Optional[dict] = None
     key = loader.resolve_entity_key(cid)
     if key is not None:
@@ -965,12 +1018,15 @@ def get_defenses_impl(
         rels = loader.entities[key].get("rels") or {}
         tbody = rels.get("technique") or {}
         tinh = {str(t) for t in tbody.get("inherited") or []}
-        techniques = [(str(t), tbody.get("source"), tbody.get("tier"), str(t) in tinh)
-                      for t in tbody.get("ids", []) or []]
+        for t in tbody.get("ids", []) or []:
+            prov = link_provenance(tbody, t)
+            techniques.append((str(t), prov["source"], prov["tier"], str(t) in tinh))
+            tech_links[str(t)] = prov
         dbody = rels.get("defend") or {}
         dinh = {str(d) for d in dbody.get("inherited") or []}
-        own = [(str(d), dbody.get("source"), dbody.get("tier"), str(d) in dinh)
-               for d in dbody.get("ids", []) or []]
+        for d in dbody.get("ids", []) or []:
+            prov = link_provenance(dbody, d)
+            own.append((str(d), prov["source"], prov["tier"], str(d) in dinh))
         meta["source"] = "entity_index.json"
     try:
         shard_hit = loader.find_cve_in_shards(cid)
@@ -987,7 +1043,12 @@ def get_defenses_impl(
             for rel in _shard_rels(payload):
                 inh = bool(rel.get("inherited"))
                 if rel["rel_type"] == "technique":
-                    techniques.append((rel["target_id"], SHARD_TECHNIQUE_SOURCE, "derived", inh))
+                    # CTID and inferred rels carry their own tier (I21).
+                    prov = {"source": rel["source"], "tier": rel["tier"]} if rel.get("tier") \
+                        else {"source": SHARD_TECHNIQUE_SOURCE, "tier": "derived"}
+                    prov.update({k: rel[k] for k in LINK_EXTRA_FIELDS if rel.get(k) is not None})
+                    techniques.append((rel["target_id"], prov["source"], prov["tier"], inh))
+                    tech_links[rel["target_id"]] = prov
                 elif rel["rel_type"] == "defend":
                     own.append((rel["target_id"], SHARD_DEFEND_SOURCE, "derived", inh))
     if key is None and shard_hit is None:
@@ -1033,6 +1094,11 @@ def get_defenses_impl(
     for did, e in out.items():
         e["mapping_source"] = " | ".join(paths[did])
         e["tier"] = _weakest(hops[did])[1]
+        # Additive (I21): the CVE -> technique link behind each via technique.
+        e["technique_links"] = [
+            {"id": t, **{k: v for k, v in tech_links[t].items() if k != "comment"}}
+            for t in e["via_techniques"] if t in tech_links
+        ]
         # Additive (I29): reached only through an inherited parent CWE.
         if did in reached_inherited and did not in reached_direct:
             e["inherited"] = True
