@@ -28,7 +28,7 @@ INFERRED_SRC = "TIP inference from the CVSS vector (AV:N and UI:N: T1190 Exploit
 CTID_T = {"source": CTID_SOURCE, "tier": "official", "mapping_type": ["exploitation_technique"]}
 CTID_C = dict(CTID_T, comment="Crafted request.")
 INF = {"source": INFERRED_SRC, "tier": "inferred", "rule": "network-no-interaction"}
-DEF_CTID = {"source": "CTID technique, then D3FEND", "tier": "official"}
+DEF_CTID = {"source": "CTID technique, then D3FEND", "tier": "derived"}
 DEF_INF = {"source": "Inferred technique, then D3FEND", "tier": "inferred"}
 DEF_CHAIN = "Pipeline (Technique→D3FEND chain)"
 META = {"inherited_links": True, "link_provenance": True}
@@ -166,7 +166,7 @@ def test_defenses_take_the_weakest_link_tier(tmp_path):
     assert d[0]["technique_links"] == [{"id": "T9001", **INF}]
     assert "TIP inference" in d[0]["mapping_source"]
     c = get_defenses_impl(ld, cve_id="CVE-2020-0103")["data"]
-    assert [(x["id"], x["tier"]) for x in c] == [("D3-A", "official")]
+    assert [(x["id"], x["tier"]) for x in c] == [("D3-A", "derived")]
     assert c[0]["technique_links"] == [{"id": "T9001", **CTID_T}]
     a = get_defenses_impl(ld, cve_id="CVE-2020-0101")["data"]
     assert [(x["id"], x["tier"]) for x in a] == [("D3-A", "derived")]
@@ -199,9 +199,9 @@ def test_shard_lookup_and_pivot_carry_ctid_and_inferred(tmp_path):
 def test_shard_defenses_use_the_link_tier(tmp_path):
     ld = _ld(tmp_path)
     defs = {d["id"]: d for d in get_defenses_impl(ld, cve_id="CVE-2021-0009")["data"]}
-    # D3-C only through the CTID technique: official. D3-A also through the
-    # chain technique: derived.
-    assert defs["D3-C"]["tier"] == "official"
+    # D3-C only through the CTID technique: derived (a composition). D3-A
+    # also through the chain technique: derived.
+    assert defs["D3-C"]["tier"] == "derived"
     assert defs["D3-A"]["tier"] == "derived"
     inf = get_defenses_impl(ld, cve_id="CVE-2022-0010")["data"]
     assert [(d["id"], d["tier"]) for d in inf] == [("D3-A", "inferred")]
@@ -259,3 +259,51 @@ def test_legacy_index_output_carries_no_i21_fields(tmp_path):
     assert "mapping_type" not in text and '"rule"' not in text
     assert "official" not in json.dumps(outputs[1]) and "inferred" not in text
     assert link_label_violations(ld) == []
+
+
+# ── review fixes ─────────────────────────────────────────────────────
+
+
+def test_legacy_fixture_output_is_byte_identical_to_main(loader):
+    """Every tool call on the pre-I21 fixture returns exactly what main's
+    tools returned (recorded in fixtures/legacy_outputs_main.json)."""
+    from pathlib import Path
+
+    golden = json.loads((Path(__file__).parent / "fixtures" / "legacy_outputs_main.json").read_text())
+    fn = {"lookup_entity": lookup_entity_impl, "pivot_from_entity": pivot_from_entity_impl,
+          "build_attack_chain": build_attack_chain_impl, "get_defenses": get_defenses_impl}
+    assert len(golden) > 50
+    for name, args, want in golden:
+        got = json.loads(json.dumps(fn[name](loader, **args), sort_keys=True))
+        assert got == want, (name, args)
+
+
+def test_ctid_technique_defense_is_derived_on_both_paths(tmp_path):
+    ld = _ld(tmp_path)
+    c = get_defenses_impl(ld, cve_id="CVE-2020-0103")["data"]
+    assert [(x["id"], x["tier"]) for x in c] == [("D3-A", "derived")]
+    assert "CTID technique, then D3FEND" in c[0]["mapping_source"]
+    # Shard path, no own defend rel: the composition is still derived.
+    defs = {d["id"]: d for d in get_defenses_impl(ld, cve_id="CVE-2021-0009")["data"]}
+    assert defs["D3-C"]["tier"] == "derived"
+
+
+def test_default_prov_labels_the_chain_links_of_a_relabeled_body(tmp_path):
+    g = _graph()
+    body = g["T9001"]["rels"]["cve"]
+    body["tier"] = "inferred"
+    body["default_prov"] = {"source": CHAIN, "tier": "derived"}
+    ld = _load(tmp_path, g, META, cwe_db=CWE_DB)
+    back = {h["id"]: h["tier"] for h in pivot_from_entity_impl(ld, "T9001", "cve")["data"]}
+    assert back["CVE-2020-0101"] == "derived" and back["CVE-2020-0104"] == "inferred"
+    assert link_label_violations(ld) == []
+
+
+def test_chain_note_names_ctid_and_inferred_cves_without_a_capec(tmp_path):
+    g = _graph()
+    g["T9003"] = {"type": "technique", "rels": {"cve": _with(_rel(["CVE-2020-0103", "CVE-2020-0104"], CHAIN),
+                                                            {"CVE-2020-0103": CTID_T, "CVE-2020-0104": INF})}}
+    ld = _load(tmp_path, g, META, cwe_db=CWE_DB)
+    note = build_attack_chain_impl(ld, "T9003")["meta"]["note"]
+    assert "1 MITRE CTID analyst mapping" in note and "1 inferred from the CVSS vector" in note
+    assert "listed without a CAPEC or CWE path" not in note

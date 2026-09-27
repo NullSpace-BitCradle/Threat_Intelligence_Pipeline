@@ -221,6 +221,13 @@ class IndexLoader:
         return self._meta.get("inherited_links") is True
 
     @property
+    def link_provenance(self) -> bool:
+        """True when the index carries I21 per-link provenance (rel bodies
+        may have link_prov). Tools add their I21 fields only then, so an
+        older index gives exactly the output it gave before."""
+        return self._meta.get("link_provenance") is True
+
+    @property
     def kev_db(self) -> Optional[dict[str, dict]]:
         """CISA KEV catalog from kev_db.json, keyed by upper-case CVE ID.
 

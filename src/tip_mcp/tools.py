@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from tip_intel import cve_blocks
 from tip_intel.link_tiers import (
+    CTID_DEFEND_SOURCE,
     CTID_FIELD,
     CTID_SOURCE,
     CTID_TIER,
@@ -775,6 +776,8 @@ def build_attack_chain_impl(
     tbody = (tech.get("rels") or {}).get("cve") or {}
     own_cves = list(dict.fromkeys(str(c) for c in tbody.get("ids", []) or []))
     tech_inherited = {str(c) for c in tbody.get("inherited") or []}
+    # I21 fields appear only on an index that carries per-link provenance.
+    i21 = loader.link_provenance
     raw_link_prov = tbody.get("link_prov")
     per_link: dict = raw_link_prov if isinstance(raw_link_prov, dict) else {}
 
@@ -834,14 +837,15 @@ def build_attack_chain_impl(
             "via_capecs": sorted(via_capecs, key=_id_key),
             "source": source,
             "tier": tier,
-            # Additive (I21): the provenance of the technique -> CVE link.
-            "link_source": link["source"],
-            "link_tier": link["tier"],
         }
-        for extra in LINK_EXTRA_FIELDS:
-            value = link.get(extra, cve_side.get(extra) if cve_side.get("tier") == link["tier"] else None)
-            if value is not None:
-                element[extra] = value
+        if i21:
+            # Additive (I21): the provenance of the technique -> CVE link.
+            element["link_source"] = link["source"]
+            element["link_tier"] = link["tier"]
+            for extra in LINK_EXTRA_FIELDS:
+                value = link.get(extra, cve_side.get(extra) if cve_side.get("tier") == link["tier"] else None)
+                if value is not None:
+                    element[extra] = value
         # Additive (I29), present only when true.
         if inherited_cwes:
             element["inherited_cwes"] = inherited_cwes
@@ -881,16 +885,18 @@ def build_attack_chain_impl(
         "source": "entity_index.json",
         "walk": (
             "cves: the technique's own cve rels; each explained by cve -> cwe -> "
-            "capec -> technique; defenses: technique -> defend. A CVE linked by "
-            "MITRE CTID (official) or by inference (inferred) is labeled by that link."
+            "capec -> technique; defenses: technique -> defend"
+            + (". A CVE linked by MITRE CTID (official) or by inference (inferred) is labeled by that link."
+               if i21 else "")
         ),
         "totals": totals,
         "cves_without_path": unexplained,
-        "link_tiers": {t: sum(1 for c in cve_list if c["link_tier"] == t)
-                       for t in sorted({c["link_tier"] for c in cve_list if isinstance(c["link_tier"], str)})},
         "limit": limit,
         "truncated": any(n > limit for n in totals.values()),
     }
+    if i21:
+        meta["link_tiers"] = {t: sum(1 for c in cve_list if c["link_tier"] == t)
+                              for t in sorted({c["link_tier"] for c in cve_list if isinstance(c["link_tier"], str)})}
     if related is None and not loader.inherited_links:
         meta["cwe_db_note"] = (
             "cwe_db.json unavailable, so CWE to CAPEC hops cannot be checked against "
@@ -901,7 +907,21 @@ def build_attack_chain_impl(
             f"No CAPEC pattern maps to {key} in the TIP graph, so no weakness path can "
             "be derived from it."
         )
-        if cve_list:
+        n_ctid = sum(1 for c in cve_list if c["id"] in per_link and c.get("link_source") == CTID_SOURCE)
+        n_inf = sum(1 for c in cve_list if c["id"] in per_link and c.get("link_tier") == INFERRED_TIER)
+        if cve_list and (n_ctid or n_inf):
+            # I21: these CVEs are linked by a stated or inferred mapping, not
+            # a weakness path, so a missing CAPEC is not a data gap for them.
+            parts = []
+            if n_ctid:
+                parts.append(f"{n_ctid} MITRE CTID analyst mapping{'s' if n_ctid != 1 else ''}")
+            if n_inf:
+                parts.append(f"{n_inf} inferred from the CVSS vector")
+            rest = len(cve_list) - n_ctid - n_inf
+            if rest:
+                parts.append(f"{rest} listed without a path")
+            note += f" Its {len(cve_list)} linked CVEs come from " + ", ".join(parts) + "."
+        elif cve_list:
             note += f" Its {len(cve_list)} linked CVEs are listed without a CAPEC or CWE path."
         meta["note"] = note + " Defenses come from the technique's own D3FEND mappings."
     elif not cve_list:
@@ -1055,6 +1075,8 @@ def get_defenses_impl(
         return _not_found(loader, cid)
 
     verbs = _defend_verbs(payload) if payload else {}
+    i21_data = loader.link_provenance if key is not None else bool(
+        payload and (CTID_FIELD in payload or INFERRED_FIELD in payload))
     out: dict[str, dict] = {}
     hops: dict[str, list[Hop]] = {}
     paths: dict[str, list[str]] = {}
@@ -1081,7 +1103,14 @@ def get_defenses_impl(
             if tech_id not in e["via_techniques"]:
                 e["via_techniques"].append(tech_id)
             hops[did] += [(tsource, ttier), (dsource, dtier)]
+            if tsource == CTID_SOURCE:
+                # I21: CTID mapped the technique, D3FEND the defense; that
+                # the defense counters this CVE is a composition nobody
+                # stated, so it is derived, as in the index.
+                hops[did].append((CTID_DEFEND_SOURCE, "derived"))
             path = f"CVE→technique: {tsource}; technique→D3FEND: {dsource}"
+            if tsource == CTID_SOURCE:
+                path += f" ({CTID_DEFEND_SOURCE}: derived)"
             if path not in paths[did]:
                 paths[did].append(path)
     for did, source, tier, dinherited in own:
@@ -1094,11 +1123,13 @@ def get_defenses_impl(
     for did, e in out.items():
         e["mapping_source"] = " | ".join(paths[did])
         e["tier"] = _weakest(hops[did])[1]
-        # Additive (I21): the CVE -> technique link behind each via technique.
-        e["technique_links"] = [
-            {"id": t, **{k: v for k, v in tech_links[t].items() if k != "comment"}}
-            for t in e["via_techniques"] if t in tech_links
-        ]
+        # Additive (I21): the CVE -> technique link behind each via technique,
+        # only for I21 data, so older data answers exactly as before.
+        if i21_data:
+            e["technique_links"] = [
+                {"id": t, **{k: v for k, v in tech_links[t].items() if k != "comment"}}
+                for t in e["via_techniques"] if t in tech_links
+            ]
         # Additive (I29): reached only through an inherited parent CWE.
         if did in reached_inherited and did not in reached_direct:
             e["inherited"] = True

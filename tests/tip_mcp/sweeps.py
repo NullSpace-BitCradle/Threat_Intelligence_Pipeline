@@ -159,7 +159,8 @@ def link_label_violations(loader: IndexLoader) -> list[dict]:
             want = link_provenance(_rel(loader, eid, hit["rel_type"]), hit["id"])
             if (hit.get("source"), hit.get("tier")) != (want["source"], want["tier"]):
                 bad.append({"tool": "pivot", "id": eid, "target": hit["id"], "got": hit.get("tier")})
-        if etype == "technique":
+        # Chain link fields exist only on an I21 index (older ones answer as before).
+        if etype == "technique" and loader.link_provenance:
             for cve in build_attack_chain_impl(loader, eid, limit=BIG)["data"]["cves"]:
                 want = link_provenance(_rel(loader, eid, "cve"), cve["id"])
                 if (cve.get("link_source"), cve.get("link_tier")) != (want["source"], want["tier"]):
