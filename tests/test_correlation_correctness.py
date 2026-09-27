@@ -41,7 +41,7 @@ def _bare_processor():
     proc.capec_db = {}
     proc.techniques_db = {}
     proc.logger = logging.getLogger("test")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cve=lambda rec: [])
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
     proc.apt_processor = SimpleNamespace(lookup_by_techniques=lambda t: [])
@@ -49,23 +49,30 @@ def _bare_processor():
 
 
 def test_ingest_normalizes_mixed_cwe_shape_with_one_parent_level():
-    """The real shard shape ['74','CWE-79'] comes out as CWE-<n> only."""
+    """The real shard shape ['74','CWE-79'] comes out as CWE-<n> only. The
+    NVD-assigned list stays as given; 74's parent 707 is a pillar, so
+    nothing is inherited and 707's CAPEC-152 is no longer reached."""
     out = _bare_processor().process_cve_pipeline({"CVE-2024-0001": {"CWE": ["74", "CWE-79"]}})
     rec = out["CVE-2024-0001"]
-    # 79 -> +74 ; 74 -> +707 (one level from each listed CWE), all prefixed.
-    assert rec["CWE"] == ["CWE-74", "CWE-79", "CWE-707"]
+    assert rec["CWE"] == ["CWE-74", "CWE-79"]
+    assert rec["CWE_INHERITED"] == []
     assert all(c.startswith("CWE-") for c in rec["CWE"])
-    assert rec["CAPEC"] == ["152", "63"]
+    assert rec["CAPEC"] == ["63"]
+    assert rec["CAPEC_INHERITED"] == []
 
 
 def test_processor_and_shared_definition_agree():
-    """One parent definition: the processor's expansion IS expand_cwe_list."""
+    """One parent definition: the processor's split IS split_cwe_list."""
     proc = _bare_processor()
     for cwes in (["CWE-79"], ["79"], ["74", "CWE-79"], ["CWE-707"], []):
         out = proc.process_cve_pipeline({"CVE-2024-0002": {"CWE": cwes}})
-        assert out["CVE-2024-0002"]["CWE"] == ids.expand_cwe_list(CWE_DB, cwes)
+        assigned, inherited = ids.split_cwe_list(CWE_DB, cwes)
+        assert out["CVE-2024-0002"]["CWE"] == assigned
+        assert out["CVE-2024-0002"]["CWE_INHERITED"] == inherited
     assert proc.get_parent_cwe("79") == ["CWE-74"]  # one level only
-    # CAPEC inheritance walks the whole chain: 79 reaches 707's CAPEC-152.
+    # CWE-79 inherits CWE-74 (not a pillar).
+    assert ids.split_cwe_list(CWE_DB, ["CWE-79"]) == (["CWE-79"], ["CWE-74"])
+    # CAPEC inheritance on the CWE entity walks the whole chain: 79 reaches 707's CAPEC-152.
     assert ids.cwe_capecs_with_ancestors(CWE_DB, "CWE-79") == {"63", "152"}
 
 
