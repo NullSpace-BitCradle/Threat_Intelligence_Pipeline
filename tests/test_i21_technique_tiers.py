@@ -314,3 +314,11 @@ def test_body_label_sweep_catches_a_mislabeled_body():
     }
     bad = body_label_violations(ents)
     assert {b["id"] for b in bad} == {"T1", "T2"}
+
+
+def test_body_label_sweep_accepts_rule_text_containing_and():
+    src = "TIP inference from the CVSS vector (AV:N and UI:N: T1190 Exploit Public-Facing Application)"
+    ents = {"CVE-1": {"type": "cve", "rels": {"technique": {
+        "ids": ["T1190"], "source": src, "tier": "inferred",
+        "link_prov": {"T1190": {"source": src, "tier": "inferred"}}}}}}
+    assert body_label_violations(ents) == []

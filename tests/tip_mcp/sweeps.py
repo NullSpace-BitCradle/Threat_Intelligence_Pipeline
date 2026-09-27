@@ -209,7 +209,7 @@ def all_tier_violations(loader: IndexLoader, cve_ids: "list[str] | None" = None)
 def body_label_violations(entities: dict) -> list[dict]:
     """I21 review: a rel body's own source and tier must describe its links,
     so a reader that ignores link_prov under-claims instead of mislabeling.
-    Every part of the body source (parts joined by " and ") is some link's
+    Every part of the body source (parts joined by " + ") is some link's
     source, and the body tier is the weakest tier among its links."""
     bad: list[dict] = []
     for eid, ent in entities.items():
@@ -218,7 +218,7 @@ def body_label_violations(entities: dict) -> list[dict]:
                 continue
             links = [link_provenance(body, t) for t in body.get("ids", [])]
             sources = [str(p["source"]) for p in links]
-            parts = str(body.get("source")).split(" and ")
+            parts = str(body.get("source")).split(" + ")
             claims_ok = all(any(src == part or src.startswith(part) for src in sources) for part in parts)
             weakest = min((p["tier"] for p in links), key=lambda t: TIER_RANK.get(t, -1))
             if not claims_ok or body.get("tier") != weakest:

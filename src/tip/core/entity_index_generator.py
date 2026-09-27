@@ -204,7 +204,7 @@ def _relabel_body(body: dict, chain_prov: dict, per_link: dict) -> None:
     weakest tier present; ``default_prov`` then carries the chain label for
     the ids link_prov does not name, when it differs from the body's. With
     no chain link, one source gives that source and tier, and several give a
-    source naming each (inferred rules as one family) at the weakest tier.
+    source naming each, joined by " + " (inferred rules as one family) at the weakest tier.
     """
     chain_ids = [t for t in body["ids"] if t not in per_link]
     provs = list(per_link.values()) + ([chain_prov] if chain_ids else [])
@@ -219,7 +219,7 @@ def _relabel_body(body: dict, chain_prov: dict, per_link: dict) -> None:
         ranked = sorted(provs, key=lambda p: -TIER_RANK.get(p["tier"], -1))
         families = [INFERRED_FAMILY if str(p["source"]).startswith(INFERRED_FAMILY) else str(p["source"])
                     for p in ranked]
-        body["source"] = " and ".join(dict.fromkeys(families))
+        body["source"] = " + ".join(dict.fromkeys(families))
     else:
         body["source"] = sources[0]
     body["tier"] = weakest
