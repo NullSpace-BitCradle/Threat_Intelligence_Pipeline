@@ -13,6 +13,13 @@ import requests
 import tip.core.ctid_processor as ctid
 from tip.core import database_manager as dm
 
+from urllib.parse import urlsplit
+
+
+def _is_api(url: str) -> bool:
+    """Route a mocked request by its exact host, never by substring."""
+    return urlsplit(url).hostname == "api.github.com"
+
 KEV_16 = "mappings/kev/attack-16.1/kev-07.28.2025/enterprise/kev-07.28.2025_attack-16.1-enterprise.json"
 KEV_15 = "mappings/kev/attack-15.1/kev-02.13.2025/enterprise/kev-02.13.2025_attack-15.1-enterprise.json"
 
@@ -63,7 +70,7 @@ def env(tmp_path, monkeypatch):
     def route(tree, mapping):
         def fake_get(url, headers=None, timeout=None, **_):
             calls.append((url, dict(headers or {})))
-            if "api.github.com" in url:
+            if _is_api(url):
                 return tree() if callable(tree) else tree
             return mapping() if callable(mapping) else mapping
         monkeypatch.setattr(ctid.requests, "get", fake_get)
@@ -247,7 +254,7 @@ def test_manager_failure_is_not_fresh(manager, tmp_path, monkeypatch, case):
     tree, mapping = FAILURES[case]
 
     def fake_get(url, headers=None, timeout=None, **_):
-        r = tree if "api.github.com" in url else mapping
+        r = tree if _is_api(url) else mapping
         return r() if callable(r) else r
     monkeypatch.setattr(ctid.requests, "get", fake_get)
     assert manager.update_database("ctid") is False
@@ -257,7 +264,7 @@ def test_manager_failure_is_not_fresh(manager, tmp_path, monkeypatch, case):
 
 def test_manager_success_is_fresh(manager, tmp_path, monkeypatch):
     def fake_get(url, headers=None, timeout=None, **_):
-        return _Resp(_tree(KEV_16)) if "api.github.com" in url else _Resp(_mapping(3))
+        return _Resp(_tree(KEV_16)) if _is_api(url) else _Resp(_mapping(3))
     monkeypatch.setattr(ctid.requests, "get", fake_get)
     assert manager.update_database("ctid") is True
     assert "ctid" in manager.fresh_writes
