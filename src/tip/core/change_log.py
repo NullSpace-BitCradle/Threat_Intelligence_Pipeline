@@ -81,12 +81,15 @@ EVENT_TYPES = (
 # partial (a wiped or half-built file, then a full rebuild), so its missing
 # records cannot be told from backfill and add no events. The slack lets a
 # small set grow by a normal week's worth (the curated tier from 1,728 to
-# 1,950). Symmetrically, an after-state under the fraction of the before-state
+# 1,950). It stays small so that a set recovering from a shrink the removal
+# guard suppressed (a bad KEV feed at 1,300 of 1,726, then a good one) does
+# not log the recovery as news; only a shrink of 10 to 14% can still do so.
+# Symmetrically, an after-state under the fraction of the before-state
 # emits no removal events (kev_removed, curated_removed): a set that shrank
 # that far is more likely a bad build than news. Changes on records present
 # in both states are always observed facts.
 BASELINE_RATIO = 0.9
-BASELINE_SLACK = 500
+BASELINE_SLACK = 250
 
 # Event sources, keyed as the orchestrator names the steps behind them.
 SOURCES = ("kev", "vulnrichment", "epss", "entity_index")

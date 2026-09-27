@@ -205,11 +205,21 @@ def _curated(n: int, start: int = 0) -> dict:
 
 def test_small_set_growing_within_the_slack_is_news():
     """The curated tier growing from 1,728 to 1,950 is under the 90% ratio
-    but within the 500-record slack, so its new CVEs are events."""
+    but within the 250-record slack, so its new CVEs are events."""
     events = _events({"entity_index": _curated(1728)}, {"entity_index": _curated(1950)})
     assert len(events) == 222 and {e["type"] for e in events} == {"curated_added"}
     # Past the slack and the ratio it is still a rebuild, not news.
     assert _events({"entity_index": _curated(1728)}, {"entity_index": _curated(2300)}) == []
+
+
+def test_recovery_from_a_suppressed_shrink_is_not_news(monkeypatch):
+    """A bad feed shrinks the set past the ratio (removals suppressed), then a
+    good one restores it. The restored records were never reported removed,
+    so reporting them added would be 426 false events."""
+    monkeypatch.setattr(cl, "log_warning", lambda _msg: None)
+    full, shrunk = _curated(1726), _curated(1300)
+    assert _events({"entity_index": full}, {"entity_index": shrunk}) == []
+    assert _events({"entity_index": shrunk}, {"entity_index": full}) == []
 
 
 def test_curated_set_shrinking_past_the_ratio_emits_no_removals(monkeypatch):
