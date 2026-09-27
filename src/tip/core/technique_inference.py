@@ -13,14 +13,18 @@ Inference fills only an empty slot: a CVE that has any technique from 1, 2
 or 3 gets no inferred technique. It names the likely exploitation technique
 only; it never infers an impact technique.
 
-The rules follow CTID's "Mapping ATT&CK to CVE for Impact" methodology
-(github.com/center-for-threat-informed-defense/attack_to_cve,
-methodology.md). Its "Exploitation Techniques" section maps "the attacker
-exploits remote system application" to T1190, and its "Tactic-level
-Techniques" section names the generic exploitation technique per tactic:
-T1190 for Initial Access, T1203 for Execution, T1068 for Privilege
-Escalation. The CVSS vector is the only structured statement of how a
-vulnerability is reached, so each rule reads it, one line per technique:
+The rules follow CTID's ATT&CK to CVE methodology, "Using MITRE ATT&CK to
+Describe Vulnerabilities" (center-for-threat-informed-defense/attack_to_cve,
+methodology.md, read 2026-09-27). Its "Exploitation Techniques" section maps
+"the attacker exploits remote system application" to T1190, and its
+"Tactic-level Techniques" section names the generic exploitation technique
+per tactic: T1190 for Initial Access, T1203 for Execution, T1068 for
+Privilege Escalation. Its "Mapping & Methodology Scope" section and
+"Vulnerability Type" table give no exploitation technique for
+memory-modification bugs (buffer overflows and the like) because it varies
+by bug, so the rules never read the CWE. They read how the vulnerability is
+reached, which is what the Exploit Technique method keys on, and the CVSS
+vector is the only structured statement of that. One line per technique:
 
 * AV:N and UI:N -> T1190 Exploit Public-Facing Application (reached over the
   network with no user action).

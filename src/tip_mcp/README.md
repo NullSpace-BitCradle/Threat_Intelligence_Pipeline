@@ -16,8 +16,8 @@ session of all of them on real data is in [DEMO.md](DEMO.md).
 | `lookup_entity(entity_id)` | One entity record and its relationships | "What is CVE-2023-44487?" |
 | `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
-| `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus D3FEND defenses; every element carries the tier of its weakest hop | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
-| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for exactly one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb when known; CVE-side defenses are derived | "Which D3FEND countermeasures map to T1499?" |
+| `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus D3FEND defenses; every element carries the tier of its weakest hop and its link's own source and tier | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
+| `get_defenses(technique_id? \| cve_id?)` | D3FEND countermeasures for exactly one technique or CVE, with mapping source, tier, the technique each was reached through, and the relationship verb when known; CVE-side defenses take the weakest tier on their path | "Which D3FEND countermeasures map to T1499?" |
 | `kev_status(cve_id)` | KEV membership, date added, due date, ransomware use, required action, vendor, product, SSVC when known, and EPSS | "Is CVE-2023-44487 in CISA KEV, and when was it due?" |
 
 Every tool returns an envelope: `{ok: true, data, meta}` or
@@ -52,11 +52,13 @@ path and the shard path.
   adjacency map once, on first use, instead of changing the generator.
 - **Provenance is the weakest hop.** Every chain element and every CVE-side
   defense carries the `source` and `tier` of the weakest hop on its path
-  (authoritative > official > derived). An inherited or unverified CWE to
-  CAPEC hop is derived. A chain CVE is as strong as the `technique -> cve`
-  rel that put it there, which TIP derives (`Pipeline (CAPEC→Technique
-  chain)`), so chain CVEs are derived today. Nothing on a path with a derived
-  or inherited hop is labeled authoritative or official.
+  (authoritative > official > derived > inferred; an unknown tier ranks
+  last). An inherited or unverified CWE to CAPEC hop is derived. A chain CVE
+  is as strong as the `technique -> cve` link that put it there: a chain link
+  is derived (`Pipeline (CAPEC→Technique chain)`), a MITRE CTID link is
+  official, an inferred link is inferred (I21, below). Nothing on a path with
+  a derived or inherited hop is labeled authoritative or official, except a
+  CVE MITRE CTID mapped to the technique, which is labeled by that link.
 - **`build_attack_chain` limits and notes.** Each list is capped at `limit`
   (default 50); `meta.totals` holds the uncapped counts and
   `meta.truncated` says whether anything was cut. A technique with no CAPEC
@@ -91,6 +93,33 @@ path and the shard path.
   carries `inherited: true`. `get_defenses` marks a CVE-side defense
   `inherited: true` when every link that reaches it is inherited. Each flag appears only
   when true, so an older index or shard produces the same output as before.
+- **Per-link provenance (I21).** A technique link comes from MITRE CTID's
+  KEV analysis (`source` `MITRE CTID Mappings Explorer (KEV)`, `tier`
+  official), the CWE chain (derived), an inherited parent CWE (derived,
+  `inherited: true`), or inference from the CVSS vector (`source` naming the
+  rule, `tier` inferred; only when the CVE has no other technique). An index
+  generated after I21 sets `meta.link_provenance` and gives such links an
+  additive `link_prov` entry on the rel body, in both directions; the tools
+  read it per link, never the body's chain label:
+  - `lookup_entity` rels and `pivot_from_entity` hits carry the link's
+    `source` and `tier`, plus `mapping_type` (CTID: `exploitation_technique`,
+    `primary_impact`, `secondary_impact`), `comment` (the CTID analyst's, on
+    the CVE side), or `rule` (inferred). On the shard path the same fields
+    come from the shard's `TECHNIQUES_CTID` and `TECHNIQUES_INFERRED` lists;
+    other shard links stay `Pipeline (shard enrichment)`, derived.
+  - `build_attack_chain` CVE elements carry `link_source` and `link_tier`
+    (the `technique -> cve` link) and, for a CTID or inferred link,
+    `mapping_type`, `comment` or `rule`; such an element's `source` and
+    `tier` are the link's, and any CWE path listed is context. `meta.link_tiers`
+    counts the CVEs per link tier.
+  - `get_defenses` for a CVE reads the CVE to technique hop per link, so a
+    defense reached only through an inferred technique is inferred and one
+    reached through a CTID technique is official (the D3FEND mapping is
+    official too). Each defense lists `technique_links`: `{id, source, tier}`
+    (with `mapping_type` or `rule`) for every technique in `via_techniques`.
+  - APT groups stay on chain techniques only. An older index or shard has no
+    per-link entries, and every link reports the body's source and tier as
+    before.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
