@@ -57,8 +57,27 @@ def _read_json(path: Path, label: str) -> Any:
 
 
 # Per-link fields a rel body's link_prov entry may carry besides source and
-# tier (I21): CTID mapping_type and analyst comment, the inference rule.
-LINK_EXTRA_FIELDS = ("mapping_type", "rule", "comment")
+# tier (I21): CTID mapping_type and analyst comment, the inference rule; and
+# the ATT&CK object citing a CVE for an APT group (I32): via, via_type,
+# via_target.
+LINK_EXTRA_FIELDS = ("mapping_type", "rule", "comment", "via", "via_type", "via_target")
+
+
+def drop_overlap_apt_links(entities: dict) -> int:
+    """Remove CVE to APT group rels, both directions, from an index written
+    before I32. Those links came from technique overlap, not from any
+    source's statement. Technique and campaign links to groups stay.
+    Returns the number of rel bodies removed."""
+    removed = 0
+    for ent in entities.values():
+        rels = ent.get("rels")
+        if not isinstance(rels, dict):
+            continue
+        other = {"cve": "apt_group", "apt_group": "cve"}.get(ent.get("type"))
+        if other is not None and other in rels:
+            del rels[other]
+            removed += 1
+    return removed
 
 
 def link_provenance(body: Any, target_id: Any) -> dict:
@@ -175,9 +194,12 @@ class IndexLoader:
                 "search_index.json has the wrong shape: expected an object of term to id list"
             )
 
-        self._entities = entities
         meta = data.get("meta")
-        self._meta = meta if isinstance(meta, dict) else {}
+        meta = meta if isinstance(meta, dict) else {}
+        if meta.get("apt_attribution") is not True:
+            drop_overlap_apt_links(entities)
+        self._entities = entities
+        self._meta = meta
         self._entities_ci = None
         self._search_index = search
         self._cve_ids = self._load_cve_ids()

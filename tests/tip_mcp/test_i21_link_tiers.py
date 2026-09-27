@@ -266,7 +266,9 @@ def test_legacy_index_output_carries_no_i21_fields(tmp_path):
 
 def test_legacy_fixture_output_is_byte_identical_to_main(loader):
     """Every tool call on the pre-I21 fixture returns exactly what main's
-    tools returned (recorded in fixtures/legacy_outputs_main.json)."""
+    tools returned (recorded in fixtures/legacy_outputs_main.json), minus
+    the CVE to APT group technique-overlap links I32 removed (re-recorded
+    2026-09-27; the only change was those links and the counts they made)."""
     from pathlib import Path
 
     golden = json.loads((Path(__file__).parent / "fixtures" / "legacy_outputs_main.json").read_text())

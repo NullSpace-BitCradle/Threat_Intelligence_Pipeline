@@ -1123,12 +1123,6 @@
 },
 "rels": [
 {
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"target_id": "G0016",
-"tier": "derived"
-},
-{
 "rel_type": "capec",
 "source": "Pipeline (CWE\u2192CAPEC chain)",
 "target_id": "CAPEC-1",
@@ -1145,7 +1139,7 @@
 },
 "meta": {
 "epss_source": null,
-"rel_count": 3,
+"rel_count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -1158,14 +1152,6 @@
 },
 {
 "data": [
-{
-"id": "G0016",
-"name": "APT29",
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "apt_group"
-},
 {
 "id": "CAPEC-1",
 "name": "Accessing Functionality Not Properly Constrained by ACLs",
@@ -1184,7 +1170,7 @@
 }
 ],
 "meta": {
-"count": 3,
+"count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -1208,12 +1194,6 @@
 },
 "rels": [
 {
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"target_id": "G0016",
-"tier": "derived"
-},
-{
 "rel_type": "capec",
 "source": "Pipeline (CWE\u2192CAPEC chain)",
 "target_id": "CAPEC-1",
@@ -1230,7 +1210,7 @@
 },
 "meta": {
 "epss_source": null,
-"rel_count": 3,
+"rel_count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -1243,14 +1223,6 @@
 },
 {
 "data": [
-{
-"id": "G0016",
-"name": "APT29",
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "apt_group"
-},
 {
 "id": "CAPEC-1",
 "name": "Accessing Functionality Not Properly Constrained by ACLs",
@@ -1269,7 +1241,7 @@
 }
 ],
 "meta": {
-"count": 3,
+"count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -1293,12 +1265,6 @@
 },
 "rels": [
 {
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"target_id": "G0016",
-"tier": "derived"
-},
-{
 "rel_type": "capec",
 "source": "Pipeline (CWE\u2192CAPEC chain)",
 "target_id": "CAPEC-1",
@@ -1315,7 +1281,7 @@
 },
 "meta": {
 "epss_source": null,
-"rel_count": 3,
+"rel_count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -1328,14 +1294,6 @@
 },
 {
 "data": [
-{
-"id": "G0016",
-"name": "APT29",
-"rel_type": "apt_group",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "apt_group"
-},
 {
 "id": "CAPEC-1",
 "name": "Accessing Functionality Not Properly Constrained by ACLs",
@@ -1354,7 +1312,7 @@
 }
 ],
 "meta": {
-"count": 3,
+"count": 2,
 "source": "entity_index.json"
 },
 "ok": true
@@ -2090,24 +2048,6 @@
 },
 "rels": [
 {
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"target_id": "CVE-2013-0431",
-"tier": "derived"
-},
-{
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"target_id": "CVE-2013-0632",
-"tier": "derived"
-},
-{
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"target_id": "CVE-2013-2465",
-"tier": "derived"
-},
-{
 "rel_type": "technique",
 "source": "MITRE ATT&CK",
 "target_id": "T1053.005",
@@ -2117,7 +2057,7 @@
 "type": "apt_group"
 },
 "meta": {
-"rel_count": 4,
+"rel_count": 1,
 "source": "entity_index.json"
 },
 "ok": true
@@ -2131,30 +2071,6 @@
 {
 "data": [
 {
-"id": "CVE-2013-0431",
-"name": "CVE-2013-0431",
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "cve"
-},
-{
-"id": "CVE-2013-0632",
-"name": "CVE-2013-0632",
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "cve"
-},
-{
-"id": "CVE-2013-2465",
-"name": "CVE-2013-2465",
-"rel_type": "cve",
-"source": "Pipeline (technique overlap)",
-"tier": "derived",
-"type": "cve"
-},
-{
 "id": "T1053.005",
 "name": "Scheduled Task",
 "rel_type": "technique",
@@ -2164,7 +2080,7 @@
 }
 ],
 "meta": {
-"count": 4,
+"count": 1,
 "source": "entity_index.json"
 },
 "ok": true
@@ -3435,21 +3351,6 @@
 "rel_type": "technique",
 "source": "shard",
 "target_id": "T1053.005"
-},
-{
-"rel_type": "apt_group",
-"source": "graph (technique overlap)",
-"target_id": "G0016"
-},
-{
-"rel_type": "apt_group",
-"source": "graph (technique overlap)",
-"target_id": "G0019"
-},
-{
-"rel_type": "apt_group",
-"source": "graph (technique overlap)",
-"target_id": "G0021"
 }
 ],
 "severity": "HIGH",
@@ -3457,7 +3358,7 @@
 },
 "meta": {
 "epss_source": null,
-"rel_count": 8,
+"rel_count": 5,
 "shard": "CVE-2024.jsonl.gz",
 "source": "shard"
 },
@@ -3510,34 +3411,10 @@
 "source": "Pipeline (shard enrichment)",
 "tier": "derived",
 "type": "technique"
-},
-{
-"id": "G0016",
-"name": "APT29",
-"rel_type": "apt_group",
-"source": "Pipeline (shard enrichment)",
-"tier": "derived",
-"type": "apt_group"
-},
-{
-"id": "G0019",
-"name": "Naikon",
-"rel_type": "apt_group",
-"source": "Pipeline (shard enrichment)",
-"tier": "derived",
-"type": "apt_group"
-},
-{
-"id": "G0021",
-"name": "Molerats",
-"rel_type": "apt_group",
-"source": "Pipeline (shard enrichment)",
-"tier": "derived",
-"type": "apt_group"
 }
 ],
 "meta": {
-"count": 8,
+"count": 5,
 "shard": "CVE-2024.jsonl.gz",
 "source": "shard"
 },

@@ -16,7 +16,7 @@ and launches the `tip-mcp` server.
 lookup_entity({"entity_id": "CVE-2023-44487"})
 ```
 
-CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 22 relationships.
+CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 21 relationships.
 
 ```json
 {
@@ -75,12 +75,6 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 22 relationships.
     "kev": true,
     "rels": [
       {
-        "target_id": "G0034",
-        "rel_type": "apt_group",
-        "source": "Pipeline (technique overlap)",
-        "tier": "derived"
-      },
-      {
         "target_id": "CAPEC-147",
         "rel_type": "capec",
         "source": "Pipeline (CWE→CAPEC chain)",
@@ -126,12 +120,20 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 22 relationships.
         "source": "CTID technique, then D3FEND",
         "tier": "derived"
       },
-      "... 14 more"
+      {
+        "target_id": "D3-ISVA",
+        "rel_type": "defend",
+        "source": "Pipeline (Technique→D3FEND chain)",
+        "tier": "derived",
+        "relationship": "analyzes",
+        "name": "Inbound Session Volume Analysis"
+      },
+      "... 13 more"
     ]
   },
   "meta": {
     "source": "entity_index.json",
-    "rel_count": 22,
+    "rel_count": 21,
     "enriched_from_shard": true,
     "epss_source": "epss_curated.json"
   }

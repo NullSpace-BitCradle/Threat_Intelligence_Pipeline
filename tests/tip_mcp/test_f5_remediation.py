@@ -86,14 +86,15 @@ def test_shard_path_uses_graph_vocabulary(loader):
     assert lk["meta"]["source"] == pv["meta"]["source"] == "shard"
     rel_types = {r["rel_type"] for r in lk["data"]["rels"]}
     assert rel_types <= graph_types
-    # Fixture stores CWE ["CWE-89", "564"] and TECHNIQUES ["1053.005"]; groups
-    # come from the graph's technique overlap, like the generator.
+    # Fixture stores CWE ["CWE-89", "564"] and TECHNIQUES ["1053.005"]. The
+    # shard has no attributed APT_GROUPS, so no group is linked: groups that
+    # use T1053.005 are never inferred from it (I32).
     by_type: dict = {}
     for r in lk["data"]["rels"]:
         by_type.setdefault(r["rel_type"], set()).add(r["target_id"])
     assert by_type["cwe"] == {"CWE-89", "CWE-564"}
     assert by_type["technique"] == {"T1053.005"}
-    assert by_type["apt_group"] == {"G0016", "G0019", "G0021"}
+    assert "apt_group" not in by_type
     assert {h["rel_type"] for h in pv["data"]} <= graph_types
 
 
