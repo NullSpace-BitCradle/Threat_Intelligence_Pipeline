@@ -43,7 +43,7 @@ def _index(**cves):
     for cve, (cvss, rels) in cves.items():
         ents[cve] = {"type": "cve", "id": cve, "cvss_score": cvss,
                      "rels": {k: {"ids": v, "source": "chain"} for k, v in rels.items()}}
-    return {"meta": {}, "entities": ents}
+    return {"meta": {"apt_attribution": True}, "entities": ents}
 
 
 def _events(before, after, sources=cl.SOURCES):

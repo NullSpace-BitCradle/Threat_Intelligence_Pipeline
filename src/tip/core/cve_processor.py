@@ -648,7 +648,7 @@ class CVEProcessor:
                 # Step 7a: techniques beyond the CWE chain (I21): MITRE CTID
                 # analyst mappings, and one inferred exploitation technique
                 # from the CVSS vector when no other source gave any. Kept in
-                # their own lists; APT and D3FEND steps use the chain only.
+                # their own lists; the D3FEND step uses the chain only.
                 if self.ctid_db is not None:
                     cvss_now = result[cve_id].get("CVSS")
                     result[cve_id].update(extra_technique_links(
@@ -664,14 +664,12 @@ class CVEProcessor:
                     if epss:
                         result[cve_id]["EPSS"] = epss
 
-                # Step 8: APT Groups reverse lookup from techniques. APT
-                # linkage is outside I29, so it keeps its technique set
-                # (direct plus inherited); only pillar-driven links drop out.
-                apt_techniques = links["TECHNIQUES"] + links["TECHNIQUES_INHERITED"]
-                if apt_techniques:
-                    apt_groups = self.apt_processor.lookup_by_techniques(apt_techniques)
-                    if apt_groups:
-                        result[cve_id]["APT_GROUPS"] = apt_groups
+                # Step 8: APT groups ATT&CK itself cites for this CVE, each
+                # with the citing object (I32). Technique overlap is never a
+                # link: one technique is used by dozens of groups.
+                apt_groups = self.apt_processor.lookup_attributions(cve_id)
+                if apt_groups:
+                    result[cve_id]["APT_GROUPS"] = apt_groups
 
             except Exception as e:
                 # Never publish a stripped record: a partial result would
@@ -770,6 +768,9 @@ class CVEProcessor:
         try:
             self._load_epss()
             self._load_ctid()
+            # groups_db.json as the database step just wrote it, not as it
+            # stood when this processor was built.
+            self.apt_processor.load()
             results = self.process_cve_pipeline(cve_data)
             # Successful records are saved even when the run fails below:
             # they are correct, failed CVEs keep their previous record, and
