@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tip_intel.link_tiers import CTID_SOURCE
+from tip_intel.link_tiers import CTID_SOURCE, TIER_RANK
 from tip_mcp.loader import IndexLoader, link_provenance
 from tip_mcp.tools import (
     build_attack_chain_impl,
@@ -203,3 +203,23 @@ def all_tier_violations(loader: IndexLoader, cve_ids: "list[str] | None" = None)
         "chain_violations": chain_bad,
         "defense_violations": def_bad,
     }
+
+
+def body_label_violations(entities: dict) -> list[dict]:
+    """I21 review: a rel body's own source and tier must describe its links,
+    so a reader that ignores link_prov under-claims instead of mislabeling.
+    Every part of the body source (parts joined by " and ") is some link's
+    source, and the body tier is the weakest tier among its links."""
+    bad: list[dict] = []
+    for eid, ent in entities.items():
+        for rel_type, body in (ent.get("rels") or {}).items():
+            if not isinstance(body, dict) or "link_prov" not in body:
+                continue
+            links = [link_provenance(body, t) for t in body.get("ids", [])]
+            sources = [str(p["source"]) for p in links]
+            parts = str(body.get("source")).split(" and ")
+            claims_ok = all(any(src == part or src.startswith(part) for src in sources) for part in parts)
+            weakest = min((p["tier"] for p in links), key=lambda t: TIER_RANK.get(t, -1))
+            if not claims_ok or body.get("tier") != weakest:
+                bad.append({"id": eid, "rel": rel_type, "source": body.get("source"), "tier": body.get("tier")})
+    return bad

@@ -17,5 +17,12 @@ INFERRED_TIER = "inferred"
 CTID_FIELD = "TECHNIQUES_CTID"
 INFERRED_FIELD = "TECHNIQUES_INFERRED"
 
+# D3FEND defenses reached through a CTID or inferred technique. Short on
+# purpose: one entry per CVE-defense pair, in both directions.
+CTID_DEFEND_SOURCE = "CTID technique, then D3FEND"
+INFERRED_DEFEND_SOURCE = "Inferred technique, then D3FEND"
+# Every inferred technique link's source starts with this (one per rule).
+INFERRED_FAMILY = "TIP inference from the CVSS vector"
+
 # Provenance tiers, strongest first. An unknown tier ranks below them all.
 TIER_RANK = {"authoritative": 3, "official": 2, "derived": 1, "inferred": 0}

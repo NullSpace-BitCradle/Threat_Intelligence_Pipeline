@@ -14,6 +14,7 @@ from tip.core import entity_index_generator as gen
 from tip.core.ctid_processor import SOURCE as CTID_SOURCE
 from tip.core.cve_processor import CVEProcessor
 from tip.database.database_optimizer import JSONLManager
+from tests.tip_mcp.sweeps import body_label_violations
 
 NET = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 LOCAL = "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
@@ -130,8 +131,9 @@ def test_ctid_links_carry_per_link_provenance_both_directions(tmp_path):
     ents = ei["entities"]
     tech = ents["CVE-2024-0010"]["rels"]["technique"]
     assert tech["ids"] == ["T1005", "T1190"]
-    # The body keeps its one source (legacy readers); link_prov overrides it.
-    assert tech["tier"] == "derived"
+    # Every link is CTID, so the body says so (a legacy reader reads the body).
+    assert (tech["source"], tech["tier"]) == (CTID_SOURCE, "official")
+    assert "default_prov" not in tech
     assert tech["link_prov"]["T1190"] == {
         "source": CTID_SOURCE, "tier": "official",
         "mapping_type": ["exploitation_technique"], "comment": "Crafted XML."}
@@ -143,11 +145,15 @@ def test_ctid_links_carry_per_link_provenance_both_directions(tmp_path):
     assert ei["meta"]["link_provenance"] is True
     # CTID-stated technique outranks inference: nothing inferred.
     assert all(p["tier"] == "official" for p in tech["link_prov"].values())
-    # D3FEND through a CTID technique is official, both directions.
+    # D3FEND through a CTID technique is a composition nobody asserted about
+    # the CVE: derived, like the chain's defend links, both directions.
     defend = ents["CVE-2024-0010"]["rels"]["defend"]
     assert defend["ids"] == ["D3-EAL", "D3-NTA"]
-    assert {p["tier"] for p in defend["link_prov"].values()} == {"official"}
-    assert ents["D3-EAL"]["rels"]["cve"]["link_prov"]["CVE-2024-0010"]["tier"] == "official"
+    want = {"source": "CTID technique, then D3FEND", "tier": "derived"}
+    assert all(p == want for p in defend["link_prov"].values())
+    assert (defend["source"], defend["tier"]) == (want["source"], "derived")
+    assert ents["D3-EAL"]["rels"]["cve"]["link_prov"]["CVE-2024-0010"] == want
+    assert body_label_violations(ents) == []
     # APT linkage stays on the chain.
     assert "apt_group" not in ents["CVE-2024-0010"]["rels"]
     assert _dangling(ents) == []
@@ -186,7 +192,8 @@ def test_ctid_overrides_an_inherited_chain_link(tmp_path):
     # D3-NTA was inherited-only through T1190; CTID now reaches it.
     defend = ents["CVE-2024-0001"]["rels"]["defend"]
     assert "inherited" not in defend
-    assert defend["link_prov"]["D3-NTA"]["tier"] == "official"
+    assert defend["link_prov"]["D3-NTA"]["tier"] == "derived"
+    assert "D3-EAL" not in defend["link_prov"]  # the chain reaches it directly
     # APT groups keep their I29 labels (chain only).
     assert ents["CVE-2024-0001"]["rels"]["apt_group"]["inherited"] == ["G0016"]
 
@@ -249,3 +256,61 @@ def test_process_file_reads_ctid_db_after_the_database_step(tmp_path, monkeypatc
     path.unlink()
     proc._load_ctid()
     assert proc.ctid_db is None
+
+
+# ── review fixes: body labels, stale shards ─────────────────────────
+
+INF_SRC = "TIP inference from the CVSS vector (rule)"
+
+
+def test_body_labels_reflect_their_links(tmp_path):
+    chain = {"CWE": ["CWE-79"], "TECHNIQUES": ["1190"], "CVSS": {"vector": NET}}
+    inferred = dict(MEMORY, TECHNIQUES=[], TECHNIQUES_INHERITED=[], TECHNIQUES_CTID=[], TECHNIQUES_INFERRED=[
+        {"id": "T1190", "rule": "network-no-interaction", "source": INF_SRC}])
+    ei = _build(tmp_path, {"CVE-2024-0010": MEMORY, "CVE-2024-0012": inferred, "CVE-2024-0014": chain})
+    ents = ei["entities"]
+    # Inferred only: the body is the inferred link's.
+    only_inf = ents["CVE-2024-0012"]["rels"]["technique"]
+    assert (only_inf["source"], only_inf["tier"]) == (INF_SRC, "inferred")
+    # Chain, CTID and inferred CVEs on one technique: the chain source with
+    # the weakest tier present; ids without link_prov read default_prov.
+    back = ents["T1190"]["rels"]["cve"]
+    assert back["ids"] == ["CVE-2024-0010", "CVE-2024-0012", "CVE-2024-0014"]
+    assert back["source"] == gen.REL_PROVENANCE[("technique", "cve")]["source"]
+    assert back["tier"] == "inferred"
+    assert back["default_prov"] == {"source": back["source"], "tier": "derived"}
+    assert body_label_violations(ents) == []
+
+
+def test_ctid_and_inferred_body_names_both_and_is_inferred(tmp_path):
+    inferred = dict(MEMORY, TECHNIQUES=[], TECHNIQUES_INHERITED=[], TECHNIQUES_CTID=[], TECHNIQUES_INFERRED=[
+        {"id": "T1190", "rule": "network-no-interaction", "source": INF_SRC}])
+    ents = _build(tmp_path, {"CVE-2024-0010": MEMORY, "CVE-2024-0012": inferred})["entities"]
+    back = ents["T1190"]["rels"]["cve"]
+    assert back["tier"] == "inferred"
+    assert CTID_SOURCE in back["source"] and "TIP inference" in back["source"]
+    assert "default_prov" not in back
+    assert body_label_violations(ents) == []
+
+
+def test_ctid_db_wins_over_a_stale_shard_inferred_list(tmp_path):
+    stale = dict(MEMORY, TECHNIQUES=[], TECHNIQUES_INHERITED=[], TECHNIQUES_CTID=[], TECHNIQUES_INFERRED=[
+        {"id": "T1068", "rule": "local-full-impact", "source": INF_SRC}])
+    ents = _build(tmp_path, {"CVE-2024-0010": stale})["entities"]
+    prov = ents["CVE-2024-0010"]["rels"]["technique"]["link_prov"]
+    assert set(prov) == {"T1005", "T1190"}
+    assert all(p["tier"] == "official" for p in prov.values())
+    assert "CVE-2024-0010" not in (ents["T1068"]["rels"].get("cve") or {}).get("ids", [])
+
+
+def test_body_label_sweep_catches_a_mislabeled_body():
+    ents = {
+        "T1": {"type": "technique", "rels": {"cve": {
+            "ids": ["CVE-1"], "source": "Pipeline (CAPEC→Technique chain)", "tier": "derived",
+            "link_prov": {"CVE-1": {"source": CTID_SOURCE, "tier": "official"}}}}},
+        "T2": {"type": "technique", "rels": {"cve": {
+            "ids": ["CVE-1", "CVE-2"], "source": "chain", "tier": "derived",
+            "link_prov": {"CVE-1": {"source": INF_SRC, "tier": "inferred"}}}}},
+    }
+    bad = body_label_violations(ents)
+    assert {b["id"] for b in bad} == {"T1", "T2"}

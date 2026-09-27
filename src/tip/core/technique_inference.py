@@ -65,7 +65,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from tip.core.ctid_processor import SOURCE as CTID_SOURCE, ctid_techniques
 from tip.core.id_normalize import normalize_technique_id
-from tip_intel.link_tiers import INFERRED_TIER
+from tip_intel.link_tiers import INFERRED_FAMILY, INFERRED_TIER
 
 
 # rule id -> (technique id, technique name, one-line condition, measured
@@ -96,7 +96,7 @@ _V4_RE = re.compile(r"^CVSS:4\.0/")
 def rule_source(rule: str) -> str:
     """The source string an inferred link carries, naming its rule."""
     tech, name, cond, agreement = RULES[rule]
-    return f"TIP inference from the CVSS vector ({cond}: {tech} {name}; {agreement})"
+    return f"{INFERRED_FAMILY} ({cond}: {tech} {name}; {agreement})"
 
 
 def _metrics(vector: str) -> Optional[Dict[str, str]]:

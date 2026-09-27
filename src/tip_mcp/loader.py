@@ -67,8 +67,10 @@ def link_provenance(body: Any, target_id: Any) -> dict:
     I21 indexes carry an additive ``link_prov`` map (id -> {source, tier,
     mapping_type | rule | comment}) for links whose provenance differs from
     the body's: CTID official and inferred technique links and the D3FEND
-    defenses reached only through them. Every other link, and every link of
-    an older index, takes the body's source and tier.
+    defenses reached only through them. When such links change the body's
+    own label (it describes all its links, weakest tier), the chain label
+    for the other ids is kept in ``default_prov``. Every other link, and
+    every link of an older index, takes the body's source and tier.
     """
     if not isinstance(body, dict):
         return {"source": None, "tier": None}
@@ -80,6 +82,9 @@ def link_provenance(body: Any, target_id: Any) -> dict:
             if entry.get(key) is not None:
                 out[key] = entry[key]
         return out
+    default = body.get("default_prov")
+    if isinstance(default, dict) and default.get("tier") is not None:
+        return {"source": default.get("source"), "tier": default.get("tier")}
     return {"source": body.get("source"), "tier": body.get("tier")}
 
 

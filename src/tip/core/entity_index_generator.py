@@ -24,7 +24,8 @@ from tip.core.id_normalize import (
     normalize_technique_id,
 )
 from tip.core.ctid_processor import SOURCE as CTID_SOURCE, TIER as CTID_TIER, load_ctid_db
-from tip.core.technique_inference import INFERRED_TIER, extra_technique_links
+from tip.core.technique_inference import INFERRED_TIER, ctid_links, extra_technique_links
+from tip_intel.link_tiers import CTID_DEFEND_SOURCE, INFERRED_DEFEND_SOURCE, INFERRED_FAMILY, TIER_RANK
 
 _jsonl = JSONLManager()
 
@@ -169,12 +170,18 @@ def technique_extras(cve_id: str, cve_data: dict, ctid_db: dict | None,
                      cvss_vector: str | None) -> tuple[list[dict], list[dict]]:
     """(TECHNIQUES_CTID, TECHNIQUES_INFERRED) for one CVE (I21).
 
-    A shard the I21 processor wrote carries both lists and is used as is.
-    For an older shard they are derived the same way the processor would,
-    from ctid_db.json and the CVSS vector; without ctid_db.json nothing is
+    A shard the I21 processor wrote carries both lists and is used as is,
+    except that CTID mappings in ctid_db.json always win: a CVE CTID maps
+    gets those links and nothing inferred, even when its shard predates the
+    mapping (shards are rewritten weekly, ctid_db.json daily). For an older
+    shard both lists are derived the same way the processor would, from
+    ctid_db.json and the CVSS vector; without ctid_db.json nothing is
     derived, since inference must not fill a slot CTID may hold.
     """
+    current = ctid_links(ctid_db.get(cve_id)) if ctid_db is not None else []
     if "TECHNIQUES_CTID" in cve_data or "TECHNIQUES_INFERRED" in cve_data:
+        if current:
+            return current, []
         ctid = [t for t in cve_data.get("TECHNIQUES_CTID") or [] if isinstance(t, dict) and t.get("id")]
         inferred = [t for t in cve_data.get("TECHNIQUES_INFERRED") or [] if isinstance(t, dict) and t.get("id")]
         return ctid, inferred
@@ -189,9 +196,33 @@ def technique_extras(cve_id: str, cve_data: dict, ctid_db: dict | None,
     return extra["TECHNIQUES_CTID"], extra["TECHNIQUES_INFERRED"]
 
 
-# Short on purpose: one entry per CVE-defense pair, in both directions.
-CTID_DEFEND_SOURCE = "CTID technique, then D3FEND"
-INFERRED_DEFEND_SOURCE = "Inferred technique, then D3FEND"
+def _relabel_body(body: dict, chain_prov: dict, per_link: dict) -> None:
+    """Make a rel body's own source and tier describe its links (I21 review),
+    so a reader that ignores link_prov under-claims rather than mislabels.
+
+    With chain links present the body keeps the chain source and takes the
+    weakest tier present; ``default_prov`` then carries the chain label for
+    the ids link_prov does not name, when it differs from the body's. With
+    no chain link, one source gives that source and tier, and several give a
+    source naming each (inferred rules as one family) at the weakest tier.
+    """
+    chain_ids = [t for t in body["ids"] if t not in per_link]
+    provs = list(per_link.values()) + ([chain_prov] if chain_ids else [])
+    weakest = min((p["tier"] for p in provs), key=lambda t: TIER_RANK.get(t, -1))
+    if chain_ids:
+        body["tier"] = weakest
+        if weakest != chain_prov["tier"]:
+            body["default_prov"] = {"source": chain_prov["source"], "tier": chain_prov["tier"]}
+        return
+    sources = list(dict.fromkeys(str(p["source"]) for p in provs))
+    if len(sources) > 1:
+        ranked = sorted(provs, key=lambda p: -TIER_RANK.get(p["tier"], -1))
+        families = [INFERRED_FAMILY if str(p["source"]).startswith(INFERRED_FAMILY) else str(p["source"])
+                    for p in ranked]
+        body["source"] = " and ".join(dict.fromkeys(families))
+    else:
+        body["source"] = sources[0]
+    body["tier"] = weakest
 
 
 def _ctid_prov(link: dict, with_comment: bool) -> dict:
@@ -421,8 +452,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                     reached: dict[str, set[str]]) -> None:
         """Link CTID and inferred techniques and the D3FEND defenses they
         reach. ``reached`` maps a defend id to how the chain reached it
-        ("direct", "inherited"); CTID-reached defenses are official, and
-        defenses reached only through an inferred technique are inferred."""
+        ("direct", "inherited"). A defense the chain reaches directly keeps
+        the chain label. One reached otherwise through a CTID technique is
+        derived ("CTID technique, then D3FEND": a composition nobody
+        asserted about the CVE), and one reached only through an inferred
+        technique is inferred."""
         for kind, links_ in (("ctid", ctid), ("inferred", inferred)):
             for t in links_:
                 tech_id = normalize_technique_id(str(t.get("id")))
@@ -446,8 +480,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         for did, kinds in reached.items():
             if "ctid" in kinds or "inferred" in kinds:
                 link(cve_id, "defend", did, "cve")
+            if "direct" in kinds:
+                continue
             if "ctid" in kinds:
-                prov = {"source": CTID_DEFEND_SOURCE, "tier": CTID_TIER}
+                prov = {"source": CTID_DEFEND_SOURCE, "tier": "derived"}
                 set_prov(cve_id, "defend", did, "cve", prov, dict(prov))
                 inherited_map[cve_id]["defend"].discard(did)
                 inherited_map[did]["cve"].discard(cve_id)
@@ -713,6 +749,7 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                 sub_prov = {t: per_link[t] for t in live if t in per_link}
                 if sub_prov:
                     rels[rel_type]["link_prov"] = sub_prov
+                    _relabel_body(rels[rel_type], prov, sub_prov)
         entity["rels"] = rels
 
         # Add entity-level provenance
