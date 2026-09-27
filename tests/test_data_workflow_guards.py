@@ -37,3 +37,15 @@ def test_push_guarded_by_single_commit_on_origin_main(name):
     rebase = step.index("git rebase origin/main")
     assert rebase < guard < push
     assert "--force" not in step
+
+
+@pytest.mark.parametrize("name", DATA_WORKFLOWS)
+def test_syncs_to_latest_main_before_running(name):
+    """A run queued behind another data run is checked out at its trigger SHA.
+    It must fast-forward to the latest main before the pipeline runs, or its
+    final rebase conflicts on lastUpdate.txt (2026-09-27 run 36288431648)."""
+    text = (WORKFLOWS / name).read_text()
+    sync = text.find("git pull --ff-only origin main")
+    run = text.find("python run_pipeline.py")
+    assert sync != -1, "no sync-to-latest-main step"
+    assert sync < run, "sync must happen before the pipeline runs"
