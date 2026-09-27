@@ -175,9 +175,10 @@ function renderWorklistTable(container) {
             var epssCell = document.createElement('td');
             epssCell.className = 'worklist-epss';
             if (row.epssInfo) {
-                // Visible age: the score, its score date (MM-DD), and a
-                // "weekly" marker when it came from the shard, not the daily file.
-                epssCell.textContent = row.epssInfo.score + ' · ' + row.epssInfo.date.slice(5) +
+                // Visible age: the score, its score date (MM-DD, with the
+                // year when it is not this year), and a "weekly" marker when
+                // it came from the shard, not the daily file.
+                epssCell.textContent = row.epssInfo.score + ' · ' + formatEpssCellDate(row.epssInfo.date) +
                     (row.epssInfo.cadence === 'weekly' ? ' weekly' : '');
                 epssCell.title = epssTitle(row.epssInfo);
             }
@@ -195,6 +196,14 @@ function renderWorklistTable(container) {
     }
     table.appendChild(tbody);
     container.appendChild(table);
+}
+
+// EPSS score date for a worklist cell: MM-DD in the current (UTC) year, the
+// full YYYY-MM-DD otherwise, so a score from last December never reads as
+// this December.
+function formatEpssCellDate(date) {
+    var d = String(date);
+    return d.slice(0, 4) === String(new Date().getUTCFullYear()) ? d.slice(5) : d;
 }
 
 function appendCell(tr, text) {

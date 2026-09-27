@@ -50,6 +50,10 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Issue write access only here, for the pipeline-stale canary alert.
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -64,3 +68,21 @@ jobs:
 
       - name: Run smoke tests against deployed site
         run: pytest tests/smoke/ --browser chromium -q
+
+      # Staleness canary (I16): reads the deployed freshness.json and opens a
+      # pipeline-stale issue when any source is past its threshold or the file
+      # cannot be read, which is how runs that never happened get noticed.
+      # Closes the issue once every source is fresh. Runs even when the smoke
+      # tests failed. It fails the job only when it cannot alert (bad token,
+      # missing permission, Issues disabled), so a broken canary is visible.
+      # It alerts only from main; a dispatch from another ref still runs the
+      # smoke tests but never touches issues.
+      - name: Check published data freshness
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          FRESHNESS_URL: https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/data/freshness.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/pipeline_alert.py stale

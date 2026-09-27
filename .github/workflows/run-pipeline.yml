@@ -20,6 +20,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    # Job-level permissions replace the workflow-level block: contents to
+    # publish data, issues to open and close pipeline-failure alerts.
+    permissions:
+      contents: write
+      issues: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -73,3 +78,28 @@ jobs:
             exit 1
           fi
           git push origin HEAD:main
+
+      # I16 alerting. The failure step also runs on cancellation, because a
+      # job timeout cancels the job instead of failing it. Both steps call a
+      # script that logs and exits 0 on any error, so alerting cannot change
+      # the run's result.
+      - name: Alert on failure
+        if: failure() || cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_OUTCOME: ${{ job.status }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/pipeline_alert.py run
+
+      - name: Close failure alert on success
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_OUTCOME: success
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/pipeline_alert.py run

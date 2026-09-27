@@ -46,6 +46,13 @@ class DatabaseManager:
         # One EPSS processor per manager: the bulk file is fetched once per
         # run and the CVE step reuses the same snapshot.
         self.epss_processor = EPSSProcessor()
+        # Databases whose last update_database call wrote fresh upstream data.
+        # A successful update is not always fresh: a processor can skip and
+        # keep the existing file (returns None), and D3FEND can be written
+        # without its ontology. freshness.json advances only on these.
+        self.fresh_writes: set[str] = set()
+        # Set by _process_defend_data when the ontology fetch failed.
+        self._d3fend_degraded = False
         
         # Database configurations
         self.databases = {
@@ -300,7 +307,10 @@ class DatabaseManager:
             timeout = config.get('api.d3fend.timeout', 30)
 
             # Fetch D3FEND ontology to get canonical IDs (D3-FA, D3-NTA, etc.)
+            # A failure here is survivable (fragment names stand in for the
+            # D3 ids) but the result is degraded, not fresh.
             self._d3fend_canonical_ids = {}
+            self._d3fend_degraded = True
             try:
                 ontology_url = 'https://d3fend.mitre.org/ontologies/d3fend.json'
                 self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
@@ -314,6 +324,7 @@ class DatabaseManager:
                             fragment = at_id.replace('d3f:', '')
                             self._d3fend_canonical_ids[fragment] = d3id
                     self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
+                    self._d3fend_degraded = False
                 else:
                     self.logger.warning(f"Could not fetch D3FEND ontology (HTTP {ont_response.status_code}), using fragment names as IDs")
             except Exception as e:
@@ -480,6 +491,7 @@ class DatabaseManager:
             return False
 
         db_config = self.databases[db_name]
+        self.fresh_writes.discard(db_name)
 
         try:
             data: Optional[Dict[str, Any]]
@@ -490,6 +502,7 @@ class DatabaseManager:
                     data = db_config['processor'](zip_file)
             elif db_name == 'epss':
                 db_config['processor']()
+                self.fresh_writes.add(db_name)
                 return True
             else:
                 data = db_config['processor']()
@@ -500,6 +513,10 @@ class DatabaseManager:
 
             counter = count_groups if db_name == 'groups' else count_records
             self._save_database(data, db_config['file'], counter)
+            if db_name == 'defend' and self._d3fend_degraded:
+                self.logger.warning("defend: written without the D3FEND ontology; not recorded as fresh")
+            else:
+                self.fresh_writes.add(db_name)
             return True
 
         except Exception as e:
@@ -510,7 +527,8 @@ class DatabaseManager:
     def update_all_databases(self) -> Dict[str, bool]:
         """Update all databases"""
         results = {}
-        
+        self.fresh_writes = set()
+
         # Update databases in dependency order
         update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment', 'groups', 'epss']
         

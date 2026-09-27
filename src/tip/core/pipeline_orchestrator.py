@@ -24,6 +24,7 @@ from tip.utils.performance_optimizer import (
     performance_timer, get_performance_summary
 )
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_text, jsonl_bytes
+from tip.utils.freshness import record_freshness
 
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
@@ -228,6 +229,9 @@ class PipelineOrchestrator:
                 'successful': successful,
                 'failed': failed,
                 'results': db_results,
+                # Steps that wrote fresh upstream data, not just succeeded;
+                # freshness.json advances only on these.
+                'fresh': sorted(getattr(self.db_manager, 'fresh_writes', set())),
                 'timestamp': datetime.now().isoformat()
             }
             self.results['database_updates'] = summary
@@ -451,6 +455,10 @@ class PipelineOrchestrator:
         
         atomic_write_text(summary_file, json.dumps(summary, indent=2))
 
+        # freshness.json advances per source on success only, even inside a
+        # partial run; the data workflows publish it only when the run is clean.
+        self._record_freshness()
+
         # lastUpdate.txt advances only on a run that did work and was fully
         # clean; a degraded, partial or failed run leaves it where it was.
         if self._run_is_clean(summary):
@@ -470,6 +478,17 @@ class PipelineOrchestrator:
             and session.get('partial_steps', 0) == 0
         )
     
+    def _record_freshness(self) -> None:
+        """Record per-source success times. A failure here is logged and
+        never turns the run red."""
+        try:
+            path = Path(self.config.get('files.freshness', 'docs/data/freshness.json'))
+            advanced = record_freshness(self.results, path)
+            if advanced:
+                log_info(f"Freshness recorded for: {', '.join(advanced)}")
+        except Exception as e:
+            log_warning(f"Failed to record data freshness: {e}")
+
     def _update_last_update_time(self):
         """Update the last update timestamp"""
         try:
