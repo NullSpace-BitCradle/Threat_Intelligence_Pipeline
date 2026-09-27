@@ -444,8 +444,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     print("Loading CTID KEV mappings...")
     ctid_db = load_ctid_db(str(data_dir / "ctid_db.json"))
     print(f"  Loaded CTID mappings for {len(ctid_db) if ctid_db is not None else 0} CVEs")
-    # CTID technique ids the graph has no technique for (revoked or
-    # deprecated in the current ATT&CK release) are not linked; counted.
+    # CTID technique ids the graph has no technique for are not linked;
+    # counted. Checked 2026-09-27: CTID's file is on ATT&CK 16.1, and ATT&CK
+    # 19.2 revoked T1562 and T1562.001 (revoked by T1685) and T1070.001
+    # (revoked by T1685.005).
     ctid_unknown: set[tuple[str, str]] = set()
 
     def link_extras(cve_id: str, ctid: list[dict], inferred: list[dict],

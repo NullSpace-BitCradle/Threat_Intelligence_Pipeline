@@ -96,11 +96,25 @@ path and the shard path.
 - **Per-link provenance (I21).** A technique link comes from MITRE CTID's
   KEV analysis (`source` `MITRE CTID Mappings Explorer (KEV)`, `tier`
   official), the CWE chain (derived), an inherited parent CWE (derived,
-  `inherited: true`), or inference from the CVSS vector (`source` naming the
-  rule, `tier` inferred; only when the CVE has no other technique). An index
-  generated after I21 sets `meta.link_provenance` and gives such links an
-  additive `link_prov` entry on the rel body, in both directions; the tools
-  read it per link, never the body's chain label:
+  `inherited: true`), or inference from the CVSS vector (`tier` inferred;
+  only when the CVE has no other technique). An inferred link's `source`
+  states its rule and how often that rule agreed with CTID's analysts on
+  the KEV CVEs the chain cannot reach:
+  - `AV:N` and `UI:N` gives T1190 Exploit Public-Facing Application: the
+    analyst's exploitation technique on 40 of 76 (53%).
+  - User interaction required, not physical, gives T1204 User Execution:
+    a T1204 sub-technique on 24 of 49 (49%), T1204 itself on 1.
+  - `AV:L`, `UI:N`, high C and I impact gives T1068 Exploitation for
+    Privilege Escalation, which CTID analysts usually record as the impact:
+    their exploitation technique on 13 of 30 (43%), any mapping type on 26
+    of 30 (87%).
+
+  An index generated after I21 sets `meta.link_provenance` and gives such
+  links an additive `link_prov` entry on the rel body, in both directions.
+  The body's own `source` and `tier` describe its links (the weakest tier
+  present; a body that also holds chain links keeps the chain source and
+  carries the chain label in `default_prov`). The tools read each link's
+  provenance, never the body label alone:
   - `lookup_entity` rels and `pivot_from_entity` hits carry the link's
     `source` and `tier`, plus `mapping_type` (CTID: `exploitation_technique`,
     `primary_impact`, `secondary_impact`), `comment` (the CTID analyst's, on
@@ -110,16 +124,20 @@ path and the shard path.
   - `build_attack_chain` CVE elements carry `link_source` and `link_tier`
     (the `technique -> cve` link) and, for a CTID or inferred link,
     `mapping_type`, `comment` or `rule`; such an element's `source` and
-    `tier` are the link's, and any CWE path listed is context. `meta.link_tiers`
-    counts the CVEs per link tier.
-  - `get_defenses` for a CVE reads the CVE to technique hop per link, so a
-    defense reached only through an inferred technique is inferred and one
-    reached through a CTID technique is official (the D3FEND mapping is
-    official too). Each defense lists `technique_links`: `{id, source, tier}`
-    (with `mapping_type` or `rule`) for every technique in `via_techniques`.
-  - APT groups stay on chain techniques only. An older index or shard has no
-    per-link entries, and every link reports the body's source and tier as
-    before.
+    `tier` are the link's, and any CWE path listed is context.
+    `meta.link_tiers` counts the CVEs per link tier. A technique with no
+    CAPEC whose CVEs come from CTID or inference says so in `meta.note`.
+  - `get_defenses` for a CVE reads the CVE to technique hop per link. A
+    defense reached only through an inferred technique is inferred; one
+    reached through a CTID technique is derived (`CTID technique, then
+    D3FEND`: CTID mapped the technique and D3FEND the defense, but nobody
+    stated the defense for the CVE), matching the index. Each defense lists
+    `technique_links`: `{id, source, tier}` (with `mapping_type` or `rule`)
+    for every technique in `via_techniques`.
+  - APT groups stay on chain techniques only.
+  - These fields appear only for I21 data (`meta.link_provenance`, or a
+    shard with the I21 lists). An older index or shard returns exactly the
+    output it returned before I21; a recorded fixture of 88 calls pins it.
 - **`kev_status`** decides KEV membership from `docs/data/kev_db.json`, the
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
