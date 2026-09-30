@@ -2,8 +2,8 @@
 CISA Vulnrichment Processor
 
 Fetches CISA Vulnrichment data (SSVC decisions + CISA CVSS overrides) from
-the cisagov/vulnrichment GitHub repo. Uses the GitHub API for incremental
-updates and a shallow clone for bootstrap.
+the cisagov/vulnrichment GitHub repo. One authenticated GitHub API call
+detects whether upstream moved; a shallow clone refreshes the data.
 """
 import json
 import os
@@ -24,11 +24,6 @@ config = get_config()
 # CISA ADP provider org ID (identifies the CISA enrichment container)
 CISA_ADP_ORG_ID = "134c704f-9b21-4f2e-91b3-4a467353bcc0"
 
-# GitHub's compare API returns at most 300 files and 250 commits. A response
-# at either cap may be missing changes, so the delta cannot be trusted.
-COMPARE_FILE_CAP = 300
-COMPARE_COMMIT_CAP = 250
-
 
 class VulnrichmentProcessor:
     """Processes CISA Vulnrichment data for CVE enrichment"""
@@ -46,7 +41,7 @@ class VulnrichmentProcessor:
     def _api_headers(self) -> Dict[str, str]:
         """Headers for api.github.com calls.
 
-        CI passes GITHUB_TOKEN so the commits and compare calls are not rate
+        CI passes GITHUB_TOKEN so the HEAD check is not rate
         limited per runner IP. The token goes in a header only, never in a URL,
         and only to the API, never to raw file hosts.
         """
@@ -114,14 +109,14 @@ class VulnrichmentProcessor:
 
     @performance_timer("update_vulnrichment")
     def update(self) -> bool:
-        """Update Vulnrichment database using GitHub API (incremental) or clone (bootstrap)"""
+        """Update the Vulnrichment database: HEAD check, then a clone only if upstream moved"""
         try:
             state = self._load_state()
             last_sha = state.get("last_commit_sha")
 
             if last_sha:
-                # Incremental update via GitHub API
-                self.logger.info(f"Incremental Vulnrichment update from SHA {last_sha[:8]}...")
+                # Clone only when upstream moved
+                self.logger.info(f"Checking Vulnrichment for changes since SHA {last_sha[:8]}...")
                 success = self._incremental_update(last_sha)
             else:
                 # Bootstrap via shallow clone
@@ -140,24 +135,15 @@ class VulnrichmentProcessor:
             self.logger.error(f"Failed to update Vulnrichment database: {e}")
             return False
 
-    def _compare_is_truncated(self, compare_data: Dict[str, Any]) -> bool:
-        """True when the compare response may be missing files or commits."""
-        files = compare_data.get("files")
-        if not isinstance(files, list) or len(files) >= COMPARE_FILE_CAP:
-            return True
-        commits = compare_data.get("commits")
-        total = compare_data.get("total_commits")
-        if isinstance(commits, list) and isinstance(total, int):
-            if total > len(commits) or len(commits) >= COMPARE_COMMIT_CAP:
-                return True
-        return False
-
     def _incremental_update(self, last_sha: str) -> bool:
-        """Fetch only changed CVE files since last_sha using GitHub Compare API.
+        """Refresh only when upstream moved, and then by a full shallow clone.
 
-        Fail-closed: the on-disk DB is loaded before anything else, a
-        truncated compare falls back to a full resync, and any per-file fetch
-        failure returns False without advancing ``last_commit_sha``.
+        One authenticated API call checks HEAD. When it moved, the refresh is
+        a clone rather than a compare delta: the delta meant up to 299
+        anonymous per-file fetches from a shared runner IP, and those get
+        rate limited. Fail-closed: the on-disk DB is loaded first, and a
+        failed HEAD check or clone returns False without advancing
+        ``last_commit_sha``.
         """
         try:
             # Load first: every path that returns True leads update() to save
@@ -166,7 +152,6 @@ class VulnrichmentProcessor:
                 self.logger.warning("Existing Vulnrichment DB missing or unreadable; falling back to full resync")
                 return self._bootstrap_clone()
 
-            # Get current HEAD SHA
             url = f"https://api.github.com/repos/{self.repo}/commits?per_page=1"
             response = requests.get(url, headers=self._api_headers(), timeout=30)
             response.raise_for_status()
@@ -176,56 +161,8 @@ class VulnrichmentProcessor:
                 self.logger.info("Vulnrichment repo unchanged since last update")
                 return True
 
-            # Get diff between last and current
-            compare_url = f"https://api.github.com/repos/{self.repo}/compare/{last_sha}...{current_sha}"
-            response = requests.get(compare_url, headers=self._api_headers(), timeout=60)
-            response.raise_for_status()
-            compare_data = response.json()
-
-            if self._compare_is_truncated(compare_data):
-                self.logger.warning(
-                    "Vulnrichment compare response is truncated "
-                    f"({len(compare_data.get('files') or [])} files); falling back to full resync"
-                )
-                return self._bootstrap_clone()
-
-            changed_files = compare_data.get("files", [])
-            cve_files = [f for f in changed_files if f["filename"].endswith(".json") and "CVE-" in f["filename"]]
-
-            self.logger.info(f"Processing {len(cve_files)} changed Vulnrichment files...")
-
-            failures = []
-            for file_info in cve_files:
-                cve_id = Path(file_info["filename"]).stem
-                if file_info["status"] == "removed":
-                    self.vulnrichment_db.pop(cve_id, None)
-                    continue
-
-                raw_url = file_info.get("raw_url")
-                if not raw_url:
-                    failures.append(file_info["filename"])
-                    continue
-
-                try:
-                    resp = requests.get(raw_url, timeout=30)
-                    resp.raise_for_status()
-                    enrichment = self._extract_enrichment(resp.json())
-                    if enrichment:
-                        self.vulnrichment_db[cve_id] = enrichment
-                except Exception as e:
-                    self.logger.warning(f"Error processing {file_info['filename']}: {e}")
-                    failures.append(file_info["filename"])
-
-            if failures:
-                self.logger.error(
-                    f"{len(failures)} Vulnrichment file(s) failed to fetch; "
-                    "state not advanced, the next run retries the whole delta"
-                )
-                return False
-
-            self._pending_sha = current_sha
-            self.logger.info(f"Incremental update complete. DB has {len(self.vulnrichment_db)} entries.")
-            return True
+            self.logger.info(f"Vulnrichment moved to {current_sha[:8]}; refreshing by shallow clone")
+            return self._bootstrap_clone()
 
         except Exception as e:
             self.logger.error(f"Incremental update failed: {e}")
@@ -235,11 +172,20 @@ class VulnrichmentProcessor:
         """Bootstrap by shallow-cloning the full repo and processing all CVEs"""
         clone_dir = Path(self.db_path).parent / "_vulnrichment_clone"
         try:
-            # Shallow clone
-            subprocess.run(
-                ["git", "clone", "--depth=1", f"https://github.com/{self.repo}.git", str(clone_dir)],
-                check=True, capture_output=True, text=True, timeout=600
-            )
+            # Shallow clone, with one retry: it now runs on most days, and a
+            # dropped connection should not fail the whole run.
+            for attempt in (1, 2):
+                try:
+                    subprocess.run(
+                        ["git", "clone", "--depth=1", f"https://github.com/{self.repo}.git", str(clone_dir)],
+                        check=True, capture_output=True, text=True, timeout=600
+                    )
+                    break
+                except subprocess.CalledProcessError as e:
+                    if attempt == 2:
+                        raise
+                    self.logger.warning(f"Vulnrichment clone failed (exit {e.returncode}); retrying once")
+                    shutil.rmtree(clone_dir, ignore_errors=True)
 
             # Get HEAD SHA for state tracking
             result = subprocess.run(

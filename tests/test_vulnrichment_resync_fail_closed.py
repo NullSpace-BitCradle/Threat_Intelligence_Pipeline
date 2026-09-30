@@ -97,3 +97,51 @@ def test_clean_bootstrap_writes_and_advances(resync_env):
     assert proc.update() is True
     assert sorted(json.loads(db.read_text())) == [f"CVE-2024-100{i}" for i in range(5)]
     assert json.loads(state.read_text()) == {"last_commit_sha": NEW_SHA}
+
+
+def _flaky_clone(monkeypatch, clone, failures):
+    """git clone exits 128 `failures` times, then recreates the checkout."""
+    files = {p.name: p.read_text() for p in clone.iterdir()}
+    clones = {"n": 0}
+
+    def fake_run(args, **kwargs):
+        if "clone" in args:
+            clones["n"] += 1
+            root = clone.parent.parent  # the _vulnrichment_clone directory
+            if clones["n"] > 1:
+                # Each retry starts from an empty directory.
+                assert not root.exists() or not any(root.iterdir())
+            if clones["n"] <= failures:
+                root.mkdir(parents=True, exist_ok=True)
+                (root / "partial.pack").write_text("half a checkout")
+                raise subprocess.CalledProcessError(128, args, "", "reset by peer")
+            clone.mkdir(parents=True, exist_ok=True)
+            for name, text in files.items():
+                (clone / name).write_text(text)
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if "rev-parse" in args:
+            return subprocess.CompletedProcess(args, 0, NEW_SHA + "\n", "")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(vr_mod.subprocess, "run", fake_run)
+    return clones
+
+
+def test_clone_failing_once_is_retried(resync_env, monkeypatch):
+    proc, db, state, clone = resync_env
+    clones = _flaky_clone(monkeypatch, clone, failures=1)
+
+    assert proc.update() is True
+    assert clones["n"] == 2
+    assert json.loads(state.read_text()) == {"last_commit_sha": NEW_SHA}
+
+
+def test_clone_failing_twice_keeps_everything(resync_env, monkeypatch):
+    proc, db, state, clone = resync_env
+    before = db.read_bytes()
+    clones = _flaky_clone(monkeypatch, clone, failures=2)
+
+    assert proc.update() is False
+    assert clones["n"] == 2
+    assert db.read_bytes() == before
+    assert not state.exists()
