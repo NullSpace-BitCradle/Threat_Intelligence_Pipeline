@@ -21,6 +21,7 @@
         }
     },
     "database": {
+        "download_timeout": 120,
         "capec": {
             "url": "https://capec.mitre.org/data/csv/1000.csv.zip",
             "file": "docs/data/capec_db.json"
@@ -93,40 +94,5 @@
         "json_file": "logs/tip_errors.json",
         "max_file_size": 10485760,
         "backup_count": 5
-    },
-    "error_handling": {
-        "enable_circuit_breaker": true,
-        "enable_retry": true,
-        "enable_recovery": true,
-        "alert_thresholds": {
-            "critical": 1,
-            "high": 5,
-            "medium": 20,
-            "low": 50
-        },
-        "retry_configs": {
-            "api_calls": {
-                "max_attempts": 3,
-                "base_delay": 1.0,
-                "max_delay": 30.0,
-                "strategy": "exponential"
-            },
-            "file_operations": {
-                "max_attempts": 2,
-                "base_delay": 0.5,
-                "max_delay": 10.0,
-                "strategy": "fixed"
-            }
-        },
-        "circuit_breaker_configs": {
-            "api_calls": {
-                "failure_threshold": 5,
-                "recovery_timeout": 60.0
-            },
-            "database_operations": {
-                "failure_threshold": 3,
-                "recovery_timeout": 30.0
-            }
-        }
     }
 }

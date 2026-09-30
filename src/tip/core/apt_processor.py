@@ -16,6 +16,7 @@ from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 from tip.utils.atomic_io import write_reference_db, count_groups
+from tip.utils.http import fetch_stix_bundle
 
 config = get_config()
 
@@ -187,10 +188,7 @@ class APTProcessor:
 
         try:
             self.logger.info(f"Downloading ATT&CK STIX bundle from {url}")
-            timeout = config.get('api.nvd.timeout', 120)
-            response = requests.get(url, timeout=timeout)
-            response.raise_for_status()
-            stix_data: Dict[str, Any] = response.json()
+            stix_data = fetch_stix_bundle(url)
             obj_count = len(stix_data.get('objects', []))
             self.logger.info(f"Downloaded STIX bundle: {obj_count} objects")
             return stix_data

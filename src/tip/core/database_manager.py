@@ -22,6 +22,7 @@ from tip.utils.error_handler import (
     get_logger, create_api_context
 )
 from tip.utils.atomic_io import write_reference_db, count_records, count_groups
+from tip.utils.http import download_timeout, fetch_stix_bundle, get_with_retry
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor, attributions_collapsed
@@ -110,8 +111,7 @@ class DatabaseManager:
         
         try:
             self.logger.info(f"Downloading {filename} from {url}")
-            timeout = config.get('api.nvd.timeout', 60)
-            response = requests.get(url, timeout=timeout)
+            response = get_with_retry(url, timeout=download_timeout())
             response.raise_for_status()
             
             with open(filename, 'wb') as f:
@@ -237,10 +237,7 @@ class DatabaseManager:
             )
 
             self.logger.info(f"Downloading ATT&CK STIX bundle for techniques...")
-            timeout = config.get('api.nvd.timeout', 120)
-            response = requests.get(stix_url, timeout=timeout)
-            response.raise_for_status()
-            stix_data = response.json()
+            stix_data = fetch_stix_bundle(stix_url)
 
             for obj in stix_data.get('objects', []):
                 if obj.get('type') != 'attack-pattern':
@@ -319,7 +316,7 @@ class DatabaseManager:
             try:
                 ontology_url = 'https://d3fend.mitre.org/ontologies/d3fend.json'
                 self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
-                ont_response = requests.get(ontology_url, timeout=30)
+                ont_response = get_with_retry(ontology_url, timeout=download_timeout())
                 if ont_response.status_code == 200:
                     ont_data = ont_response.json()
                     for item in ont_data.get('@graph', []):

@@ -247,3 +247,14 @@ def sample_vulnrichment_db() -> Dict[str, Any]:
             }
         }
     }
+
+
+@pytest.fixture(autouse=True)
+def _http_no_sleep_and_fresh_stix(monkeypatch):
+    """Retry backoff never sleeps in tests, and the per-process STIX cache
+    never carries one test's bundle into the next."""
+    import tip.utils.http as http_mod
+    monkeypatch.setattr(http_mod, "_sleep", lambda _s: None)
+    http_mod.clear_stix_cache()
+    yield
+    http_mod.clear_stix_cache()

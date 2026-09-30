@@ -28,6 +28,7 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.atomic_io import REFERENCE_DB_FLOOR, DataFloorError, write_reference_db
+from tip.utils.http import download_timeout
 
 config = get_config()
 
@@ -174,7 +175,7 @@ class EPSSProcessor:
 
     def _download(self) -> EPSSSnapshot:
         context = create_api_context("download_epss", self.url)
-        timeout = config.get('api.nvd.timeout', 60)
+        timeout = download_timeout()
         last_error = ""
         for attempt in range(1, EPSS_ATTEMPTS + 1):
             try:

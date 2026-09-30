@@ -18,6 +18,7 @@ from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger
 from tip.utils.performance_optimizer import performance_timer
 from tip.utils.atomic_io import atomic_write_json, write_reference_db
+from tip.utils.http import get_with_retry
 
 config = get_config()
 
@@ -153,7 +154,7 @@ class VulnrichmentProcessor:
                 return self._bootstrap_clone()
 
             url = f"https://api.github.com/repos/{self.repo}/commits?per_page=1"
-            response = requests.get(url, headers=self._api_headers(), timeout=30)
+            response = get_with_retry(url, headers=self._api_headers(), timeout=30)
             response.raise_for_status()
             current_sha = response.json()[0]["sha"]
 

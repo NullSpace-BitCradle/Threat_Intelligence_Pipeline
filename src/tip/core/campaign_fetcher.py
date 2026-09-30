@@ -18,6 +18,7 @@ from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 from tip.utils.atomic_io import write_reference_db
+from tip.utils.http import fetch_stix_bundle
 
 config = get_config()
 logger = get_logger('campaign_fetcher')
@@ -32,12 +33,8 @@ def _download_stix_bundle() -> Dict[str, Any]:
     )
     context = create_api_context("campaign_fetch", url)
     logger.info(f"Downloading ATT&CK STIX bundle from {url}")
-    timeout = config.get('api.nvd.timeout', 120)
     try:
-        response = requests.get(url, timeout=timeout)
-        response.raise_for_status()
-        bundle: Dict[str, Any] = response.json()
-        return bundle
+        return fetch_stix_bundle(url)
     except requests.exceptions.RequestException as e:
         raise NetworkError(f"Failed to download STIX bundle: {e}", url=url, context=context)
 

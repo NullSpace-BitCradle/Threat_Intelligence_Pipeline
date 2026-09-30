@@ -14,6 +14,7 @@ from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
 from tip.utils.atomic_io import write_reference_db
+from tip.utils.http import download_timeout, get_with_retry
 
 config = get_config()
 
@@ -38,8 +39,7 @@ class KEVProcessor:
 
         try:
             self.logger.info(f"Downloading KEV catalog from {url}")
-            timeout = config.get('api.nvd.timeout', 60)
-            response = requests.get(url, timeout=timeout)
+            response = get_with_retry(url, timeout=download_timeout())
             response.raise_for_status()
             raw_data: Dict[str, Any] = response.json()
             self.logger.info(
