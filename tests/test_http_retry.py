@@ -57,7 +57,8 @@ def test_transient_status_is_retried(monkeypatch, status):
 
 
 @pytest.mark.parametrize("exc", [requests.exceptions.ConnectionError("reset"),
-                                 requests.exceptions.ReadTimeout("slow")])
+                                 requests.exceptions.ReadTimeout("slow"),
+                                 requests.exceptions.ChunkedEncodingError("truncated body")])
 def test_connection_error_is_retried_then_raised(monkeypatch, exc):
     calls = _script(monkeypatch, exc, exc, exc)
     with pytest.raises(type(exc)):
@@ -103,11 +104,13 @@ def test_retry_log_never_contains_header_values(monkeypatch, caplog):
 def test_stix_bundle_downloads_once_for_every_caller(monkeypatch):
     import tip.core.campaign_fetcher as campaign_fetcher
     from tip.core.apt_processor import APTProcessor
+    from tip.core.database_manager import DatabaseManager
 
     calls = _script(monkeypatch, _Resp(200, {"objects": [{"type": "x"}]}))
     fetch_stix_bundle()
     APTProcessor().download()
     campaign_fetcher._download_stix_bundle()
+    DatabaseManager()._process_techniques_data()
     assert len(calls) == 1
 
 

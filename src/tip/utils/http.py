@@ -22,6 +22,13 @@ config = get_config()
 logger = get_logger('http')
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+# A body cut off mid-download raises ChunkedEncodingError, which is neither a
+# ConnectionError nor a Timeout.
+TRANSIENT_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+)
 MAX_ATTEMPTS = 3
 BACKOFF_BASE = 2.0
 MAX_WAIT = 60.0
@@ -51,16 +58,17 @@ def _retry_after(response: requests.Response) -> Optional[float]:
 
 
 def get_with_retry(url: str, **kwargs: Any) -> requests.Response:
-    """``requests.get`` with retries on 429, 5xx, connection errors and timeouts.
+    """``requests.get`` with retries on 429, 5xx, dropped connections,
+    truncated bodies and timeouts.
 
     Returns the final response, so callers keep their own raise_for_status().
-    Raises the last connection error or timeout once attempts run out. Retry
-    log lines name the URL and status only, never request headers.
+    Raises the last transient error once attempts run out. Retry log lines
+    name the URL and status only, never request headers.
     """
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             response = requests.get(url, **kwargs)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except TRANSIENT_ERRORS as e:
             if attempt == MAX_ATTEMPTS:
                 raise
             wait = BACKOFF_BASE ** attempt
