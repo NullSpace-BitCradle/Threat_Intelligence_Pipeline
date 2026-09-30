@@ -30,6 +30,7 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger
 from tip.utils.atomic_io import write_reference_db
+from tip.utils.http import download_timeout, get_with_retry
 from tip_intel.link_tiers import CTID_SOURCE as SOURCE, CTID_TIER as TIER
 
 config = get_config()
@@ -146,7 +147,7 @@ class CTIDProcessor:
         self.db_path = config.get("database.ctid.file", DEFAULT_FILE)
         self.tree_url = config.get("database.ctid.tree_url", DEFAULT_TREE_URL)
         self.raw_base = config.get("database.ctid.raw_base", DEFAULT_RAW_BASE)
-        self.timeout = config.get("api.nvd.timeout", 60)
+        self.timeout = download_timeout()
 
     def _headers(self, api: bool) -> Dict[str, str]:
         headers = {"Accept": "application/vnd.github+json"} if api else {}
@@ -158,7 +159,7 @@ class CTIDProcessor:
         return headers
 
     def _get_json(self, url: str, api: bool) -> Any:
-        response = requests.get(url, headers=self._headers(api), timeout=self.timeout)
+        response = get_with_retry(url, headers=self._headers(api), timeout=self.timeout)
         response.raise_for_status()
         try:
             return response.json()

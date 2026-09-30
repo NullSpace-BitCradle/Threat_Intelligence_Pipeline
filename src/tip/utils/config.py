@@ -57,6 +57,7 @@ class Config:
                 }
             },
             "database": {
+                "download_timeout": 120,
                 "capec": {
                     "url": "https://capec.mitre.org/data/csv/1000.csv.zip",
                     "file": "resources/capec_db.json"
