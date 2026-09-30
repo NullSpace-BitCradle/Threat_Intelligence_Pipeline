@@ -6,6 +6,7 @@ the cisagov/vulnrichment GitHub repo. Uses the GitHub API for incremental
 updates and a shallow clone for bootstrap.
 """
 import json
+import os
 import subprocess
 import shutil
 from pathlib import Path
@@ -41,6 +42,19 @@ class VulnrichmentProcessor:
         self.db_path = config.get('database.vulnrichment.file', 'resources/vulnrichment_db.json')
         self.state_path = config.get('database.vulnrichment.state_file', 'resources/vulnrichment_state.json')
         self.repo = config.get('database.vulnrichment.repo', 'cisagov/vulnrichment')
+
+    def _api_headers(self) -> Dict[str, str]:
+        """Headers for api.github.com calls.
+
+        CI passes GITHUB_TOKEN so the commits and compare calls are not rate
+        limited per runner IP. The token goes in a header only, never in a URL,
+        and only to the API, never to raw file hosts.
+        """
+        headers = {"Accept": "application/vnd.github+json"}
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
 
     def _extract_enrichment(self, cve_json: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Extract SSVC decision and CISA CVSS from a per-CVE Vulnrichment JSON.
@@ -154,7 +168,7 @@ class VulnrichmentProcessor:
 
             # Get current HEAD SHA
             url = f"https://api.github.com/repos/{self.repo}/commits?per_page=1"
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, headers=self._api_headers(), timeout=30)
             response.raise_for_status()
             current_sha = response.json()[0]["sha"]
 
@@ -164,7 +178,7 @@ class VulnrichmentProcessor:
 
             # Get diff between last and current
             compare_url = f"https://api.github.com/repos/{self.repo}/compare/{last_sha}...{current_sha}"
-            response = requests.get(compare_url, timeout=60)
+            response = requests.get(compare_url, headers=self._api_headers(), timeout=60)
             response.raise_for_status()
             compare_data = response.json()
 

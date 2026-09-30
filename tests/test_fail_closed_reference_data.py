@@ -8,6 +8,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -398,3 +399,49 @@ def test_update_database_downloads_into_a_temp_dir(tmp_path, monkeypatch):
     assert seen["path"].resolve().parent != tmp_path.resolve()
     assert not seen["path"].exists()  # temp dir cleaned up
     assert json.loads(out.read_text())["79"]["ChildOf"] == ["74"]
+
+
+# GitHub API auth -----------------------------------------------------------
+
+def _record_headers(monkeypatch, routes):
+    """Like _route, but records (url, headers) for every call."""
+    calls = []
+
+    def fake_get(url, headers=None, **_k):
+        calls.append((url, dict(headers or {})))
+        for key, effect in routes.items():
+            if key in url:
+                return effect
+        raise AssertionError(f"unexpected URL {url}")
+
+    monkeypatch.setattr(vr_mod.requests, "get", fake_get)
+    return calls
+
+
+def test_api_calls_send_github_token_and_raw_fetches_do_not(vr_env, monkeypatch):
+    """Unauthenticated API calls hit the per-IP limit on shared runners (403, 2026-09-30)."""
+    proc, db, state = vr_env
+    _no_clone(monkeypatch)
+    monkeypatch.setenv("GITHUB_TOKEN", "sekrit-token")
+    calls = _record_headers(monkeypatch, {
+        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
+        "/compare/": _Resp(_compare(1)),
+        "raw.example": _Resp(_enrichment_json("CVE-2024-1000")),
+    })
+
+    assert proc.update() is True
+    api = [h for u, h in calls if urlsplit(u).hostname == "api.github.com"]
+    raw = [h for u, h in calls if urlsplit(u).hostname == "raw.example"]
+    assert len(api) == 2 and all(h["Authorization"] == "Bearer sekrit-token" for h in api)
+    assert raw and all("Authorization" not in h for h in raw)
+    assert all("sekrit-token" not in u for u, _ in calls)
+
+
+def test_api_calls_without_token_send_no_auth_header(vr_env, monkeypatch):
+    proc, db, state = vr_env
+    _no_clone(monkeypatch)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    calls = _record_headers(monkeypatch, {"commits?per_page=1": _Resp([{"sha": OLD_SHA}])})
+
+    assert proc.update() is True
+    assert calls and "Authorization" not in calls[0][1]
