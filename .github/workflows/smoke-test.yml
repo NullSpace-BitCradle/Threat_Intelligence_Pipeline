@@ -13,7 +13,7 @@ on:
       - 'tests/smoke/**'
       - '.github/workflows/smoke-test.yml'
   schedule:
-    - cron: '0 7 * * *'  # Daily at 07:00 UTC, after the 06:00 database update deploys
+    - cron: '47 8 * * *'  # Daily at 08:47 UTC. Schedules can start hours late, so this is not ordered after the database update; the staleness check covers that
   workflow_dispatch:
 
 permissions:
