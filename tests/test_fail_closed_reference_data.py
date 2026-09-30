@@ -110,92 +110,58 @@ def test_unchanged_repo_does_not_wipe_db(vr_env, monkeypatch):
     assert json.loads(state.read_text())["last_commit_sha"] == OLD_SHA
 
 
-# ISC-7 ---------------------------------------------------------------------
+# ISC-7 / ISC-8 --------------------------------------------------------------
+# Upstream moved: the refresh is a full shallow clone, never a compare delta
+# of anonymous per-file fetches (403s on shared runners, 2026-09-30).
 
-def _compare(n_files, total_commits=1, n_commits=1):
-    files = [{
-        "filename": f"2024/1xxx/CVE-2024-{1000 + i}.json",
-        "status": "modified",
-        "raw_url": f"https://raw.example/CVE-2024-{1000 + i}.json",
-    } for i in range(n_files)]
-    return {"files": files, "total_commits": total_commits,
-            "commits": [{"sha": str(i)} for i in range(n_commits)]}
-
-
-@pytest.mark.parametrize("compare", [
-    _compare(300),                                  # file list hit the 300 cap
-    _compare(5, total_commits=400, n_commits=250),  # commit list truncated
-])
-def test_truncated_compare_falls_back_to_full_resync(vr_env, monkeypatch, compare):
-    proc, db, state = vr_env
-    _route(monkeypatch, {
-        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
-        "/compare/": _Resp(compare),
-        "raw.example": AssertionError("truncated delta must not be applied"),
-    })
+def _fake_resync(monkeypatch, ok=True):
     resync = {"called": 0}
 
     def fake_bootstrap(self):
         resync["called"] += 1
+        if not ok:
+            return False
         self.vulnrichment_db = {f"CVE-2025-{i:04d}": {"ssvcExploitStatus": "none"} for i in range(10)}
         self._pending_sha = "c" * 40
         return True
 
     monkeypatch.setattr(VulnrichmentProcessor, "_bootstrap_clone", fake_bootstrap)
+    return resync
+
+
+def test_moved_head_refreshes_by_clone_and_makes_no_other_request(vr_env, monkeypatch):
+    proc, db, state = vr_env
+    calls = _route(monkeypatch, {"commits?per_page=1": _Resp([{"sha": NEW_SHA}])})
+    resync = _fake_resync(monkeypatch)
 
     assert proc.update() is True
     assert resync["called"] == 1
+    assert len(calls) == 1 and urlsplit(calls[0]).hostname == "api.github.com"
     assert len(json.loads(db.read_text())) == 10
-    # State is the resync HEAD, never the incremental target past unseen files.
+    # State is the clone HEAD, not the sha the API reported.
     assert json.loads(state.read_text())["last_commit_sha"] == "c" * 40
 
 
-def test_truncated_compare_with_failed_resync_keeps_everything(vr_env, monkeypatch):
+def test_moved_head_with_failed_clone_keeps_everything(vr_env, monkeypatch):
     proc, db, state = vr_env
     before_db, before_state = db.read_bytes(), state.read_bytes()
-    _route(monkeypatch, {
-        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
-        "/compare/": _Resp(_compare(300)),
-    })
-    monkeypatch.setattr(VulnrichmentProcessor, "_bootstrap_clone", lambda self: False)
+    _route(monkeypatch, {"commits?per_page=1": _Resp([{"sha": NEW_SHA}])})
+    resync = _fake_resync(monkeypatch, ok=False)
 
     assert proc.update() is False
+    assert resync["called"] == 1
     assert db.read_bytes() == before_db
     assert state.read_bytes() == before_state
 
 
-# ISC-8 ---------------------------------------------------------------------
-
-def test_per_file_fetch_failure_does_not_advance_state(vr_env, monkeypatch):
+def test_unchanged_head_does_not_clone(vr_env, monkeypatch):
     proc, db, state = vr_env
-    before_db, before_state = db.read_bytes(), state.read_bytes()
+    before_db = db.read_bytes()
     _no_clone(monkeypatch)
-    compare = _compare(2)
-    _route(monkeypatch, {
-        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
-        "/compare/": _Resp(compare),
-        "CVE-2024-1000.json": _Resp(_enrichment_json("CVE-2024-1000")),
-        "CVE-2024-1001.json": requests.exceptions.ReadTimeout("slow"),
-    })
-
-    assert proc.update() is False
-    assert state.read_bytes() == before_state
-    assert db.read_bytes() == before_db
-
-
-def test_clean_delta_applies_and_advances_state(vr_env, monkeypatch):
-    proc, db, state = vr_env
-    _no_clone(monkeypatch)
-    _route(monkeypatch, {
-        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
-        "/compare/": _Resp(_compare(1)),
-        "CVE-2024-1000.json": _Resp(_enrichment_json("CVE-2024-1000")),
-    })
+    _route(monkeypatch, {"commits?per_page=1": _Resp([{"sha": OLD_SHA}])})
 
     assert proc.update() is True
-    data = json.loads(db.read_text())
-    assert len(data) == 4 and data["CVE-2024-1000"]["ssvcExploitStatus"] == "active"
-    assert json.loads(state.read_text())["last_commit_sha"] == NEW_SHA
+    assert json.loads(db.read_bytes()) == json.loads(before_db)
 
 
 # ISC-9 ---------------------------------------------------------------------
@@ -418,22 +384,17 @@ def _record_headers(monkeypatch, routes):
     return calls
 
 
-def test_api_calls_send_github_token_and_raw_fetches_do_not(vr_env, monkeypatch):
+def test_head_check_sends_github_token_and_only_to_the_api(vr_env, monkeypatch):
     """Unauthenticated API calls hit the per-IP limit on shared runners (403, 2026-09-30)."""
     proc, db, state = vr_env
-    _no_clone(monkeypatch)
     monkeypatch.setenv("GITHUB_TOKEN", "sekrit-token")
-    calls = _record_headers(monkeypatch, {
-        "commits?per_page=1": _Resp([{"sha": NEW_SHA}]),
-        "/compare/": _Resp(_compare(1)),
-        "raw.example": _Resp(_enrichment_json("CVE-2024-1000")),
-    })
+    calls = _record_headers(monkeypatch, {"commits?per_page=1": _Resp([{"sha": NEW_SHA}])})
+    _fake_resync(monkeypatch)
 
     assert proc.update() is True
-    api = [h for u, h in calls if urlsplit(u).hostname == "api.github.com"]
-    raw = [h for u, h in calls if urlsplit(u).hostname == "raw.example"]
-    assert len(api) == 2 and all(h["Authorization"] == "Bearer sekrit-token" for h in api)
-    assert raw and all("Authorization" not in h for h in raw)
+    assert calls
+    assert all(urlsplit(u).hostname == "api.github.com" for u, _ in calls)
+    assert all(h["Authorization"] == "Bearer sekrit-token" for _, h in calls)
     assert all("sekrit-token" not in u for u, _ in calls)
 
 
