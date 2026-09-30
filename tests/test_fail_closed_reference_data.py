@@ -1,6 +1,7 @@
-"""F1: fail-closed reference data (ISC-6 to ISC-11).
+"""F1: fail-closed reference data (root ISA ISC-6 to ISC-11; Vulnrichment
+refresh per Plans/workflow-hardening.isa.md F1).
 
-A failed or truncated upstream fetch must leave the last good file on disk
+A failed upstream fetch must leave the last good file on disk
 byte-identical and report failure. No test here touches the network: every
 requests.get and the vulnrichment git clone are replaced.
 """
@@ -110,7 +111,7 @@ def test_unchanged_repo_does_not_wipe_db(vr_env, monkeypatch):
     assert json.loads(state.read_text())["last_commit_sha"] == OLD_SHA
 
 
-# ISC-7 / ISC-8 --------------------------------------------------------------
+# workflow-hardening F1 (supersedes root ISA ISC-7 / ISC-8) -----------------
 # Upstream moved: the refresh is a full shallow clone, never a compare delta
 # of anonymous per-file fetches (403s on shared runners, 2026-09-30).
 
@@ -161,7 +162,7 @@ def test_unchanged_head_does_not_clone(vr_env, monkeypatch):
     _route(monkeypatch, {"commits?per_page=1": _Resp([{"sha": OLD_SHA}])})
 
     assert proc.update() is True
-    assert json.loads(db.read_bytes()) == json.loads(before_db)
+    assert db.read_bytes() == before_db
 
 
 # ISC-9 ---------------------------------------------------------------------

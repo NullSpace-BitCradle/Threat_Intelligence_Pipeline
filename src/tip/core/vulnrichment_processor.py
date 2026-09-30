@@ -2,8 +2,8 @@
 CISA Vulnrichment Processor
 
 Fetches CISA Vulnrichment data (SSVC decisions + CISA CVSS overrides) from
-the cisagov/vulnrichment GitHub repo. Uses the GitHub API for incremental
-to detect upstream changes and a shallow clone to refresh.
+the cisagov/vulnrichment GitHub repo. One authenticated GitHub API call
+detects whether upstream moved; a shallow clone refreshes the data.
 """
 import json
 import os
@@ -109,14 +109,14 @@ class VulnrichmentProcessor:
 
     @performance_timer("update_vulnrichment")
     def update(self) -> bool:
-        """Update Vulnrichment database using GitHub API (incremental) or clone (bootstrap)"""
+        """Update the Vulnrichment database: HEAD check, then a clone only if upstream moved"""
         try:
             state = self._load_state()
             last_sha = state.get("last_commit_sha")
 
             if last_sha:
                 # Clone only when upstream moved
-                self.logger.info(f"Incremental Vulnrichment update from SHA {last_sha[:8]}...")
+                self.logger.info(f"Checking Vulnrichment for changes since SHA {last_sha[:8]}...")
                 success = self._incremental_update(last_sha)
             else:
                 # Bootstrap via shallow clone
@@ -172,11 +172,20 @@ class VulnrichmentProcessor:
         """Bootstrap by shallow-cloning the full repo and processing all CVEs"""
         clone_dir = Path(self.db_path).parent / "_vulnrichment_clone"
         try:
-            # Shallow clone
-            subprocess.run(
-                ["git", "clone", "--depth=1", f"https://github.com/{self.repo}.git", str(clone_dir)],
-                check=True, capture_output=True, text=True, timeout=600
-            )
+            # Shallow clone, with one retry: it now runs on most days, and a
+            # dropped connection should not fail the whole run.
+            for attempt in (1, 2):
+                try:
+                    subprocess.run(
+                        ["git", "clone", "--depth=1", f"https://github.com/{self.repo}.git", str(clone_dir)],
+                        check=True, capture_output=True, text=True, timeout=600
+                    )
+                    break
+                except subprocess.CalledProcessError as e:
+                    if attempt == 2:
+                        raise
+                    self.logger.warning(f"Vulnrichment clone failed (exit {e.returncode}); retrying once")
+                    shutil.rmtree(clone_dir, ignore_errors=True)
 
             # Get HEAD SHA for state tracking
             result = subprocess.run(

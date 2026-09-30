@@ -3,7 +3,7 @@ task: "Harden data workflows after the 2026-09-30 Vulnrichment 403"
 slug: 20260930-102000_tip-workflow-hardening
 project: Threat_Intelligence_Pipeline
 phase: building
-progress: 0/22
+progress: 0/23
 started: 2026-09-30T17:20:00Z
 updated: 2026-09-30T17:20:00Z
 principal_stated_goal: "yes, push and merge, and add the always-clone change and fix the other issues as well"
@@ -53,8 +53,9 @@ Why: the anonymous per-file loop is the remaining way today's failure recurs, an
 - [ ] ISC-3: The HEAD check still sends `Authorization: Bearer <GITHUB_TOKEN>` when the token is set.
 - [ ] ISC-4: A failed HEAD check returns False with DB and state byte-identical and no clone.
 - [ ] ISC-5: A failed clone returns False with DB and state byte-identical.
+- [ ] ISC-5.1: A clone that fails once is retried once, from an empty directory.
 - [ ] ISC-6: The compare code, `_compare_is_truncated`, and both `COMPARE_*_CAP` constants are removed.
-- [ ] ISC-7: Anti: no request to any host other than api.github.com leaves `vulnrichment_processor.py`.
+- [ ] ISC-7: Anti: the only HTTP request from `vulnrichment_processor.py` goes to api.github.com; the only other egress is the `git clone` of github.com/{repo}.
 
 ### F2 · Shared retrying fetch
 Why: one throttle event on a shared host should cost backoff, not a failed run.
@@ -104,6 +105,7 @@ Why: the changes only count if they ship through the same gates as everything el
 | ISC-3 | unit | HEAD request carries Bearer header | pass | pytest | Constraints |
 | ISC-4 | unit | HEAD ConnectionError returns False, bytes equal, clone not called | pass | pytest | Constraints |
 | ISC-5 | unit | clone failure returns False, bytes equal | pass | pytest | Constraints |
+| ISC-5.1 | unit | first clone raises CalledProcessError, second succeeds; update True | pass | pytest | Constraints |
 | ISC-6 | static | rg finds no compare/truncation symbols | 0 hits | rg | Goal |
 | ISC-7 | unit | only api.github.com requested across moved and unchanged paths | pass | pytest | Constraints |
 | ISC-8 | unit | 503 then 200 returns 200 after 2 calls; ConnectionError x3 raises | pass | pytest | Goal |
@@ -126,6 +128,8 @@ Why: the changes only count if they ship through the same gates as everything el
 
 - 2026-09-30: The retry helper wraps `requests.get` instead of mounting urllib3 `Retry` on a Session. About 15 test files stub `requests.get`, and a Session bypasses every stub.
 - 2026-09-30: A failed Vulnrichment HEAD check returns False rather than falling back to a clone. It keeps the closed root ISA's ISC-6 test meaningful, and the check is now authenticated.
+- 2026-09-30: The review of PR #29 ran on Claude, not cross-vendor: Codex hit its usage limit (resets 2026-10-29). Logged as skipped-for-cause.
+- 2026-09-30: The clone now runs on most days, so it gets one retry on a non-zero git exit (ISC-5.1). A timeout is not retried; two 600s attempts would crowd the 60 min job cap.
 - 2026-09-30: Ship as three sequential PRs (F1, then F2 to F5, then F6), each reviewed and merged before the next.
 - 2026-09-30: The whole `error_handling` block goes, not just the two sub-keys; nothing reads `enable_*` or `alert_thresholds` either (error_handler.py hardcodes its thresholds).
 

@@ -67,8 +67,8 @@ Why: the whole PR is only worth merging if the gates that prove it keep proving 
 Why: a failed upstream fetch must leave the last good file in place and turn the run red.
 
 - [x] ISC-6: `_update_vulnrichment_database` returns failure (not the empty dict) when `VulnrichmentProcessor.update()` returns False; a unit test simulating a GitHub API error asserts the on-disk DB is unchanged.
-- [x] ISC-7: Vulnrichment incremental update detects a truncated compare (300-file cap or missing commits) and falls back to a full resync instead of advancing state past unprocessed files; unit test with a 300-file compare fixture.
-- [x] ISC-8: Vulnrichment per-file fetch failures during incremental update prevent advancing `last_commit_sha`; unit test.
+- [x] ISC-7: [SUPERSEDED 2026-09-30 by Plans/workflow-hardening.isa.md F1; the compare path no longer exists] Vulnrichment incremental update detects a truncated compare (300-file cap or missing commits) and falls back to a full resync instead of advancing state past unprocessed files; unit test with a 300-file compare fixture.
+- [x] ISC-8: [SUPERSEDED 2026-09-30 by Plans/workflow-hardening.isa.md F1; there is no per-file fetch] Vulnrichment per-file fetch failures during incremental update prevent advancing `last_commit_sha`; unit test.
 - [x] ISC-9: Every reference DB writer (CWE, CAPEC, techniques, D3FEND, KEV, vulnrichment, groups, OWASP, campaigns) refuses to overwrite when the new record count is below a floor relative to the existing file; one parametrized test covers all writers.
 - [x] ISC-10: The CWE archive is fetched over https.
 - [x] ISC-11: The CWE zip is extracted to a temp directory, not the repo root, and only the expected XML member is read.
