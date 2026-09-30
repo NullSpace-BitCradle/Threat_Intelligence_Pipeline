@@ -8,6 +8,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -429,8 +430,8 @@ def test_api_calls_send_github_token_and_raw_fetches_do_not(vr_env, monkeypatch)
     })
 
     assert proc.update() is True
-    api = [h for u, h in calls if "api.github.com" in u]
-    raw = [h for u, h in calls if "raw.example" in u]
+    api = [h for u, h in calls if urlsplit(u).hostname == "api.github.com"]
+    raw = [h for u, h in calls if urlsplit(u).hostname == "raw.example"]
     assert len(api) == 2 and all(h["Authorization"] == "Bearer sekrit-token" for h in api)
     assert raw and all("Authorization" not in h for h in raw)
     assert all("sekrit-token" not in u for u, _ in calls)
