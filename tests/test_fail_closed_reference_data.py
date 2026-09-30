@@ -25,6 +25,7 @@ class _Resp:
     def __init__(self, payload, status=200):
         self._payload = payload
         self.status_code = status
+        self.headers = {}
 
     def raise_for_status(self):
         if self.status_code >= 400:
@@ -407,3 +408,20 @@ def test_api_calls_without_token_send_no_auth_header(vr_env, monkeypatch):
 
     assert proc.update() is True
     assert calls and "Authorization" not in calls[0][1]
+
+
+def test_head_check_survives_one_transient_error(vr_env, monkeypatch):
+    """A single 503 from api.github.com is retried, not a failed run."""
+    proc, db, state = vr_env
+    _no_clone(monkeypatch)
+    queue = [_Resp(None, status=503), _Resp([{"sha": OLD_SHA}])]
+    calls = []
+
+    def fake_get(url, *_a, **_k):
+        calls.append(url)
+        return queue.pop(0)
+
+    monkeypatch.setattr(vr_mod.requests, "get", fake_get)
+
+    assert proc.update() is True
+    assert len(calls) == 2

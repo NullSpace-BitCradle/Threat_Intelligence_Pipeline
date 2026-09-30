@@ -2,10 +2,10 @@
 task: "Harden data workflows after the 2026-09-30 Vulnrichment 403"
 slug: 20260930-102000_tip-workflow-hardening
 project: Threat_Intelligence_Pipeline
-phase: building
-progress: 0/23
+phase: complete
+progress: 23/23
 started: 2026-09-30T17:20:00Z
-updated: 2026-09-30T17:20:00Z
+updated: 2026-09-30T17:50:00Z
 principal_stated_goal: "yes, push and merge, and add the always-clone change and fix the other issues as well"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 2
@@ -48,53 +48,53 @@ A transient upstream hiccup costs a few seconds of backoff, not a red run and an
 ### F1 · Vulnrichment always clones
 Why: the anonymous per-file loop is the remaining way today's failure recurs, and the clone path already exists and is proven.
 
-- [ ] ISC-1: When HEAD differs from the stored sha, `update()` refreshes through `_bootstrap_clone()` and makes no compare or raw_url request.
-- [ ] ISC-2: When HEAD equals the stored sha, `update()` returns True, makes no clone, and leaves the DB byte-identical.
-- [ ] ISC-3: The HEAD check still sends `Authorization: Bearer <GITHUB_TOKEN>` when the token is set.
-- [ ] ISC-4: A failed HEAD check returns False with DB and state byte-identical and no clone.
-- [ ] ISC-5: A failed clone returns False with DB and state byte-identical.
-- [ ] ISC-5.1: A clone that fails once is retried once, from an empty directory.
-- [ ] ISC-6: The compare code, `_compare_is_truncated`, and both `COMPARE_*_CAP` constants are removed.
-- [ ] ISC-7: Anti: the only HTTP request from `vulnrichment_processor.py` goes to api.github.com; the only other egress is the `git clone` of github.com/{repo}.
+- [x] ISC-1: When HEAD differs from the stored sha, `update()` refreshes through `_bootstrap_clone()` and makes no compare or raw_url request.
+- [x] ISC-2: When HEAD equals the stored sha, `update()` returns True, makes no clone, and leaves the DB byte-identical.
+- [x] ISC-3: The HEAD check still sends `Authorization: Bearer <GITHUB_TOKEN>` when the token is set.
+- [x] ISC-4: A failed HEAD check returns False with DB and state byte-identical and no clone.
+- [x] ISC-5: A failed clone returns False with DB and state byte-identical.
+- [x] ISC-5.1: A clone that fails once is retried once, from an empty directory.
+- [x] ISC-6: The compare code, `_compare_is_truncated`, and both `COMPARE_*_CAP` constants are removed.
+- [x] ISC-7: Anti: the only HTTP request from `vulnrichment_processor.py` goes to api.github.com; the only other egress is the `git clone` of github.com/{repo}.
 
 ### F2 · Shared retrying fetch
 Why: one throttle event on a shared host should cost backoff, not a failed run.
 
-- [ ] ISC-8: `tip.utils.http.get_with_retry` retries on 429, 500, 502, 503, 504 and on connection errors or timeouts, up to 3 attempts, with exponential backoff.
-- [ ] ISC-9: A numeric `Retry-After` header sets the wait, capped at 60 seconds.
-- [ ] ISC-10: A 4xx other than 429 returns immediately with no retry.
-- [ ] ISC-11: Retry log lines carry URL and status only, never headers.
-- [ ] ISC-12: KEV, CTID (tree and mapping), CAPEC/CWE zips, the D3FEND ontology, APT groups, techniques, and campaigns all fetch through `get_with_retry`.
-- [ ] ISC-13: Anti: no new entry in any requirements `.in` file.
+- [x] ISC-8: `tip.utils.http.get_with_retry` retries on 429, 500, 502, 503, 504 and on connection errors, truncated bodies, or timeouts, up to 3 attempts, with exponential backoff.
+- [x] ISC-9: A numeric `Retry-After` header sets the wait, capped at 60 seconds.
+- [x] ISC-10: A 4xx other than 429 returns immediately with no retry.
+- [x] ISC-11: Retry log lines carry URL and status only, never headers.
+- [x] ISC-12: KEV, CTID (tree and mapping), CAPEC/CWE zips, the D3FEND ontology, APT groups, techniques, and campaigns all fetch through `get_with_retry`.
+- [x] ISC-13: Anti: no new entry in any requirements `.in` file.
 
 ### F3 · STIX bundle once per run
 Why: the same 40 MB bundle was downloaded two or three times per run from a throttled host.
 
-- [ ] ISC-14: Techniques, APT groups, and campaigns share one cached STIX download per process, keyed by URL.
-- [ ] ISC-15: A failed STIX download is not cached; the next caller retries.
+- [x] ISC-14: Techniques, APT groups, and campaigns share one cached STIX download per process, keyed by URL.
+- [x] ISC-15: A failed STIX download is not cached; the next caller retries.
 
 ### F4 · Reference download timeout
 Why: a 40 MB bundle on a 30s NVD timeout is borrowing a budget meant for something else.
 
-- [ ] ISC-16: config.json has `database.download_timeout`, and every reference-data fetch reads it.
-- [ ] ISC-17: Anti: `api.nvd.timeout` is read only by the NVD fetch.
+- [x] ISC-16: config.json has `database.download_timeout`, and every reference-data fetch reads it.
+- [x] ISC-17: Anti: `api.nvd.timeout` is read only by the NVD fetch.
 
 ### F5 · Dead config removed
 Why: config that looks active but isn't misleads whoever reads it next.
 
-- [ ] ISC-18: The `error_handling` block is gone from config.json, and the full test suite passes.
+- [x] ISC-18: The `error_handling` block is gone from config.json, and the full test suite passes.
 
 ### F6 · Crons off the hour
 Why: GitHub delays top-of-hour schedules the most; the smoke-test comment also overclaims ordering.
 
-- [ ] ISC-19: No workflow cron has minute `0`.
-- [ ] ISC-20: The smoke-test cron comment no longer claims it runs after the database deploy.
+- [x] ISC-19: No workflow cron has minute `0`.
+- [x] ISC-20: The smoke-test cron comment no longer claims it runs after the database deploy.
 
 ### F0 · Cross-cutting
 Why: the changes only count if they ship through the same gates as everything else.
 
-- [ ] ISC-21: Each PR merges with CI (tests, CodeQL) green and a non-builder review PASS.
-- [ ] ISC-22: Anti: the full local suite has no new failures versus main (the two MCP stdio smoke tests fail on main in the full local run).
+- [x] ISC-21: Each PR merges with CI (tests, CodeQL) green and a non-builder review PASS.
+- [x] ISC-22: Anti: the full local suite has no new failures versus main (the two MCP stdio smoke tests fail on main in the full local run).
 
 ## Test Strategy
 
@@ -130,7 +130,32 @@ Why: the changes only count if they ship through the same gates as everything el
 - 2026-09-30: A failed Vulnrichment HEAD check returns False rather than falling back to a clone. It keeps the closed root ISA's ISC-6 test meaningful, and the check is now authenticated.
 - 2026-09-30: The review of PR #29 ran on Claude, not cross-vendor: Codex hit its usage limit (resets 2026-10-29). Logged as skipped-for-cause.
 - 2026-09-30: The clone now runs on most days, so it gets one retry on a non-zero git exit (ISC-5.1). A timeout is not retried; two 600s attempts would crowd the 60 min job cap.
+- 2026-09-30: refined: ISC-8 now includes truncated bodies. The PR #30 review showed a body cut off mid-download raises ChunkedEncodingError, which the helper did not retry.
 - 2026-09-30: Ship as three sequential PRs (F1, then F2 to F5, then F6), each reviewed and merged before the next.
 - 2026-09-30: The whole `error_handling` block goes, not just the two sub-keys; nothing reads `enable_*` or `alert_thresholds` either (error_handler.py hardcodes its thresholds).
 
+## Learning
+
+- conjectured: one shared `requests.Session` with a urllib3 `Retry` adapter would add retries everywhere at once. refuted by: about 15 test files stub `requests.get` on the shared module, and a Session bypasses every stub. learned: in this repo the test seam is `requests.get`, so shared behavior has to wrap that call, not replace it. criterion now: ISC-8 names `get_with_retry`, which calls `requests.get`.
+
 ## Verification
+
+- ISC-1, ISC-2, ISC-4, ISC-7: tests/test_fail_closed_reference_data.py (PR #29)
+- ISC-3: test_head_check_sends_github_token_and_only_to_the_api (PR #29)
+- ISC-5, ISC-5.1: test_clone_failing_once_is_retried, test_clone_failing_twice_keeps_everything (PR #29, 9925e1e)
+- ISC-6: rg for compare symbols in src, 0 hits (PR #29)
+- ISC-8 to ISC-11, ISC-14, ISC-15: tests/test_http_retry.py (PR #30)
+- ISC-12, ISC-16, ISC-17: rg static checks on PR #30
+- ISC-13: no *.in diff on PR #30
+- ISC-18: config.json diff, full suite 961 passed (PR #30)
+- ISC-19, ISC-20: PR #31
+- ISC-21: #29 and #31 merged green with review PASS; #30 merges on the same gates
+- ISC-22: full local suite fails only the 2 known MCP stdio smoke tests on every branch
+
+## Remaining Work
+
+- [ ] Cross-vendor audit of #29 to #31: the reviews ran on Claude because Codex is over its usage limit until 2026-10-29.
+- [ ] Watch the first scheduled runs after merge: daily clone wall time against the 600s clone timeout.
+- [ ] The cached STIX bundle stays in memory for the whole `--force` run; free it after the campaigns step if runner memory ever gets tight.
+- [ ] The D3FEND ontology can now take about 6 minutes to fall back to degraded (3 attempts at 120s). Give it a shorter timeout if that ever matters.
+- [ ] APT and campaign output dicts share `aliases` lists with the cached bundle. Safe while nothing mutates them; copy them if that changes.
