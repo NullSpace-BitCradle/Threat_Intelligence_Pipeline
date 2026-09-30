@@ -107,7 +107,13 @@ def _flaky_clone(monkeypatch, clone, failures):
     def fake_run(args, **kwargs):
         if "clone" in args:
             clones["n"] += 1
+            root = clone.parent.parent  # the _vulnrichment_clone directory
+            if clones["n"] > 1:
+                # Each retry starts from an empty directory.
+                assert not root.exists() or not any(root.iterdir())
             if clones["n"] <= failures:
+                root.mkdir(parents=True, exist_ok=True)
+                (root / "partial.pack").write_text("half a checkout")
                 raise subprocess.CalledProcessError(128, args, "", "reset by peer")
             clone.mkdir(parents=True, exist_ok=True)
             for name, text in files.items():
