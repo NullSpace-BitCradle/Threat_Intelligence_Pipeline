@@ -1,6 +1,9 @@
 """T10.8 cross-vendor audit regressions (F1, F2, F3, F5, F7).
 
-Each test fails on the pre-audit code and passes with the fix.
+Each test fails on the pre-audit code and passes with the fix, except two
+guards that pass on both and pin what the fix must not break:
+test_f2_kev_known_negative_still_false_from_graph and
+test_f7_nineteen_digit_suffix_is_still_valid.
 """
 
 from __future__ import annotations
