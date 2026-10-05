@@ -1187,7 +1187,16 @@ def kev_status_impl(loader: IndexLoader, cve_id: str) -> dict:
         meta["kev_source"] = "entity_index.json" if ent is not None else ("shard" if payload else None)
         meta["note"] = "kev_db.json unavailable; KEV status taken from the entity graph or shard."
 
-    data: dict = {"cve_id": cid, "in_kev": detail is not None}
+    in_kev: Optional[bool] = detail is not None
+    if kev_db is not None:
+        if cid in loader.kev_malformed:
+            meta["warnings"] = [
+                f"kev_db.json entry for {cid} is not an object; treated as listed with no details."
+            ]
+    elif ent is None and payload is None:
+        # Catalog, entity and shard are all unavailable: unknown, not "no".
+        in_kev = None
+    data: dict = {"cve_id": cid, "in_kev": in_kev}
     for out_key, src_key in _KEV_FIELDS:
         data[out_key] = (detail or {}).get(src_key)
 

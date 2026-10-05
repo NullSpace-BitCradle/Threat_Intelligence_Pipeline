@@ -146,6 +146,8 @@ class IndexLoader:
         self._reverse: Optional[dict[str, dict[str, list[tuple[str, str, Any, Any]]]]] = None
         # kev_db.json keyed by CVE ID; False means "tried and unavailable".
         self._kev_db: "Optional[dict[str, dict] | bool]" = None
+        # kev_db.json keys whose entry is not an object; set when it loads.
+        self.kev_malformed: list[str] = []
         # cwe_db.json RelatedAttackPatterns by bare CWE number; False means
         # "tried and unavailable".
         self._cwe_capecs: "Optional[dict[str, frozenset[str]] | bool]" = None
@@ -271,9 +273,15 @@ class IndexLoader:
                 except IndexNotLoadedError:
                     data = None
                 if isinstance(data, dict):
+                    # A present entry that is not an object is kept as {} (listed,
+                    # no details) and recorded, never silently dropped.
                     self._kev_db = {
-                        str(k).strip().upper(): v for k, v in data.items() if isinstance(v, dict)
+                        str(k).strip().upper(): (v if isinstance(v, dict) else {})
+                        for k, v in data.items()
                     }
+                    self.kev_malformed = sorted(
+                        str(k).strip().upper() for k, v in data.items() if not isinstance(v, dict)
+                    )
         return self._kev_db if isinstance(self._kev_db, dict) else None
 
     @property
