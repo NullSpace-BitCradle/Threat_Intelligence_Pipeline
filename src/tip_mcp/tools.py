@@ -921,11 +921,15 @@ def build_attack_chain_impl(
             f"{unexplained} of the {len(cve_list)} CVEs linked to {key} have no CWE path "
             "to its CAPEC patterns; their via lists are empty."
         )
+    returned_cves = _capped(cve_list, limit)
+    # The CWEs shown are those some returned CVE is explained through, so a
+    # limit never leaves a CWE no returned CVE uses. totals keep the full count.
+    used_cwes = {w for c in returned_cves for w in c["via_cwes"]}
     data = {
         "technique": {"id": key, "name": tech.get("name")},
         "capecs": _capped(capec_list, limit),
-        "cwes": _capped(cwe_list, limit),
-        "cves": _capped(cve_list, limit),
+        "cwes": _capped([c for c in cwe_list if c["id"] in used_cwes], limit),
+        "cves": returned_cves,
         "defenses": _capped(defense_list, limit),
     }
     return ok_response(data, meta=meta)
