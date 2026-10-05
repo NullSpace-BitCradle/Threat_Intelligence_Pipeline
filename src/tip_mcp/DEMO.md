@@ -63,7 +63,7 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 21 relationships.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-10-04",
+      "date": "2026-10-05",
       "model_version": "v2026.06.15"
     },
     "cvss_version": "3.1",
@@ -867,7 +867,7 @@ In KEV: True; added 2023-10-10, due 2023-10-31, ransomware use Unknown.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-10-04",
+      "date": "2026-10-05",
       "model_version": "v2026.06.15"
     }
   },
