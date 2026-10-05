@@ -4,7 +4,6 @@ Unified CVE processing pipeline
 Combines all CVE processing steps into a single, efficient class
 """
 import json
-import re
 import sys
 import time
 import requests
@@ -349,10 +348,9 @@ class CVEProcessor:
                 if not cve_id:
                     continue
                 
-                # Extract CWE IDs - Primary method: from weaknesses field
+                # Extract CWE IDs from the NVD weaknesses field
                 cwe_ids = []
                 
-                # Method 1: Extract from weaknesses field (proper NVD API structure)
                 weaknesses = cve_data.get('cve', {}).get('weaknesses', [])
                 for weakness in weaknesses:
                     for desc in weakness.get('description', []):
@@ -360,15 +358,8 @@ class CVEProcessor:
                         if cwe_value and cwe_value.startswith('CWE-'):
                             cwe_ids.append(cwe_value)
                 
-                # Method 2: Fallback - Extract from description text (for incomplete entries)
-                if not cwe_ids:
-                    descriptions = cve_data.get('cve', {}).get('descriptions', [])
-                    for desc in descriptions:
-                        if desc.get('lang') == 'en':
-                            desc_text = desc.get('value', '')
-                            # Look for CWE patterns in description
-                            cwe_matches = re.findall(r'CWE-(\d+)', desc_text)
-                            cwe_ids.extend([f"CWE-{match}" for match in cwe_matches])
+                # Only the weaknesses field feeds the CWE list. Description text
+                # is prose (it can even negate a CWE) and is never mined for ids.
                 
                 # Remove duplicates while preserving order
                 seen = set()
