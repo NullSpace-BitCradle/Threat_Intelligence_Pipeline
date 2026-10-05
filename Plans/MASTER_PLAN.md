@@ -176,7 +176,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | I7, I8 | Watchlists and the "what changed" log: a 30-day change event log (`docs/data/changes.json.gz`) diffed from published state before each source overwrites it, with baseline and removal guards and count and byte backstops; watch toggles, `#/watching`, `#/changes`, and MCP `recent_changes`; measured worst case 3,293 events, 85 KB | 2026-09-27 | PR #12 |
 | I30, I32 | APT linkage by explicit attribution: a CVE links to a group only where the enterprise ATT&CK bundle cites it (group entry, a group relationship, or a campaign attributed to the group), each link official with its citing object as evidence; technique overlap removed from shards, index, site, and MCP. First run 2026-09-27: 199 pairs, 118 CVEs, 74 groups; curated 1,728 to 1,734; 117 curated CVEs linked (985 overlap-linked before) | 2026-09-27 | PR #16 |
 | T10.8 | Cross-vendor audit of P10 and I29: eight findings fixed with red-first tests (credited-CAPEC filter, KEV unknown is null, NVD-only CWE list, shard D3FEND, capped chain CWEs, demo provenance wording, CVE id bound, DEMO.md) | 2026-10-04 | PR #33 |
-| T10.9 | Demo summary wording for a CVE with no defenses: says so plainly, no empty tier lists (red-first test; DEMO.md unchanged) | 2026-10-05 | PR #34 |
+| T10.9 | Demo summary wording for a CVE with no defenses: says so plainly, no empty tier lists (red-first test; DEMO.md regenerated only for the daily EPSS date) | 2026-10-05 | PR #34 |
 
 ## 6. Dropped
 
