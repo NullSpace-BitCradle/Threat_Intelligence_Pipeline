@@ -32,3 +32,13 @@ def test_f6_official_links_are_not_called_derived_links():
 def test_f6_wording_follows_the_actual_link_tiers():
     text = demo.summarize("get_defenses", _result("derived"))
     assert "1 derived" in text and "1 official" not in text
+
+
+def test_t10_9_no_defenses_says_so_without_empty_tier_lists():
+    for query in ({"cve_id": "CVE-2001-0507"}, {"technique_id": "T9999"}):
+        result = {"ok": True, "data": [],
+                  "meta": {"count": 0, "techniques": [], "query": query}}
+        text = demo.summarize("get_defenses", result)
+        assert "No D3FEND defenses found" in text
+        assert "Tiers: ." not in text and "tiers: ." not in text
+        assert "are , but" not in text

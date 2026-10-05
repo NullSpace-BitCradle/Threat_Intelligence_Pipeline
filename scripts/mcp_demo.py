@@ -124,6 +124,11 @@ def summarize(tool: str, result: dict) -> str:
             f"{tier_counts(data['cves'])}; of the weaknesses shown: {tier_counts(data['cwes'])}."
         )
     if tool == "get_defenses":
+        if not data:
+            return (
+                f"No D3FEND defenses found for {next(iter(meta['query'].values()))}; "
+                "nothing to tier or link."
+            )
         verbs = sum(1 for d in data if "relationship" in d)
         if "technique_id" in meta["query"]:
             return (
