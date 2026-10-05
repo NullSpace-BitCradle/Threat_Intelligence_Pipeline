@@ -53,6 +53,25 @@ def chain_cve_mismatches(loader: IndexLoader) -> list[dict]:
     return bad
 
 
+def credited_capecs(loader: IndexLoader, cve_id: str) -> set[str]:
+    """CAPECs the graph ties to a CVE, read from either side of the edge."""
+    out = {str(c) for c in _rel(loader, cve_id, "capec").get("ids", []) or []}
+    for eid, ent in loader.entities.items():
+        if ent.get("type") == "capec" and cve_id in ((ent.get("rels") or {}).get("cve") or {}).get("ids", []):
+            out.add(eid)
+    return out
+
+
+def chain_uncredited_capec_violations(loader: IndexLoader) -> list[dict]:
+    """Chain CVEs whose via_capecs name a CAPEC the CVE does not credit."""
+    bad: list[dict] = []
+    for tid, ent in loader.entities.items():
+        if ent.get("type") == "technique":
+            chain = build_attack_chain_impl(loader, tid, limit=BIG)["data"]
+            bad += [v for v in chain_tier_violations(loader, tid, chain) if v["kind"] == "cve-uncredited-capec"]
+    return bad
+
+
 def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[dict]:
     """Chain elements labeled authoritative/official although a hop on their
     path is derived, inherited, or unverified. Hop tiers are read from the
@@ -90,6 +109,12 @@ def chain_tier_violations(loader: IndexLoader, tid: str, chain: dict) -> list[di
             hops.append(cwes[cwe_id]["tier"] if cwe_id in cwes else None)
         if cve["tier"] in STRONG and any(h not in STRONG for h in hops):
             out.append({"technique": tid, "kind": "cve", "id": cve["id"], "tier": cve["tier"]})
+    for cve in chain["cves"]:
+        # F1 (T10.8): every via_capec of a returned CVE is credited by that CVE.
+        credited = credited_capecs(loader, cve["id"])
+        extra = sorted(set(cve["via_capecs"]) - credited)
+        if extra:
+            out.append({"technique": tid, "kind": "cve-uncredited-capec", "id": cve["id"], "capecs": extra})
     for capec in chain["capecs"]:
         if capec["tier"] in STRONG and _rel(loader, capec["id"], "technique").get("tier") not in STRONG:
             out.append({"technique": tid, "kind": "capec", "id": capec["id"], "tier": capec["tier"]})
