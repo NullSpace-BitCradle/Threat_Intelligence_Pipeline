@@ -74,11 +74,13 @@ def _graph(inherited: bool = True) -> dict:
         }},
         "CVE-2020-0001": {"type": "cve", "kev": True, "rels": {
             "cwe": _rel(["CWE-900"], NVD, "authoritative"),
+            "capec": _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)"),
             "technique": _rel(["T9001"], CHAIN),
             "defend": _rel(["D3-A"], "Pipeline (Technique→D3FEND chain)"),
         }},
         "CVE-2020-0002": {"type": "cve", "kev": False, "rels": {
             "cwe": _rel(["CWE-901"], NVD, "authoritative"),
+            "capec": _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)", "derived", inh(["CAPEC-900"])),
             "technique": _rel(["T9001"], CHAIN, "derived", inh(["T9001"])),
             "defend": _rel(["D3-A"], "Pipeline (Technique→D3FEND chain)", "derived", inh(["D3-A"])),
         }},
@@ -253,13 +255,15 @@ def test_chain_via_capecs_are_only_capecs_the_cve_credits(tmp_path):
     g["CWE-903"] = {"type": "cwe", "rels": {"capec": _rel(["CAPEC-901"], "MITRE CWE Database", "official")}}
     g["CVE-2020-0001"]["rels"]["cwe"] = _rel(["CWE-900", "CWE-903"], NVD, "authoritative")
     g["CVE-2020-0001"]["rels"]["capec"] = _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)")
+    del g["CVE-2020-0002"]["rels"]["capec"]
     ld = _load(tmp_path, g, META)
     cves = {c["id"]: c for c in build_attack_chain_impl(ld, "T9001")["data"]["cves"]}
     a = cves["CVE-2020-0001"]
     assert a["via_capecs"] == ["CAPEC-900"]
     assert a["via_cwes"] == ["CWE-900"]
-    # A CVE with no capec rels at all (hand-built graphs) keeps the CWE path.
-    assert cves["CVE-2020-0002"]["via_capecs"] == ["CAPEC-900", "CAPEC-901"]
+    # A CVE that credits no CAPEC at all credits no CWE path (T10.8 F1).
+    assert cves["CVE-2020-0002"]["via_capecs"] == []
+    assert cves["CVE-2020-0002"]["via_cwes"] == []
 
 
 def test_chain_uncredited_assigned_path_falls_back_to_inherited_parent(tmp_path):

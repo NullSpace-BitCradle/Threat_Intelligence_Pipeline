@@ -781,12 +781,13 @@ def build_attack_chain_impl(
         hops = [(link["source"], link["tier"])]
         # The CAPECs the CVE itself credits. A CWE can reach a chain CAPEC
         # the CVE does not credit (a pillar CAPEC the processor dropped, say);
-        # that CAPEC never explains the CVE. A CVE with no capec rels at all
-        # (hand-built graphs; every real CVE has them) is not filtered.
+        # that CAPEC never explains the CVE. The filter always applies: a CVE
+        # that credits no CAPEC (CVE-2021-40449 has none) gets no CWE path,
+        # and its technique link stays labeled by its own source and tier.
         cve_capecs = set(_rels_to(loader, cve_id, "capec", "cve"))
 
         def credited(ce: dict) -> list[str]:
-            return [c for c in ce["via_capecs"] if not cve_capecs or c in cve_capecs]
+            return [c for c in ce["via_capecs"] if c in cve_capecs]
 
         cve_cwes = _rels_to(loader, cve_id, "cwe", "cve")
         for cwe_id in sorted(cve_cwes, key=_id_key):
