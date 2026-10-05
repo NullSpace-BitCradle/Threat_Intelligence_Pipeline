@@ -27,7 +27,7 @@ CTID = "MITRE CTID"
 LONG_CVE = "CVE-2024-" + "1" * 5000
 
 
-# ---------------------------------------------------------------- F1
+# F1
 
 
 def _no_capec_graph() -> dict:
@@ -59,7 +59,7 @@ def test_f1_cve_without_credited_capecs_gets_no_cwe_path(tmp_path):
     assert chain_uncredited_capec_violations(ld) == []
 
 
-# ---------------------------------------------------------------- F2
+# F2
 
 
 def test_f2_kev_unknown_when_no_source_available(tmp_path):
@@ -88,7 +88,7 @@ def test_f2_non_object_catalog_entry_is_not_dropped(tmp_path):
     assert "warnings" not in kev_status_impl(ld, "CVE-2021-0002")["meta"]
 
 
-# ---------------------------------------------------------------- F3
+# F3
 
 
 def _nvd(weaknesses: list, description: str) -> dict:
@@ -109,7 +109,7 @@ def test_f3_description_text_never_feeds_cwe_list():
     assert out["CVE-2021-1111"]["CWE"] == ["CWE-20"]
 
 
-# ---------------------------------------------------------------- F5
+# F5
 
 
 def test_f5_capped_chain_cwes_come_from_returned_cves(tmp_path):
@@ -134,7 +134,7 @@ def test_f5_capped_chain_cwes_come_from_returned_cves(tmp_path):
 CHAIN_IDS = ["CVE-2020-0001", "CVE-2020-0002", "CVE-2020-0003", "CVE-2020-0004"]
 
 
-# ---------------------------------------------------------------- F7
+# F7
 
 
 @pytest.fixture
