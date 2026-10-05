@@ -130,11 +130,19 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     var related = {};
     // Direct lists plus the I29 _INHERITED lists (ids reached only through
     // an inherited parent CWE), which are marked on the page.
+    // DEFEND entries are objects ({id, name, relationship, inherited}); the
+    // inherited flag marks defenses reached only through an inherited parent.
+    var defendId = function(x) { return (x && typeof x === 'object') ? x.id : x; };
+    var defendAll = Array.isArray(payload.DEFEND) ? payload.DEFEND : [];
+    var defendDirect = defendAll.filter(function(x) { return !(x && typeof x === 'object' && x.inherited); });
+    var defendFlagged = defendAll.filter(function(x) { return x && typeof x === 'object' && x.inherited; });
+    var defendInherited = defendFlagged.concat(Array.isArray(payload.DEFEND_INHERITED) ? payload.DEFEND_INHERITED : []);
     var relMap = [
         ['cwe', payload.CWE, null, cweNorm],
         ['capec', payload.CAPEC, payload.CAPEC_INHERITED, function(x) { return String(x).indexOf('CAPEC-') === 0 ? x : 'CAPEC-' + x; }],
         ['technique', payload.TECHNIQUES, payload.TECHNIQUES_INHERITED, function(x) { return String(x).indexOf('T') === 0 ? x : 'T' + x; }],
-        ['owasp', payload.OWASP, payload.OWASP_INHERITED, function(x) { return x; }]
+        ['owasp', payload.OWASP, payload.OWASP_INHERITED, function(x) { return x; }],
+        ['defend', defendDirect, defendInherited, defendId]
     ];
     for (var rm = 0; rm < relMap.length; rm++) {
         var relType = relMap[rm][0];
