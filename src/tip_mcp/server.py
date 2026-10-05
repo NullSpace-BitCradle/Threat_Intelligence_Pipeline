@@ -144,7 +144,8 @@ def kev_status(cve_id: str) -> dict[str, Any]:
     required_action, vendor_project, and product from the CISA KEV catalog,
     and the CISA SSVC decision when TIP has one, plus epss {score,
     percentile, date} from FIRST when scored (else null). A CVE not in KEV returns ok
-    with in_kev false and null KEV fields. A malformed CVE id is bad_param.
+    with in_kev false and null KEV fields. in_kev is null (unknown) when the
+    catalog, entity graph and shard are all unavailable. A malformed CVE id is bad_param.
     """
     return kev_status_impl(_loader, cve_id)
 
