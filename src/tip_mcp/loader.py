@@ -36,7 +36,7 @@ class ShardReadError(RuntimeError):
     bad UTF-8, zlib corruption). The message names the file."""
 
 
-_CVE_ID_RE = re.compile(r"^CVE-(\d{4})-(\d{4,})$", re.IGNORECASE)
+_CVE_ID_RE = re.compile(r"^CVE-(\d{4})-(\d{4,19})$", re.IGNORECASE)
 
 # Errors a corrupt JSON or gzip file can raise while being read.
 _READ_ERRORS = (OSError, EOFError, UnicodeDecodeError, zlib.error, ValueError)

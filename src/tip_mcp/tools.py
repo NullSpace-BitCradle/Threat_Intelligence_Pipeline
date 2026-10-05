@@ -52,7 +52,22 @@ KEV_TYPE = "kev"
 # Every type name a caller may pass (graph names, aliases, kev).
 VALID_TYPES = set(GRAPH_TYPES) | set(TYPE_ALIASES) | {KEV_TYPE}
 
-_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+# CVE suffixes are 4 to 7 digits today; allow up to 19. An unbounded suffix
+# would reach int() in the loader and raise past Python's digit limit.
+_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,19}$", re.IGNORECASE)
+_CVE_SHAPED_RE = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE)
+
+
+def _overlong_cve_error(value: str) -> Optional[dict]:
+    """bad_param for an id shaped like a CVE whose suffix is too long to be real."""
+    text = value.strip()
+    if _CVE_SHAPED_RE.match(text) and not _CVE_ID_RE.match(text):
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"cve id {text[:24]!r}... has a suffix longer than 19 digits",
+            hint="Expected CVE-YYYY-NNNN with 4 to 19 digits after the year.",
+        )
+    return None
 # IDs whose canonical form is upper case.
 _UPPER_ID_RE = re.compile(
     r"^(?:(?:CVE|CWE|CAPEC)-.+|T\d{4}(?:\.\d{3})?|[GCS]\d{4}|D3-.+|A\d{2}:\d{4})$",
@@ -317,6 +332,9 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
     if not_loaded is not None:
         return not_loaded
     entity_id = normalize_entity_id(entity_id)
+    overlong = _overlong_cve_error(entity_id)
+    if overlong is not None:
+        return overlong
 
     key = loader.resolve_entity_key(entity_id)
     if key is not None:
@@ -417,6 +435,9 @@ def pivot_from_entity_impl(
     if not_loaded is not None:
         return not_loaded
     entity_id = normalize_entity_id(entity_id)
+    overlong = _overlong_cve_error(entity_id)
+    if overlong is not None:
+        return overlong
 
     key = loader.resolve_entity_key(entity_id)
     if key is not None:
