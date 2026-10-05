@@ -58,6 +58,7 @@ def _graph() -> dict:
         "CWE-901": {"type": "cwe", "rels": {"cve": _rel(["CVE-2020-0105"], NVD, "authoritative")}},
         "CVE-2020-0101": {"type": "cve", "kev": True, "cwe_inherited": [], "rels": {
             "cwe": _rel(["CWE-900"], NVD, "authoritative"),
+            "capec": _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)"),
             "technique": _rel(["T9001"], CHAIN),
             "defend": _rel(["D3-A"], DEF_CHAIN),
         }},

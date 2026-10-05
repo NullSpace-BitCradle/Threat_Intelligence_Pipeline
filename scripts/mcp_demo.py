@@ -130,11 +130,14 @@ def summarize(tool: str, result: dict) -> str:
                 f"{meta['count']} D3FEND defenses mapped to {meta['query']['technique_id']}; "
                 f"tiers: {tier_counts(data)}."
             )
+        links = {l["id"]: l for d in data for l in d.get("technique_links", [])}
         return (
             f"{meta['count']} D3FEND defenses reached through {len(meta['techniques'])} "
-            f"techniques; {verbs} carry a relationship verb. Tiers: {tier_counts(data)}, "
-            "because TIP derives the CVE to technique links (CAPEC to technique chain), "
-            "so these are leads, not MITRE mappings of the CVE."
+            f"techniques; {verbs} carry a relationship verb. Tiers: {tier_counts(data)}. "
+            f"The CVE to technique links behind them are {tier_counts(list(links.values()))}, "
+            "but composing such a link with technique to D3FEND mappings is not a "
+            "defense the source states for the CVE, so these are leads, not MITRE "
+            "mappings of the CVE."
         )
     if tool == "kev_status":
         return (

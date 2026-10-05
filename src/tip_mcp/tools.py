@@ -52,7 +52,22 @@ KEV_TYPE = "kev"
 # Every type name a caller may pass (graph names, aliases, kev).
 VALID_TYPES = set(GRAPH_TYPES) | set(TYPE_ALIASES) | {KEV_TYPE}
 
-_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+# CVE suffixes are 4 to 7 digits today; allow up to 19. An unbounded suffix
+# would reach int() in the loader and raise past Python's digit limit.
+_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,19}$", re.IGNORECASE)
+_CVE_SHAPED_RE = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE)
+
+
+def _overlong_cve_error(value: str) -> Optional[dict]:
+    """bad_param for an id shaped like a CVE whose suffix is too long to be real."""
+    text = value.strip()
+    if _CVE_SHAPED_RE.match(text) and not _CVE_ID_RE.match(text):
+        return error_response(
+            ErrorCode.BAD_PARAM,
+            f"cve id {text[:24]!r}... has a suffix longer than 19 digits",
+            hint="Expected CVE-YYYY-NNNN with 4 to 19 digits after the year.",
+        )
+    return None
 # IDs whose canonical form is upper case.
 _UPPER_ID_RE = re.compile(
     r"^(?:(?:CVE|CWE|CAPEC)-.+|T\d{4}(?:\.\d{3})?|[GCS]\d{4}|D3-.+|A\d{2}:\d{4})$",
@@ -317,6 +332,9 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
     if not_loaded is not None:
         return not_loaded
     entity_id = normalize_entity_id(entity_id)
+    overlong = _overlong_cve_error(entity_id)
+    if overlong is not None:
+        return overlong
 
     key = loader.resolve_entity_key(entity_id)
     if key is not None:
@@ -417,6 +435,9 @@ def pivot_from_entity_impl(
     if not_loaded is not None:
         return not_loaded
     entity_id = normalize_entity_id(entity_id)
+    overlong = _overlong_cve_error(entity_id)
+    if overlong is not None:
+        return overlong
 
     key = loader.resolve_entity_key(entity_id)
     if key is not None:
@@ -781,12 +802,13 @@ def build_attack_chain_impl(
         hops = [(link["source"], link["tier"])]
         # The CAPECs the CVE itself credits. A CWE can reach a chain CAPEC
         # the CVE does not credit (a pillar CAPEC the processor dropped, say);
-        # that CAPEC never explains the CVE. A CVE with no capec rels at all
-        # (hand-built graphs; every real CVE has them) is not filtered.
+        # that CAPEC never explains the CVE. The filter always applies: a CVE
+        # that credits no CAPEC (CVE-2021-40449 has none) gets no CWE path,
+        # and its technique link stays labeled by its own source and tier.
         cve_capecs = set(_rels_to(loader, cve_id, "capec", "cve"))
 
         def credited(ce: dict) -> list[str]:
-            return [c for c in ce["via_capecs"] if not cve_capecs or c in cve_capecs]
+            return [c for c in ce["via_capecs"] if c in cve_capecs]
 
         cve_cwes = _rels_to(loader, cve_id, "cwe", "cve")
         for cwe_id in sorted(cve_cwes, key=_id_key):
@@ -920,11 +942,15 @@ def build_attack_chain_impl(
             f"{unexplained} of the {len(cve_list)} CVEs linked to {key} have no CWE path "
             "to its CAPEC patterns; their via lists are empty."
         )
+    returned_cves = _capped(cve_list, limit)
+    # The CWEs shown are those some returned CVE is explained through, so a
+    # limit never leaves a CWE no returned CVE uses. totals keep the full count.
+    used_cwes = {w for c in returned_cves for w in c["via_cwes"]}
     data = {
         "technique": {"id": key, "name": tech.get("name")},
         "capecs": _capped(capec_list, limit),
-        "cwes": _capped(cwe_list, limit),
-        "cves": _capped(cve_list, limit),
+        "cwes": _capped([c for c in cwe_list if c["id"] in used_cwes], limit),
+        "cves": returned_cves,
         "defenses": _capped(defense_list, limit),
     }
     return ok_response(data, meta=meta)
@@ -1182,7 +1208,16 @@ def kev_status_impl(loader: IndexLoader, cve_id: str) -> dict:
         meta["kev_source"] = "entity_index.json" if ent is not None else ("shard" if payload else None)
         meta["note"] = "kev_db.json unavailable; KEV status taken from the entity graph or shard."
 
-    data: dict = {"cve_id": cid, "in_kev": detail is not None}
+    in_kev: Optional[bool] = detail is not None
+    if kev_db is not None:
+        if cid in loader.kev_malformed:
+            meta["warnings"] = [
+                f"kev_db.json entry for {cid} is not an object; treated as listed with no details."
+            ]
+    elif ent is None and payload is None:
+        # Catalog, entity and shard are all unavailable: unknown, not "no".
+        in_kev = None
+    data: dict = {"cve_id": cid, "in_kev": in_kev}
     for out_key, src_key in _KEV_FIELDS:
         data[out_key] = (detail or {}).get(src_key)
 

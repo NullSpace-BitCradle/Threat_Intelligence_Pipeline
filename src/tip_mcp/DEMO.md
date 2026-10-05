@@ -63,7 +63,7 @@ CVE-2023-44487: CVSS 7.5 HIGH, KEV True, 21 relationships.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-09-27",
+      "date": "2026-10-04",
       "model_version": "v2026.06.15"
     },
     "cvss_version": "3.1",
@@ -190,7 +190,7 @@ pivot_from_entity({"entity_id": "CVE-2023-44487", "target_type": "technique"})
 build_attack_chain({"technique_id": "T1499", "limit": 10})
 ```
 
-24 CVEs linked to the technique (each explained by its CWE and CAPEC path; 6 without one), through 3 CAPEC patterns and 5 weaknesses (3 of the 5 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 4 official, 6 derived; of the weaknesses shown: 2 official, 3 derived.
+24 CVEs linked to the technique (each explained by its CWE and CAPEC path; 6 without one), through 3 CAPEC patterns and 5 weaknesses (2 of the 4 shown reach at least one of those CAPECs only by inheritance from a parent CWE, so they are derived), and 11 D3FEND defenses. Lists capped at 10; 10 of the 10 CVEs shown are in KEV. Tiers of the CVEs shown: 4 official, 6 derived; of the weaknesses shown: 2 official, 2 derived.
 
 ```json
 {
@@ -269,21 +269,6 @@ build_attack_chain({"technique_id": "T1499", "limit": 10})
         "inherited": true,
         "inherited_capecs": [
           "CAPEC-227"
-        ],
-        "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
-        "tier": "derived"
-      },
-      {
-        "id": "CWE-772",
-        "name": "Missing Release of Resource after Effective Lifetime",
-        "via_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
-        ],
-        "inherited": true,
-        "inherited_capecs": [
-          "CAPEC-125",
-          "CAPEC-131"
         ],
         "source": "TIP generator (CAPEC inherited from a CWE ChildOf ancestor)",
         "tier": "derived"
@@ -609,7 +594,7 @@ get_defenses({"technique_id": "T1499"})
 get_defenses({"cve_id": "CVE-2023-44487"})
 ```
 
-14 D3FEND defenses reached through 2 techniques; 11 carry a relationship verb. Tiers: 14 derived, because TIP derives the CVE to technique links (CAPEC to technique chain), so these are leads, not MITRE mappings of the CVE.
+14 D3FEND defenses reached through 2 techniques; 11 carry a relationship verb. Tiers: 14 derived. The CVE to technique links behind them are 2 official, but composing such a link with technique to D3FEND mappings is not a defense the source states for the CVE, so these are leads, not MITRE mappings of the CVE.
 
 ```json
 {
@@ -882,7 +867,7 @@ In KEV: True; added 2023-10-10, due 2023-10-31, ransomware use Unknown.
     "epss": {
       "score": 0.99999,
       "percentile": 0.99998,
-      "date": "2026-09-27",
+      "date": "2026-10-04",
       "model_version": "v2026.06.15"
     }
   },

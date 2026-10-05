@@ -70,6 +70,10 @@ def _graph(
 CHAIN_CVES = ["CVE-2020-0001", "CVE-2020-0002", "CVE-2020-0003", "CVE-2020-0004"]
 
 
+def _capec_900() -> dict:
+    return {"capec": _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)")}
+
+
 def _chain_graph() -> dict:
     """technique T9001 <- CAPEC-900 <- CWE-900 -> four CVEs of mixed KEV/CVSS.
 
@@ -94,10 +98,12 @@ def _chain_graph() -> dict:
                 "cve": _rel(list(CHAIN_CVES), "NVD", "authoritative"),
             },
         },
-        "CVE-2020-0001": {"type": "cve", "kev": False, "cvss_score": 9.8, "severity": "CRITICAL"},
-        "CVE-2020-0002": {"type": "cve", "kev": True, "cvss_score": 5.0, "severity": "MEDIUM"},
-        "CVE-2020-0003": {"type": "cve", "kev": True, "cvss_score": 8.1, "severity": "HIGH"},
-        "CVE-2020-0004": {"type": "cve", "kev": True},
+        # Real CVEs credit the CAPECs their CWEs reach (cve -> capec rels); the
+        # chain only names a CAPEC the CVE credits.
+        "CVE-2020-0001": {"type": "cve", "kev": False, "cvss_score": 9.8, "severity": "CRITICAL", "rels": _capec_900()},
+        "CVE-2020-0002": {"type": "cve", "kev": True, "cvss_score": 5.0, "severity": "MEDIUM", "rels": _capec_900()},
+        "CVE-2020-0003": {"type": "cve", "kev": True, "cvss_score": 8.1, "severity": "HIGH", "rels": _capec_900()},
+        "CVE-2020-0004": {"type": "cve", "kev": True, "rels": _capec_900()},
         "D3-A": {"type": "defend"},
         "D3-B": {"type": "defend"},
     }
@@ -243,9 +249,11 @@ def test_chain_technique_without_cves_says_so(tmp_path):
 def test_chain_cves_are_exactly_the_techniques_own_rels(tmp_path):
     g = _chain_graph()
     # Reaches CWE-900 but the technique never names it: must not appear.
-    g["CVE-2021-0009"] = {"type": "cve", "kev": True, "rels": {"cwe": _rel(["CWE-900"], "NVD", "authoritative")}}
+    g["CVE-2021-0009"] = {"type": "cve", "kev": True, "rels": {
+        "cwe": _rel(["CWE-900"], "NVD", "authoritative"), "capec": _rel(["CAPEC-900"])}}
     # Named by the technique, linked to CWE-900 only from its own side.
-    g["CVE-2021-0010"] = {"type": "cve", "kev": False, "rels": {"cwe": _rel(["CWE-900"], "NVD", "authoritative")}}
+    g["CVE-2021-0010"] = {"type": "cve", "kev": False, "rels": {
+        "cwe": _rel(["CWE-900"], "NVD", "authoritative"), "capec": _rel(["CAPEC-900"])}}
     g["T9001"]["rels"]["cve"]["ids"].append("CVE-2021-0010")
     g["D3-C"] = {"type": "defend", "rels": {"technique": _rel(["T9001"], "MITRE D3FEND", "official")}}
     data = build_attack_chain_impl(_graph(tmp_path, g), "T9001")["data"]
@@ -270,6 +278,8 @@ def test_chain_kev_flag_uses_catalog_and_missing_inkev_means_listed(tmp_path):
     g["T9001"]["rels"]["cve"]["ids"] += ["CVE-2022-0005", "CVE-2022-0006"]
     # CVE-2022-0005 is not a graph entity; CWE-900 names it from its side.
     g["CWE-900"]["rels"]["cve"]["ids"].append("CVE-2022-0005")
+    # It has no entity, so the CAPEC names it from its side.
+    g["CAPEC-900"]["rels"]["cve"] = _rel(["CVE-2022-0005"], "Pipeline (CWE→CAPEC chain)")
     kev_db = {"CVE-2022-0005": {}, "CVE-2022-0006": {"inKEV": False}, "CVE-2020-0001": {"inKEV": True}}
     ld = _graph(tmp_path, g, kev_db=kev_db)
     cves = {c["id"]: c for c in build_attack_chain_impl(ld, "T9001")["data"]["cves"]}
@@ -312,7 +322,10 @@ def _fanout_graph() -> dict:
     }
     for n in range(1, 31):
         g[f"CVE-2019-{n:04d}"] = {"type": "cve", "kev": True, "cvss_score": 9.0}
-    g["CVE-2020-0001"]["rels"] = {"cwe": _rel(["CWE-664"], "NVD Enrichment", "authoritative")}
+    g["CVE-2020-0001"]["rels"] = {
+        "cwe": _rel(["CWE-664"], "NVD Enrichment", "authoritative"),
+        "capec": _rel(["CAPEC-900"], "Pipeline (CWE→CAPEC chain)"),
+    }
     return g
 
 

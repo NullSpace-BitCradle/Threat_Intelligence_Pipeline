@@ -153,7 +153,10 @@ path and the shard path.
   CISA catalog, so a KEV CVE outside the curated graph still reports
   `in_kev: true`. A CVE not in KEV returns `ok` with `in_kev: false` and null
   KEV fields. SSVC comes from the entity record, else the shard, else null.
-  If `kev_db.json` is missing, the graph's flag is used and `meta.note` says so.
+  If `kev_db.json` is missing, the graph's flag is used and `meta.note` says so;
+  when the graph and shards have no record either, `in_kev` is `null` (unknown),
+  never `false`. A catalog entry that is not an object counts as listed and
+  raises a `meta.warnings` entry.
 - **`recent_changes`** (I8) reads `docs/data/changes.json.gz`, the event log
   the data runs write (event types and rules in the top-level README). An
   `entity_id` matches an event's CVE, any id in its `related` lists, or its
