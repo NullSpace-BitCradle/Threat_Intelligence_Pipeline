@@ -172,7 +172,7 @@
     "1213.002": {
         "framework": "enterprise",
         "name": "Sharepoint",
-        "description": "Adversaries may leverage the SharePoint repository as a source to mine valuable information. SharePoint will often contain useful information for an adversary to learn about the structure and function"
+        "description": "Adversaries may leverage the SharePoint repository as a source to mine valuable information.(Citation: Information architecture guidance for SharePoint Online portals) SharePoint will often contain us"
     },
     "1006": {
         "framework": "enterprise",
@@ -182,7 +182,7 @@
     "1588.007": {
         "framework": "enterprise",
         "name": "Artificial Intelligence",
-        "description": "Adversaries may obtain access to generative artificial intelligence tools, such as large language models (LLMs), to aid various techniques during targeting. These tools may be used to inform, bolster,"
+        "description": "Adversaries may obtain access to generative artificial intelligence (AI) tools, such as large language models (LLMs), to aid various techniques during targeting. These tools may be used to inform, bol"
     },
     "1666": {
         "framework": "enterprise",
@@ -1162,7 +1162,7 @@
     "1029": {
         "framework": "enterprise",
         "name": "Scheduled Transfer",
-        "description": "Adversaries may schedule data exfiltration to be performed only at certain times of day or at certain intervals. This could be done to blend traffic patterns with normal activity or availability.\n\nWhe"
+        "description": "Adversaries may schedule data exfiltration to be performed only at certain times of day or at certain intervals. This could be done to blend traffic patterns with normal activity or availability.(Cita"
     },
     "1021.002": {
         "framework": "enterprise",
@@ -1717,7 +1717,7 @@
     "1213.001": {
         "framework": "enterprise",
         "name": "Confluence",
-        "description": "\nAdversaries may leverage Confluence repositories to mine valuable information. Often found in development environments alongside Atlassian JIRA, Confluence is generally used to store development-rela"
+        "description": "\nAdversaries may leverage Confluence repositories to mine valuable information.(Citation: Confluence Standards in Data Engineering) Often found in development environments alongside Atlassian JIRA, Co"
     },
     "1550.003": {
         "framework": "enterprise",
@@ -3483,5 +3483,50 @@
         "framework": "enterprise",
         "name": "COR_PROFILER",
         "description": "Adversaries may leverage the COR_PROFILER environment variable to hijack the execution flow of programs that load the .NET CLR. The COR_PROFILER is a .NET Framework feature which allows developers to "
+    },
+    "1696": {
+        "framework": "enterprise",
+        "name": "Anti-Automation Evasion",
+        "description": "Adversaries may employ various means to evade or complete automation checks. Automation checks distinguish human users from bot traffic and prevent bots from reaching the web pages protected by automa"
+    },
+    "1697": {
+        "framework": "enterprise",
+        "name": "Steal Application Specific Passwords",
+        "description": "Adversaries may steal Application Specific Passwords (ASPs) to gain access to [Valid Accounts](https://attack.mitre.org/techniques/T1078), bypassing multifactor authentication (MFA) methods. ASPs are "
+    },
+    "1698": {
+        "framework": "enterprise",
+        "name": "Indirect Prompt Injection",
+        "description": "Adversaries may deliver malicious prompts to an LLM indirectly by embedding the prompts in content that the adversary expects may be processed by an LLM.(Citation: NIST indirect prompt injection) Thes"
+    },
+    "1699": {
+        "framework": "enterprise",
+        "name": "Direct Prompt Injection",
+        "description": "Adversaries may input malicious prompts directly into an LLM\u2019s user interface.(Citation: NIST Direct Prompt Injection) The prompts can be designed to bypass safeguards, manipulate context, override pr"
+    },
+    "1608.007": {
+        "framework": "enterprise",
+        "name": "AI Result Poisoning",
+        "description": "Adversaries may manipulate publicly accessible web content to influence generative AI systems or AI-powered search engines into retrieving, citing, or recommending attacker-controlled information.(Cit"
+    },
+    "1696.001": {
+        "framework": "enterprise",
+        "name": "Automate CAPTCHA Completion",
+        "description": "Adversaries may attempt to use bots to successfully solve CAPTCHA challenges. CAPTCHA challenges are typically used by defenders to detect and prevent bot and spam traffic from accessing protected web"
+    },
+    "1696.002": {
+        "framework": "enterprise",
+        "name": "Avoid CAPTCHA",
+        "description": "Adversaries may avoid CAPTCHA challenges by mimicking human behavior. Automation tests, such as CAPTCHA, are typically used by defenders to detect and prevent bot and spam traffic from accessing prote"
+    },
+    "1685.007": {
+        "framework": "enterprise",
+        "name": "Impair Autonomous Defenses",
+        "description": "Adversaries may use methods like [Indirect Prompt Injection](https://attack.mitre.org/techniques/T1698) to disrupt, disable, or otherwise impair autonomous defensive capabilities such as LLM-assisted "
+    },
+    "1700": {
+        "framework": "enterprise",
+        "name": "AI-Enabled Exfiltration",
+        "description": "Adversaries may utilize [Direct Prompt Injection](https://attack.mitre.org/techniques/T1699), [Indirect Prompt Injection](https://attack.mitre.org/techniques/T1698) or other methods to instruct enterp"
     }
 }

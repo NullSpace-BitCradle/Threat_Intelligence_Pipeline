@@ -11,25 +11,43 @@
                 "Sapphire Sleet",
                 "COPERNICIUM"
             ],
-            "description": "[APT38](https://attack.mitre.org/groups/G0082) is a North Korean state-sponsored threat group that specializes in financial cyber operations; it has been attributed to the Reconnaissance General Bureau.(Citation: CISA AA20-239A BeagleBoyz August 2020) Active since at least 2014, [APT38](https://attack.mitre.org/groups/G0082) has targeted banks, financial institutions, casinos, cryptocurrency exchanges, SWIFT system endpoints, and ATMs in at least 38 countries worldwide. Significant operations include the 2016 Bank of Bangladesh heist, during which [APT38](https://attack.mitre.org/groups/G0082) stole $81 million, as well as attacks against Bancomext (Citation: FireEye APT38 Oct 2018) and Banco de Chile (Citation: FireEye APT38 Oct 2018); some of their attacks have been destructive.(Citation: CISA AA20-239A BeagleBoyz August 2020)(Citation: FireEye APT38 Oct 2018)(Citation: DOJ North Korea Indictment Feb 2021)(Citation: Kaspersky Lazarus Under The Hood Blog 2017)\n\nNorth Korean group definitions are known to have significant overlap, and some security researchers report all North Korean state-sponsored cyber activity under the name [Lazarus Group](https://attack.mitre.org/groups/G0032) instead of tracking clusters or subgroups.",
+            "description": "[APT38](https://attack.mitre.org/groups/G0082) is a North Korean state-sponsored threat group that specializes in financial cyber operations; it has been attributed to the Reconnaissance General Bureau.(Citation: CISA AA20-239A BeagleBoyz August 2020) Active since at least 2014, [APT38](https://attack.mitre.org/groups/G0082) has targeted banks, financial institutions, casinos, cryptocurrency exchanges, SWIFT system endpoints, and ATMs in at least 38 countries worldwide. Significant operations include the 2016 Bank of Bangladesh heist, Bancomext (Citation: FireEye APT38 Oct 2018) and Banco de Chile (Citation: FireEye APT38 Oct 2018), along with software supply chain compromises and destructive malware attacks.(Citation: CISA AA20-239A BeagleBoyz August 2020)(Citation: FireEye APT38 Oct 2018)(Citation: DOJ North Korea Indictment Feb 2021)(Citation: Kaspersky Lazarus Under The Hood Blog 2017)(Citation: Microsoft Axios Compromise APR 2026)(Citation: Microsoft Sapphire Sleet APR 2026)(Citation: MIcrosoft Mastra npm Compromise JUN 2026)\n\nNorth Korean group definitions are known to have significant overlap, and some security researchers report all North Korean state-sponsored cyber activity under the name [Lazarus Group](https://attack.mitre.org/groups/G0032) instead of tracking clusters or subgroups.",
             "techniques": [
                 "T1005",
+                "T1012",
                 "T1027.002",
+                "T1027.010",
+                "T1027.015",
+                "T1027.016",
                 "T1033",
                 "T1036.003",
+                "T1036.005",
                 "T1036.006",
+                "T1036.008",
+                "T1041",
+                "T1048.002",
                 "T1049",
                 "T1053.003",
                 "T1053.005",
+                "T1053.006",
                 "T1055",
                 "T1056.001",
+                "T1056.002",
                 "T1057",
                 "T1059.001",
+                "T1059.002",
                 "T1059.003",
+                "T1059.004",
                 "T1059.005",
+                "T1059.006",
+                "T1059.007",
+                "T1070.003",
                 "T1070.004",
                 "T1070.006",
                 "T1071.001",
+                "T1074.001",
+                "T1078.003",
+                "T1078.004",
                 "T1082",
                 "T1083",
                 "T1105",
@@ -37,34 +55,75 @@
                 "T1110",
                 "T1112",
                 "T1115",
+                "T1124",
+                "T1132.001",
                 "T1135",
                 "T1140",
                 "T1189",
+                "T1195.001",
                 "T1204.001",
                 "T1204.002",
+                "T1213.005",
+                "T1213.006",
                 "T1217",
                 "T1218.001",
                 "T1218.005",
                 "T1218.007",
                 "T1218.011",
+                "T1222.002",
+                "T1480",
                 "T1480.002",
                 "T1485",
                 "T1486",
                 "T1505.003",
+                "T1518",
                 "T1518.001",
                 "T1529",
+                "T1543.001",
                 "T1543.003",
+                "T1543.004",
+                "T1546.016",
+                "T1547.001",
                 "T1548.002",
+                "T1548.003",
+                "T1548.006",
+                "T1552.003",
+                "T1552.004",
                 "T1553.005",
+                "T1555",
+                "T1555.001",
+                "T1555.003",
+                "T1560.001",
                 "T1561.002",
+                "T1564.003",
+                "T1564.011",
+                "T1564.012",
                 "T1565.001",
                 "T1565.002",
                 "T1565.003",
                 "T1566.001",
+                "T1566.002",
+                "T1566.003",
+                "T1567",
                 "T1569.002",
+                "T1571",
                 "T1583.001",
+                "T1583.003",
+                "T1583.006",
+                "T1585.001",
+                "T1585.002",
+                "T1586.003",
                 "T1588.002",
+                "T1608.001",
+                "T1620",
+                "T1657",
+                "T1677",
+                "T1678",
+                "T1683.001",
+                "T1683.002",
+                "T1684.001",
                 "T1685",
+                "T1685.003",
                 "T1685.005",
                 "T1686",
                 "T1686.002",
@@ -851,22 +910,66 @@
             "aliases": [
                 "Salt Typhoon"
             ],
-            "description": "[Salt Typhoon](https://attack.mitre.org/groups/G1045) is a People's Republic of China (PRC) state-backed actor that has been active since at least 2019 and responsible for numerous compromises of network infrastructure at major U.S. telecommunication and internet service providers (ISP).(Citation: US Dept. of Treasury Salt Typhoon JAN 2025)(Citation: Cisco Salt Typhoon FEB 2025)\n",
+            "description": "[Salt Typhoon](https://attack.mitre.org/groups/G1045) is a People's Republic of China (PRC) state-backed actor that has been active since at least 2019 and responsible for numerous compromises of network infrastructure at major U.S. telecommunication and internet service providers (ISP). [Salt Typhoon](https://attack.mitre.org/groups/G1045) has targeted and leveraged public facing network edge devices to gain access to victim environments. [Salt Typhoon](https://attack.mitre.org/groups/G1045) has been publicly associated with activities resembling other security industry reported activity groups to include OPERATOR PANDA, RedMike, GhostEmperor, and UNC5807.(Citation: US Dept. of Treasury Salt Typhoon JAN 2025)(Citation: Cisco Salt Typhoon FEB 2025)(Citation: CISA_AA25-239ASaltTyphoon_Sept2025)(Citation: CarySentinelLabs_CiscoSaltTyphoon_Dec2025)(Citation: CrowdStrike_OperatorPanda_NoDate)(Citation: RF_SaltTyphoon_Feb2025)(Citation: Microsoft_ThreatActorNaming_NoDate)(Citation: Mandiant_M-Trends2026_Mar2026)",
             "techniques": [
+                "T1005",
+                "T1016",
+                "T1018",
+                "T1020.001",
+                "T1021.001",
                 "T1021.004",
+                "T1027.010",
                 "T1040",
+                "T1046",
                 "T1048.003",
+                "T1059.004",
+                "T1059.006",
+                "T1059.008",
+                "T1059.013",
+                "T1070.003",
+                "T1070.007",
+                "T1070.009",
+                "T1071.001",
+                "T1071.002",
+                "T1072",
+                "T1078",
+                "T1082",
+                "T1090",
+                "T1090.003",
+                "T1095",
                 "T1098.004",
+                "T1105",
+                "T1110.001",
                 "T1110.002",
+                "T1132.001",
                 "T1136",
+                "T1136.001",
                 "T1190",
+                "T1199",
+                "T1543.005",
+                "T1548.003",
+                "T1552.001",
+                "T1556",
+                "T1569",
+                "T1571",
                 "T1572",
+                "T1583.003",
+                "T1584.008",
+                "T1585.001",
+                "T1587",
                 "T1587.001",
                 "T1588.002",
+                "T1588.005",
                 "T1590.004",
+                "T1595",
+                "T1599",
+                "T1602.001",
                 "T1602.002",
+                "T1610",
+                "T1685",
                 "T1685.006",
-                "T1686"
+                "T1686",
+                "T1686.002"
             ]
         },
         "G0035": {
@@ -4842,7 +4945,8 @@
                 "T1588.002",
                 "T1608.001",
                 "T1682",
-                "T1684.001"
+                "T1684.001",
+                "T1697"
             ]
         },
         "G1023": {
@@ -6570,6 +6674,7 @@
                 "T1585.001",
                 "T1587.001",
                 "T1608.001",
+                "T1610",
                 "T1657",
                 "T1677",
                 "T1683.001",
@@ -6632,6 +6737,111 @@
                 "T1657",
                 "T1684"
             ]
+        },
+        "G1058": {
+            "name": "The Gentlemen",
+            "aliases": [
+                "The Gentlemen",
+                "Storm-2697",
+                "GOLD SHERWOOD"
+            ],
+            "description": "[The Gentlemen](https://attack.mitre.org/groups/G1058) is a group that maintains the [The Gentlemen Ransomware](https://attack.mitre.org/software/S9051)-as-a-service (RaaS). [The Gentlemen](https://attack.mitre.org/groups/G1058) was\u202ffirst\u202fobserved in mid-2025 who had posed [The Gentlemen Ransomware](https://attack.mitre.org/software/S9051) as a closed ransomware and shortly later opened the ransomware as a RaaS to affiliates in September 2025. [The Gentlemen](https://attack.mitre.org/groups/G1058) has been affiliated with the threat group Storm-2697 and GOLD SHERWOOD.(Citation: MSTI_GentelmenRansomware_May2026)(Citation: Intel471_TheGentlemen_Aug2026)(Citation: Sophos_TheGentlemen_Sept2026)(Citation: Sou\u010dekESET_Gentlemen_Jun2026)(Citation: CheckPointResearch_TheGentlemen_April2026)(Citation: BradyUnit42_TheGentlemen_July2026)(Citation: CarveyODonnellWelchHuntress_TheGentlemen_May2026)(Citation: TrendAI_TheGentlemen_Sept2025) ",
+            "techniques": [
+                "T1018",
+                "T1027.002",
+                "T1036",
+                "T1036.001",
+                "T1036.005",
+                "T1068",
+                "T1078",
+                "T1190",
+                "T1219.002",
+                "T1486",
+                "T1583.001",
+                "T1585",
+                "T1585.001",
+                "T1588.002",
+                "T1657",
+                "T1683.001",
+                "T1683.002"
+            ]
+        },
+        "G1059": {
+            "name": "NIMBUS MANTICORE",
+            "aliases": [
+                "NIMBUS MANTICORE",
+                "UNC1549",
+                "TA455",
+                "COBALT SMOKEY"
+            ],
+            "description": "[NIMBUS MANTICORE](https://attack.mitre.org/groups/G1059)\u202fis a State Sponsored cyber espionage group associated with the Iranian Regime specifically the Iranian Revolutionary Guard Corps (IRGC). [NIMBUS MANTICORE](https://attack.mitre.org/groups/G1059) has employed social engineering attacks to include HR related themes and has leveraged custom malware against its victims. [NIMBUS MANTICORE](https://attack.mitre.org/groups/G1059) has sought sensitive information in victims\u2019 environments to include network/IT documentation, intellectual property and emails. [NIMBUS MANTICORE](https://attack.mitre.org/groups/G1059) has also leveraged compromised organizations as pivot points to access other organizations of interest. [NIMBUS MANTICORE](https://attack.mitre.org/groups/G1059) has been active since 2021 and has targeted critical infrastructure organizations to include aviation, aerospace, telecommunications and defense and information technology related organizations within the United States, Australia, Midde East and Europe.(Citation: Mandiant_UNC1549TTPsTools_Nov2025)(Citation: CheckPoint_NimbusManticore_May2026)(Citation: CheckPoint_NimbusManticoreEurope_Sept2025)(Citation: Mandiant_UNC1549_Feb2024)",
+            "techniques": [
+                "T1003.006",
+                "T1007",
+                "T1021.001",
+                "T1021.002",
+                "T1027",
+                "T1027.015",
+                "T1036.004",
+                "T1036.005",
+                "T1039",
+                "T1046",
+                "T1047",
+                "T1049",
+                "T1053.005",
+                "T1057",
+                "T1059.001",
+                "T1059.007",
+                "T1070.004",
+                "T1070.007",
+                "T1071",
+                "T1072",
+                "T1078.002",
+                "T1078.003",
+                "T1078.004",
+                "T1087.001",
+                "T1087.002",
+                "T1098",
+                "T1105",
+                "T1106",
+                "T1110.003",
+                "T1114.001",
+                "T1136.001",
+                "T1199",
+                "T1204.001",
+                "T1204.002",
+                "T1213",
+                "T1213.002",
+                "T1213.005",
+                "T1534",
+                "T1547.001",
+                "T1552",
+                "T1558.003",
+                "T1563.002",
+                "T1566.001",
+                "T1566.002",
+                "T1574.001",
+                "T1574.014",
+                "T1583.001",
+                "T1583.003",
+                "T1583.006",
+                "T1585.001",
+                "T1587.001",
+                "T1588.002",
+                "T1588.003",
+                "T1588.007",
+                "T1591",
+                "T1598.001",
+                "T1608.001",
+                "T1608.005",
+                "T1608.006",
+                "T1649",
+                "T1678",
+                "T1683.001",
+                "T1683.002",
+                "T1684.001",
+                "T1685.003"
+            ]
         }
     },
     "technique_to_groups": {
@@ -6643,6 +6853,7 @@
             "G1017",
             "G0040",
             "G0096",
+            "G1045",
             "G0035",
             "G0045",
             "G0125",
@@ -6683,6 +6894,28 @@
             "G1016",
             "G1056"
         ],
+        "T1012": [
+            "G0082",
+            "G0119",
+            "G1043",
+            "G0094",
+            "G1017",
+            "G0096",
+            "G0035",
+            "G0050",
+            "G0047",
+            "G0128",
+            "G0087",
+            "G0049",
+            "G0010",
+            "G0030",
+            "G0038",
+            "G0114",
+            "G0117",
+            "G0032",
+            "G1034",
+            "G0027"
+        ],
         "T1027.002": [
             "G0082",
             "G0066",
@@ -6706,7 +6939,64 @@
             "G0016",
             "G0070",
             "G1051",
-            "G0027"
+            "G0027",
+            "G1058"
+        ],
+        "T1027.010": [
+            "G0082",
+            "G0094",
+            "G0040",
+            "G1045",
+            "G0050",
+            "G0069",
+            "G0037",
+            "G0047",
+            "G0077",
+            "G0046",
+            "G0034",
+            "G0121",
+            "G1052",
+            "G0143",
+            "G0010",
+            "G0092",
+            "G0114",
+            "G1051",
+            "G0127",
+            "G0140",
+            "G0117",
+            "G0115",
+            "G0091",
+            "G0080",
+            "G0102",
+            "G1040",
+            "G1001",
+            "G0090",
+            "G0059",
+            "G0061",
+            "G0073"
+        ],
+        "T1027.015": [
+            "G0082",
+            "G0094",
+            "G0047",
+            "G1018",
+            "G0126",
+            "G0065",
+            "G0103",
+            "G0021",
+            "G1055",
+            "G0090",
+            "G0027",
+            "G1059"
+        ],
+        "T1027.016": [
+            "G0082",
+            "G0094",
+            "G0050",
+            "G0047",
+            "G0046",
+            "G0129",
+            "G0099"
         ],
         "T1033": [
             "G0082",
@@ -6758,8 +7048,120 @@
             "G0032",
             "G1034"
         ],
+        "T1036.005": [
+            "G0082",
+            "G0119",
+            "G1008",
+            "G1020",
+            "G0094",
+            "G0018",
+            "G1017",
+            "G0040",
+            "G0096",
+            "G0045",
+            "G0050",
+            "G0069",
+            "G0019",
+            "G0047",
+            "G1046",
+            "G0139",
+            "G0046",
+            "G0034",
+            "G0095",
+            "G0121",
+            "G0129",
+            "G0106",
+            "G0087",
+            "G1018",
+            "G1024",
+            "G0049",
+            "G0008",
+            "G0081",
+            "G0143",
+            "G0137",
+            "G0004",
+            "G0006",
+            "G0108",
+            "G0010",
+            "G0033",
+            "G1039",
+            "G0016",
+            "G0114",
+            "G0060",
+            "G0135",
+            "G0012",
+            "G1003",
+            "G1022",
+            "G0107",
+            "G1014",
+            "G0007",
+            "G1044",
+            "G1023",
+            "G0117",
+            "G0099",
+            "G0032",
+            "G1032",
+            "G1006",
+            "G0091",
+            "G0054",
+            "G1047",
+            "G0134",
+            "G1055",
+            "G0056",
+            "G0090",
+            "G0059",
+            "G1016",
+            "G1056",
+            "G1057",
+            "G1058",
+            "G1059"
+        ],
         "T1036.006": [
             "G0082"
+        ],
+        "T1036.008": [
+            "G0082",
+            "G1043",
+            "G1017",
+            "G0129",
+            "G1054"
+        ],
+        "T1041": [
+            "G0082",
+            "G1043",
+            "G0093",
+            "G0022",
+            "G0094",
+            "G0050",
+            "G0069",
+            "G0047",
+            "G0034",
+            "G1012",
+            "G0129",
+            "G0128",
+            "G1015",
+            "G0087",
+            "G1052",
+            "G0126",
+            "G0004",
+            "G0142",
+            "G0065",
+            "G1035",
+            "G0038",
+            "G0114",
+            "G1014",
+            "G1030",
+            "G0032",
+            "G0102",
+            "G1055",
+            "G0090"
+        ],
+        "T1048.002": [
+            "G0082",
+            "G1046",
+            "G1012",
+            "G1054",
+            "G0007"
         ],
         "T1049": [
             "G0082",
@@ -6793,7 +7195,8 @@
             "G1001",
             "G0059",
             "G0027",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1053.003": [
             "G0082",
@@ -6854,7 +7257,11 @@
             "G0064",
             "G0051",
             "G0061",
-            "G1016"
+            "G1016",
+            "G1059"
+        ],
+        "T1053.006": [
+            "G0082"
         ],
         "T1055": [
             "G0082",
@@ -6901,6 +7308,11 @@
             "G0027",
             "G1016"
         ],
+        "T1056.002": [
+            "G0082",
+            "G1039",
+            "G0085"
+        ],
         "T1057": [
             "G0082",
             "G0022",
@@ -6942,7 +7354,8 @@
             "G0100",
             "G1040",
             "G1001",
-            "G0059"
+            "G0059",
+            "G1059"
         ],
         "T1059.001": [
             "G0082",
@@ -7029,7 +7442,11 @@
             "G0061",
             "G1016",
             "G0073",
-            "G0133"
+            "G0133",
+            "G1059"
+        ],
+        "T1059.002": [
+            "G0082"
         ],
         "T1059.003": [
             "G0082",
@@ -7106,6 +7523,21 @@
             "G1016",
             "G0133"
         ],
+        "T1059.004": [
+            "G0082",
+            "G1017",
+            "G0096",
+            "G1045",
+            "G0139",
+            "G0106",
+            "G1015",
+            "G1048",
+            "G1052",
+            "G1041",
+            "G0143",
+            "G1047",
+            "G1056"
+        ],
         "T1059.005": [
             "G0082",
             "G1008",
@@ -7154,6 +7586,73 @@
             "G0064",
             "G1016"
         ],
+        "T1059.006": [
+            "G0082",
+            "G0094",
+            "G1045",
+            "G0035",
+            "G0069",
+            "G0095",
+            "G0128",
+            "G0106",
+            "G0087",
+            "G1048",
+            "G1052",
+            "G0067",
+            "G0010",
+            "G1039",
+            "G0016",
+            "G1021",
+            "G0060",
+            "G0131",
+            "G1006",
+            "G1055",
+            "G1056"
+        ],
+        "T1059.007": [
+            "G0082",
+            "G0119",
+            "G0094",
+            "G1037",
+            "G0120",
+            "G0050",
+            "G0069",
+            "G0037",
+            "G0077",
+            "G0046",
+            "G0121",
+            "G0129",
+            "G1052",
+            "G0126",
+            "G1031",
+            "G1019",
+            "G1035",
+            "G0010",
+            "G0092",
+            "G1033",
+            "G1038",
+            "G0140",
+            "G0099",
+            "G1006",
+            "G0091",
+            "G0080",
+            "G0021",
+            "G1056",
+            "G1057",
+            "G1059"
+        ],
+        "T1070.003": [
+            "G0082",
+            "G0096",
+            "G1045",
+            "G0045",
+            "G0139",
+            "G0143",
+            "G1051",
+            "G1023",
+            "G0032",
+            "G0059"
+        ],
         "T1070.004": [
             "G0082",
             "G1043",
@@ -7201,7 +7700,8 @@
             "G0059",
             "G0027",
             "G0051",
-            "G0061"
+            "G0061",
+            "G1059"
         ],
         "T1070.006": [
             "G0082",
@@ -7221,6 +7721,7 @@
             "G1043",
             "G0094",
             "G0096",
+            "G1045",
             "G0050",
             "G0125",
             "G0069",
@@ -7275,6 +7776,69 @@
             "G1016",
             "G0073"
         ],
+        "T1074.001": [
+            "G0082",
+            "G0119",
+            "G0093",
+            "G0022",
+            "G0094",
+            "G1017",
+            "G0040",
+            "G0035",
+            "G0045",
+            "G0069",
+            "G1046",
+            "G0139",
+            "G0121",
+            "G0129",
+            "G0087",
+            "G1048",
+            "G0065",
+            "G0053",
+            "G0030",
+            "G0114",
+            "G0135",
+            "G1030",
+            "G0007",
+            "G1023",
+            "G0032",
+            "G0102",
+            "G0090",
+            "G0027",
+            "G1016"
+        ],
+        "T1078.003": [
+            "G0082",
+            "G0094",
+            "G0050",
+            "G0125",
+            "G0046",
+            "G0081",
+            "G1041",
+            "G0010",
+            "G0016",
+            "G1047",
+            "G1040",
+            "G0056",
+            "G0051",
+            "G1059"
+        ],
+        "T1078.004": [
+            "G0082",
+            "G0125",
+            "G1015",
+            "G0004",
+            "G1053",
+            "G0016",
+            "G0007",
+            "G1023",
+            "G1004",
+            "G1055",
+            "G0064",
+            "G1056",
+            "G1057",
+            "G1059"
+        ],
         "T1082": [
             "G0082",
             "G1043",
@@ -7285,6 +7849,7 @@
             "G0018",
             "G0040",
             "G0096",
+            "G1045",
             "G0050",
             "G0069",
             "G0047",
@@ -7402,6 +7967,7 @@
             "G1017",
             "G0040",
             "G0096",
+            "G1045",
             "G0035",
             "G0120",
             "G0078",
@@ -7477,7 +8043,8 @@
             "G1016",
             "G0133",
             "G1056",
-            "G1057"
+            "G1057",
+            "G1059"
         ],
         "T1106": [
             "G0082",
@@ -7499,7 +8066,8 @@
             "G1022",
             "G0032",
             "G0091",
-            "G0090"
+            "G0090",
+            "G1059"
         ],
         "T1110": [
             "G0082",
@@ -7555,6 +8123,38 @@
             "G0094",
             "G0087",
             "G0049"
+        ],
+        "T1124": [
+            "G0082",
+            "G0094",
+            "G1017",
+            "G0046",
+            "G1012",
+            "G0121",
+            "G0128",
+            "G1048",
+            "G0126",
+            "G0089",
+            "G0010",
+            "G0114",
+            "G0060",
+            "G0012",
+            "G0032"
+        ],
+        "T1132.001": [
+            "G0082",
+            "G0040",
+            "G1045",
+            "G0125",
+            "G0069",
+            "G0034",
+            "G0081",
+            "G0060",
+            "G0127",
+            "G1044",
+            "G0032",
+            "G0064",
+            "G0073"
         ],
         "T1135": [
             "G0082",
@@ -7647,6 +8247,11 @@
             "G0027",
             "G0073"
         ],
+        "T1195.001": [
+            "G0082",
+            "G1056",
+            "G1057"
+        ],
         "T1204.001": [
             "G0082",
             "G0066",
@@ -7696,7 +8301,8 @@
             "G0090",
             "G0059",
             "G0064",
-            "G0061"
+            "G0061",
+            "G1059"
         ],
         "T1204.002": [
             "G0082",
@@ -7784,7 +8390,23 @@
             "G0064",
             "G0061",
             "G0073",
-            "G0133"
+            "G0133",
+            "G1059"
+        ],
+        "T1213.005": [
+            "G0082",
+            "G1015",
+            "G0117",
+            "G1004",
+            "G1059"
+        ],
+        "T1213.006": [
+            "G0082",
+            "G0037",
+            "G0034",
+            "G1041",
+            "G0010",
+            "G1057"
         ],
         "T1217": [
             "G0082",
@@ -7857,6 +8479,19 @@
             "G0059",
             "G0073"
         ],
+        "T1222.002": [
+            "G0082",
+            "G0050",
+            "G0139",
+            "G0106"
+        ],
+        "T1480": [
+            "G0082",
+            "G1043",
+            "G0047",
+            "G1052",
+            "G0099"
+        ],
         "T1480.002": [
             "G0082",
             "G0094"
@@ -7890,7 +8525,8 @@
             "G1055",
             "G0059",
             "G0061",
-            "G1056"
+            "G1056",
+            "G1058"
         ],
         "T1505.003": [
             "G0082",
@@ -7924,6 +8560,20 @@
             "G0059",
             "G0027",
             "G1016"
+        ],
+        "T1518": [
+            "G0082",
+            "G1008",
+            "G1017",
+            "G0069",
+            "G0121",
+            "G0129",
+            "G0124",
+            "G0081",
+            "G0060",
+            "G0112",
+            "G0100",
+            "G1001"
         ],
         "T1518.001": [
             "G0082",
@@ -7960,6 +8610,10 @@
             "G1051",
             "G0032"
         ],
+        "T1543.001": [
+            "G0082",
+            "G1052"
+        ],
         "T1543.003": [
             "G0082",
             "G1043",
@@ -7988,6 +8642,74 @@
             "G0027",
             "G0073"
         ],
+        "T1543.004": [
+            "G0082"
+        ],
+        "T1546.016": [
+            "G0082",
+            "G1056"
+        ],
+        "T1547.001": [
+            "G0082",
+            "G1043",
+            "G0022",
+            "G0094",
+            "G0040",
+            "G0096",
+            "G0035",
+            "G0078",
+            "G0050",
+            "G0069",
+            "G0019",
+            "G0037",
+            "G0047",
+            "G1046",
+            "G0139",
+            "G0046",
+            "G0026",
+            "G0121",
+            "G0129",
+            "G0128",
+            "G0106",
+            "G0087",
+            "G1052",
+            "G1018",
+            "G0067",
+            "G0126",
+            "G0081",
+            "G0024",
+            "G0004",
+            "G0142",
+            "G0065",
+            "G0010",
+            "G1039",
+            "G0016",
+            "G0070",
+            "G0060",
+            "G0012",
+            "G0140",
+            "G0112",
+            "G1014",
+            "G0007",
+            "G0048",
+            "G0032",
+            "G0091",
+            "G0080",
+            "G0102",
+            "G0021",
+            "G1036",
+            "G0100",
+            "G1055",
+            "G0056",
+            "G0059",
+            "G0027",
+            "G0064",
+            "G0051",
+            "G1016",
+            "G0073",
+            "G1056",
+            "G1059"
+        ],
         "T1548.002": [
             "G0082",
             "G0040",
@@ -8001,10 +8723,117 @@
             "G0080",
             "G0027"
         ],
+        "T1548.003": [
+            "G0082",
+            "G1045"
+        ],
+        "T1548.006": [
+            "G0082"
+        ],
+        "T1552.003": [
+            "G0082"
+        ],
+        "T1552.004": [
+            "G0082",
+            "G0094",
+            "G1017",
+            "G0139",
+            "G0106",
+            "G1015",
+            "G1053",
+            "G1056"
+        ],
         "T1553.005": [
             "G0082",
             "G0092",
             "G0016"
+        ],
+        "T1555": [
+            "G0082",
+            "G1017",
+            "G0096",
+            "G0120",
+            "G0069",
+            "G0037",
+            "G0077",
+            "G0087",
+            "G0049",
+            "G0038",
+            "G1026",
+            "G1001",
+            "G0064"
+        ],
+        "T1555.001": [
+            "G0082",
+            "G1052"
+        ],
+        "T1555.003": [
+            "G0082",
+            "G0022",
+            "G0094",
+            "G1017",
+            "G0040",
+            "G0096",
+            "G0069",
+            "G0037",
+            "G0077",
+            "G0034",
+            "G0128",
+            "G0067",
+            "G0049",
+            "G0092",
+            "G1039",
+            "G0038",
+            "G1026",
+            "G1044",
+            "G1004",
+            "G0021",
+            "G0100",
+            "G1001",
+            "G0130",
+            "G0064"
+        ],
+        "T1560.001": [
+            "G0082",
+            "G0093",
+            "G0022",
+            "G0094",
+            "G1017",
+            "G0096",
+            "G0045",
+            "G0125",
+            "G0069",
+            "G0084",
+            "G0129",
+            "G0087",
+            "G1048",
+            "G1024",
+            "G1041",
+            "G0143",
+            "G0004",
+            "G0006",
+            "G0010",
+            "G1039",
+            "G0030",
+            "G0114",
+            "G1054",
+            "G0060",
+            "G1022",
+            "G1030",
+            "G0007",
+            "G1023",
+            "G0117",
+            "G1032",
+            "G1006",
+            "G0054",
+            "G0052",
+            "G0102",
+            "G1055",
+            "G1040",
+            "G0059",
+            "G0064",
+            "G0061",
+            "G1016"
         ],
         "T1561.002": [
             "G0082",
@@ -8013,6 +8842,37 @@
             "G1003",
             "G0032",
             "G1055"
+        ],
+        "T1564.003": [
+            "G0082",
+            "G0022",
+            "G0094",
+            "G0078",
+            "G0050",
+            "G0047",
+            "G0046",
+            "G0126",
+            "G0079",
+            "G1051",
+            "G0009",
+            "G1022",
+            "G0007",
+            "G0099",
+            "G0052",
+            "G1055",
+            "G0059",
+            "G0073",
+            "G0133"
+        ],
+        "T1564.011": [
+            "G0082",
+            "G0094",
+            "G1048",
+            "G1041"
+        ],
+        "T1564.012": [
+            "G0082",
+            "G0010"
         ],
         "T1565.001": [
             "G0082"
@@ -8101,7 +8961,83 @@
             "G0064",
             "G0061",
             "G0073",
-            "G0133"
+            "G0133",
+            "G1059"
+        ],
+        "T1566.002": [
+            "G0082",
+            "G0066",
+            "G0022",
+            "G1020",
+            "G0094",
+            "G1011",
+            "G1037",
+            "G0040",
+            "G0120",
+            "G0050",
+            "G0069",
+            "G1046",
+            "G0046",
+            "G0034",
+            "G0095",
+            "G0121",
+            "G0129",
+            "G0128",
+            "G0087",
+            "G1018",
+            "G0049",
+            "G0006",
+            "G0142",
+            "G0098",
+            "G0065",
+            "G0010",
+            "G0092",
+            "G1039",
+            "G0103",
+            "G0016",
+            "G1054",
+            "G0140",
+            "G0112",
+            "G1014",
+            "G1044",
+            "G0099",
+            "G0032",
+            "G1006",
+            "G0085",
+            "G0080",
+            "G0102",
+            "G0021",
+            "G0134",
+            "G0090",
+            "G0059",
+            "G0064",
+            "G0061",
+            "G1059"
+        ],
+        "T1566.003": [
+            "G0082",
+            "G1011",
+            "G0037",
+            "G1046",
+            "G1012",
+            "G1052",
+            "G0049",
+            "G0016",
+            "G0070",
+            "G0112",
+            "G1022",
+            "G0032",
+            "G1036",
+            "G0059",
+            "G0130"
+        ],
+        "T1567": [
+            "G0082",
+            "G1043",
+            "G1052",
+            "G0007",
+            "G0059",
+            "G1057"
         ],
         "T1569.002": [
             "G0082",
@@ -8120,6 +9056,27 @@
             "G0102",
             "G1047",
             "G1036"
+        ],
+        "T1571": [
+            "G0082",
+            "G1045",
+            "G0050",
+            "G0069",
+            "G1042",
+            "G0047",
+            "G0046",
+            "G0034",
+            "G0106",
+            "G1052",
+            "G0105",
+            "G1003",
+            "G0099",
+            "G0032",
+            "G0091",
+            "G1047",
+            "G0090",
+            "G0059",
+            "G0064"
         ],
         "T1583.001": [
             "G0082",
@@ -8167,7 +9124,114 @@
             "G0059",
             "G0027",
             "G1056",
+            "G1057",
+            "G1058",
+            "G1059"
+        ],
+        "T1583.003": [
+            "G0082",
+            "G1043",
+            "G1045",
+            "G0035",
+            "G0125",
+            "G0047",
+            "G1012",
+            "G1052",
+            "G1041",
+            "G1035",
+            "G0001",
+            "G1003",
+            "G0007",
+            "G1044",
+            "G0099",
+            "G1004",
+            "G1036",
+            "G1055",
+            "G1059"
+        ],
+        "T1583.006": [
+            "G0082",
+            "G0025",
+            "G0094",
+            "G0050",
+            "G0125",
+            "G0069",
+            "G0047",
+            "G0046",
+            "G0129",
+            "G0128",
+            "G1052",
+            "G1018",
+            "G1005",
+            "G1031",
+            "G0142",
+            "G0010",
+            "G0016",
+            "G1051",
+            "G1038",
+            "G0140",
+            "G0007",
+            "G0099",
+            "G0032",
+            "G1006",
+            "G0136",
+            "G1055",
+            "G0059",
+            "G1056",
+            "G1059"
+        ],
+        "T1585.001": [
+            "G0082",
+            "G0094",
+            "G1011",
+            "G1045",
+            "G0050",
+            "G0034",
+            "G1012",
+            "G1015",
+            "G1052",
+            "G0065",
+            "G0003",
+            "G1051",
+            "G1033",
+            "G1050",
+            "G0117",
+            "G0032",
+            "G1036",
+            "G1055",
+            "G1001",
+            "G0059",
+            "G1056",
+            "G1058",
+            "G1059"
+        ],
+        "T1585.002": [
+            "G0082",
+            "G0119",
+            "G0094",
+            "G1011",
+            "G0034",
+            "G1012",
+            "G0129",
+            "G1052",
+            "G0006",
+            "G0065",
+            "G0122",
+            "G1051",
+            "G1033",
+            "G1044",
+            "G0032",
+            "G0102",
+            "G1036",
+            "G1055",
+            "G1001",
+            "G0059",
             "G1057"
+        ],
+        "T1586.003": [
+            "G0082",
+            "G0016",
+            "G0099"
         ],
         "T1588.002": [
             "G0082",
@@ -8251,7 +9315,114 @@
             "G1016",
             "G0073",
             "G0011",
-            "G1057"
+            "G1057",
+            "G1058",
+            "G1059"
+        ],
+        "T1608.001": [
+            "G0082",
+            "G1043",
+            "G1008",
+            "G1020",
+            "G0094",
+            "G1011",
+            "G0050",
+            "G0047",
+            "G0139",
+            "G0046",
+            "G0034",
+            "G0129",
+            "G1052",
+            "G1018",
+            "G0049",
+            "G1031",
+            "G0092",
+            "G1002",
+            "G1033",
+            "G0140",
+            "G1014",
+            "G1044",
+            "G0099",
+            "G1006",
+            "G1036",
+            "G1001",
+            "G0090",
+            "G0027",
+            "G1056",
+            "G1059"
+        ],
+        "T1620": [
+            "G0082",
+            "G0094",
+            "G0047",
+            "G0046",
+            "G0032"
+        ],
+        "T1657": [
+            "G0082",
+            "G0094",
+            "G1049",
+            "G1015",
+            "G1052",
+            "G1024",
+            "G0083",
+            "G1053",
+            "G1021",
+            "G1051",
+            "G1050",
+            "G1026",
+            "G1032",
+            "G1055",
+            "G1040",
+            "G1016",
+            "G1056",
+            "G1057",
+            "G1058"
+        ],
+        "T1677": [
+            "G0082",
+            "G1056"
+        ],
+        "T1678": [
+            "G0082",
+            "G0094",
+            "G0129",
+            "G1059"
+        ],
+        "T1683.001": [
+            "G0082",
+            "G1052",
+            "G0099",
+            "G1056",
+            "G1058",
+            "G1059"
+        ],
+        "T1683.002": [
+            "G0082",
+            "G1052",
+            "G0099",
+            "G1058",
+            "G1059"
+        ],
+        "T1684.001": [
+            "G0082",
+            "G0094",
+            "G0096",
+            "G0069",
+            "G1046",
+            "G1015",
+            "G1052",
+            "G1031",
+            "G1054",
+            "G1033",
+            "G0007",
+            "G1044",
+            "G0099",
+            "G1004",
+            "G1055",
+            "G0090",
+            "G1056",
+            "G1059"
         ],
         "T1685": [
             "G0082",
@@ -8259,6 +9430,7 @@
             "G1043",
             "G0094",
             "G0096",
+            "G1045",
             "G0078",
             "G0069",
             "G0037",
@@ -8286,6 +9458,10 @@
             "G1047",
             "G1040",
             "G0059"
+        ],
+        "T1685.003": [
+            "G0082",
+            "G1059"
         ],
         "T1685.005": [
             "G0082",
@@ -8319,7 +9495,8 @@
             "G1047"
         ],
         "T1686.002": [
-            "G0082"
+            "G0082",
+            "G1045"
         ],
         "T1690": [
             "G0082",
@@ -8388,28 +9565,8 @@
             "G0114",
             "G1054",
             "G0060",
-            "G1006"
-        ],
-        "T1012": [
-            "G0119",
-            "G1043",
-            "G0094",
-            "G1017",
-            "G0096",
-            "G0035",
-            "G0050",
-            "G0047",
-            "G0128",
-            "G0087",
-            "G0049",
-            "G0010",
-            "G0030",
-            "G0038",
-            "G0114",
-            "G0117",
-            "G0032",
-            "G1034",
-            "G0027"
+            "G1006",
+            "G1059"
         ],
         "T1018": [
             "G0119",
@@ -8418,6 +9575,7 @@
             "G0022",
             "G1017",
             "G0096",
+            "G1045",
             "G0035",
             "G0045",
             "G0050",
@@ -8452,7 +9610,8 @@
             "G0059",
             "G0027",
             "G0061",
-            "G1057"
+            "G1057",
+            "G1058"
         ],
         "T1021.001": [
             "G0119",
@@ -8462,6 +9621,7 @@
             "G1017",
             "G0040",
             "G0096",
+            "G1045",
             "G0035",
             "G0045",
             "G0037",
@@ -8491,7 +9651,8 @@
             "G0059",
             "G0051",
             "G0061",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1021.004": [
             "G0119",
@@ -8513,71 +9674,6 @@
             "G0117",
             "G0032",
             "G1016"
-        ],
-        "T1036.005": [
-            "G0119",
-            "G1008",
-            "G1020",
-            "G0094",
-            "G0018",
-            "G1017",
-            "G0040",
-            "G0096",
-            "G0045",
-            "G0050",
-            "G0069",
-            "G0019",
-            "G0047",
-            "G1046",
-            "G0139",
-            "G0046",
-            "G0034",
-            "G0095",
-            "G0121",
-            "G0129",
-            "G0106",
-            "G0087",
-            "G1018",
-            "G1024",
-            "G0049",
-            "G0008",
-            "G0081",
-            "G0143",
-            "G0137",
-            "G0004",
-            "G0006",
-            "G0108",
-            "G0010",
-            "G0033",
-            "G1039",
-            "G0016",
-            "G0114",
-            "G0060",
-            "G0135",
-            "G0012",
-            "G1003",
-            "G1022",
-            "G0107",
-            "G1014",
-            "G0007",
-            "G1044",
-            "G1023",
-            "G0117",
-            "G0099",
-            "G0032",
-            "G1032",
-            "G1006",
-            "G0091",
-            "G0054",
-            "G1047",
-            "G0134",
-            "G1055",
-            "G0056",
-            "G0090",
-            "G0059",
-            "G1016",
-            "G1056",
-            "G1057"
         ],
         "T1047": [
             "G0119",
@@ -8621,67 +9717,8 @@
             "G0059",
             "G0027",
             "G0061",
-            "G1016"
-        ],
-        "T1059.007": [
-            "G0119",
-            "G0094",
-            "G1037",
-            "G0120",
-            "G0050",
-            "G0069",
-            "G0037",
-            "G0077",
-            "G0046",
-            "G0121",
-            "G0129",
-            "G1052",
-            "G0126",
-            "G1031",
-            "G1019",
-            "G1035",
-            "G0010",
-            "G0092",
-            "G1033",
-            "G1038",
-            "G0140",
-            "G0099",
-            "G1006",
-            "G0091",
-            "G0080",
-            "G0021",
-            "G1056",
-            "G1057"
-        ],
-        "T1074.001": [
-            "G0119",
-            "G0093",
-            "G0022",
-            "G0094",
-            "G1017",
-            "G0040",
-            "G0035",
-            "G0045",
-            "G0069",
-            "G1046",
-            "G0139",
-            "G0121",
-            "G0129",
-            "G0087",
-            "G1048",
-            "G0065",
-            "G0053",
-            "G0030",
-            "G0114",
-            "G0135",
-            "G1030",
-            "G0007",
-            "G1023",
-            "G0032",
-            "G0102",
-            "G0090",
-            "G0027",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1078": [
             "G0119",
@@ -8689,6 +9726,7 @@
             "G0093",
             "G1017",
             "G0096",
+            "G1045",
             "G0035",
             "G0045",
             "G0037",
@@ -8730,7 +9768,8 @@
             "G0061",
             "G0011",
             "G1056",
-            "G1057"
+            "G1057",
+            "G1058"
         ],
         "T1078.002": [
             "G0119",
@@ -8752,7 +9791,8 @@
             "G1055",
             "G1040",
             "G0059",
-            "G1057"
+            "G1057",
+            "G1059"
         ],
         "T1136": [
             "G0119",
@@ -8764,6 +9804,7 @@
             "G0022",
             "G0094",
             "G0096",
+            "G1045",
             "G0035",
             "G0077",
             "G0139",
@@ -8773,7 +9814,8 @@
             "G0102",
             "G1034",
             "G0059",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1484.001": [
             "G0119",
@@ -8795,6 +9837,7 @@
             "G0119",
             "G0022",
             "G0094",
+            "G1045",
             "G0069",
             "G0077",
             "G0139",
@@ -8820,7 +9863,8 @@
         "T1558.003": [
             "G0119",
             "G0046",
-            "G0102"
+            "G0102",
+            "G1059"
         ],
         "T1567.002": [
             "G0119",
@@ -8872,28 +9916,6 @@
             "G0023",
             "G1034"
         ],
-        "T1585.002": [
-            "G0119",
-            "G0094",
-            "G1011",
-            "G0034",
-            "G1012",
-            "G0129",
-            "G1052",
-            "G0006",
-            "G0065",
-            "G0122",
-            "G1051",
-            "G1033",
-            "G1044",
-            "G0032",
-            "G0102",
-            "G1036",
-            "G1055",
-            "G1001",
-            "G0059",
-            "G1057"
-        ],
         "T1587.001": [
             "G0119",
             "G0094",
@@ -8920,7 +9942,8 @@
             "G1055",
             "G1040",
             "G1016",
-            "G1056"
+            "G1056",
+            "G1059"
         ],
         "T1590": [
             "G0119",
@@ -8951,6 +9974,7 @@
             "G0018",
             "G1017",
             "G0096",
+            "G1045",
             "G0035",
             "G0045",
             "G0050",
@@ -9015,47 +10039,14 @@
             "G1047",
             "G1040",
             "G0061",
-            "G1016"
-        ],
-        "T1036.008": [
-            "G1043",
-            "G1017",
-            "G0129",
-            "G1054"
-        ],
-        "T1041": [
-            "G1043",
-            "G0093",
-            "G0022",
-            "G0094",
-            "G0050",
-            "G0069",
-            "G0047",
-            "G0034",
-            "G1012",
-            "G0129",
-            "G0128",
-            "G1015",
-            "G0087",
-            "G1052",
-            "G0126",
-            "G0004",
-            "G0142",
-            "G0065",
-            "G1035",
-            "G0038",
-            "G0114",
-            "G1014",
-            "G1030",
-            "G0032",
-            "G0102",
-            "G1055",
-            "G0090"
+            "G1016",
+            "G1059"
         ],
         "T1046": [
             "G1043",
             "G1017",
             "G0096",
+            "G1045",
             "G0045",
             "G0050",
             "G0019",
@@ -9083,7 +10074,8 @@
             "G0080",
             "G0059",
             "G0027",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1055.012": [
             "G1043",
@@ -9117,7 +10109,8 @@
             "G0068",
             "G0027",
             "G0064",
-            "G0061"
+            "G0061",
+            "G1058"
         ],
         "T1087.002": [
             "G1043",
@@ -9148,7 +10141,8 @@
             "G1004",
             "G0102",
             "G1055",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1134.003": [
             "G1043",
@@ -9207,7 +10201,8 @@
             "G0027",
             "G1016",
             "G1056",
-            "G1057"
+            "G1057",
+            "G1058"
         ],
         "T1219": [
             "G1043",
@@ -9223,12 +10218,6 @@
             "G1032",
             "G0080",
             "G1057"
-        ],
-        "T1480": [
-            "G1043",
-            "G0047",
-            "G1052",
-            "G0099"
         ],
         "T1482": [
             "G1043",
@@ -9257,65 +10246,6 @@
             "G0032",
             "G1057"
         ],
-        "T1547.001": [
-            "G1043",
-            "G0022",
-            "G0094",
-            "G0040",
-            "G0096",
-            "G0035",
-            "G0078",
-            "G0050",
-            "G0069",
-            "G0019",
-            "G0037",
-            "G0047",
-            "G1046",
-            "G0139",
-            "G0046",
-            "G0026",
-            "G0121",
-            "G0129",
-            "G0128",
-            "G0106",
-            "G0087",
-            "G1052",
-            "G1018",
-            "G0067",
-            "G0126",
-            "G0081",
-            "G0024",
-            "G0004",
-            "G0142",
-            "G0065",
-            "G0010",
-            "G1039",
-            "G0016",
-            "G0070",
-            "G0060",
-            "G0012",
-            "G0140",
-            "G0112",
-            "G1014",
-            "G0007",
-            "G0048",
-            "G0032",
-            "G0091",
-            "G0080",
-            "G0102",
-            "G0021",
-            "G1036",
-            "G0100",
-            "G1055",
-            "G0056",
-            "G0059",
-            "G0027",
-            "G0064",
-            "G0051",
-            "G1016",
-            "G0073",
-            "G1056"
-        ],
         "T1560": [
             "G1043",
             "G0040",
@@ -9330,13 +10260,6 @@
             "G1014",
             "G0007",
             "G0032"
-        ],
-        "T1567": [
-            "G1043",
-            "G1052",
-            "G0007",
-            "G0059",
-            "G1057"
         ],
         "T1570": [
             "G1043",
@@ -9358,54 +10281,6 @@
             "G1047",
             "G0059",
             "G0051"
-        ],
-        "T1583.003": [
-            "G1043",
-            "G0035",
-            "G0125",
-            "G0047",
-            "G1012",
-            "G1052",
-            "G1041",
-            "G1035",
-            "G0001",
-            "G1003",
-            "G0007",
-            "G1044",
-            "G0099",
-            "G1004",
-            "G1036",
-            "G1055"
-        ],
-        "T1608.001": [
-            "G1043",
-            "G1008",
-            "G1020",
-            "G0094",
-            "G1011",
-            "G0050",
-            "G0047",
-            "G0139",
-            "G0046",
-            "G0034",
-            "G0129",
-            "G1052",
-            "G1018",
-            "G0049",
-            "G1031",
-            "G0092",
-            "G1002",
-            "G1033",
-            "G0140",
-            "G1014",
-            "G1044",
-            "G0099",
-            "G1006",
-            "G1036",
-            "G1001",
-            "G0090",
-            "G0027",
-            "G1056"
         ],
         "T1614.001": [
             "G1043",
@@ -9500,67 +10375,6 @@
             "G0064",
             "G1057"
         ],
-        "T1566.002": [
-            "G0066",
-            "G0022",
-            "G1020",
-            "G0094",
-            "G1011",
-            "G1037",
-            "G0040",
-            "G0120",
-            "G0050",
-            "G0069",
-            "G1046",
-            "G0046",
-            "G0034",
-            "G0095",
-            "G0121",
-            "G0129",
-            "G0128",
-            "G0087",
-            "G1018",
-            "G0049",
-            "G0006",
-            "G0142",
-            "G0098",
-            "G0065",
-            "G0010",
-            "G0092",
-            "G1039",
-            "G0103",
-            "G0016",
-            "G1054",
-            "G0140",
-            "G0112",
-            "G1014",
-            "G1044",
-            "G0099",
-            "G0032",
-            "G1006",
-            "G0085",
-            "G0080",
-            "G0102",
-            "G0021",
-            "G0134",
-            "G0090",
-            "G0059",
-            "G0064",
-            "G0061"
-        ],
-        "T1518": [
-            "G1008",
-            "G1017",
-            "G0069",
-            "G0121",
-            "G0129",
-            "G0124",
-            "G0081",
-            "G0060",
-            "G0112",
-            "G0100",
-            "G1001"
-        ],
         "T1574.001": [
             "G1008",
             "G0093",
@@ -9596,7 +10410,8 @@
             "G0090",
             "G0027",
             "G1016",
-            "G0073"
+            "G0073",
+            "G1059"
         ],
         "T1584.001": [
             "G1008",
@@ -9650,7 +10465,8 @@
             "G0099",
             "G1006",
             "G0063",
-            "G1036"
+            "G1036",
+            "G1059"
         ],
         "T1027.005": [
             "G0093",
@@ -9747,47 +10563,6 @@
             "G1034",
             "G1056"
         ],
-        "T1560.001": [
-            "G0093",
-            "G0022",
-            "G0094",
-            "G1017",
-            "G0096",
-            "G0045",
-            "G0125",
-            "G0069",
-            "G0084",
-            "G0129",
-            "G0087",
-            "G1048",
-            "G1024",
-            "G1041",
-            "G0143",
-            "G0004",
-            "G0006",
-            "G0010",
-            "G1039",
-            "G0030",
-            "G0114",
-            "G1054",
-            "G0060",
-            "G1022",
-            "G1030",
-            "G0007",
-            "G1023",
-            "G0117",
-            "G1032",
-            "G1006",
-            "G0054",
-            "G0052",
-            "G0102",
-            "G1055",
-            "G1040",
-            "G0059",
-            "G0064",
-            "G0061",
-            "G1016"
-        ],
         "T1583.004": [
             "G0093",
             "G1020",
@@ -9799,41 +10574,13 @@
             "G1056",
             "G1057"
         ],
-        "T1583.006": [
-            "G0025",
-            "G0094",
-            "G0050",
-            "G0125",
-            "G0069",
-            "G0047",
-            "G0046",
-            "G0129",
-            "G0128",
-            "G1052",
-            "G1018",
-            "G1005",
-            "G1031",
-            "G0142",
-            "G0010",
-            "G0016",
-            "G1051",
-            "G1038",
-            "G0140",
-            "G0007",
-            "G0099",
-            "G0032",
-            "G1006",
-            "G0136",
-            "G1055",
-            "G0059",
-            "G1056"
-        ],
         "T1585": [
             "G0025",
             "G0094",
             "G1052",
             "G1003",
-            "G0117"
+            "G0117",
+            "G1058"
         ],
         "T1036.010": [
             "G0022",
@@ -9867,10 +10614,12 @@
             "G1051",
             "G1044",
             "G0117",
-            "G0027"
+            "G0027",
+            "G1059"
         ],
         "T1095": [
             "G0022",
+            "G1045",
             "G0125",
             "G0037",
             "G0047",
@@ -9912,51 +10661,6 @@
             "G0009",
             "G0117"
         ],
-        "T1555.003": [
-            "G0022",
-            "G0094",
-            "G1017",
-            "G0040",
-            "G0096",
-            "G0069",
-            "G0037",
-            "G0077",
-            "G0034",
-            "G0128",
-            "G0067",
-            "G0049",
-            "G0092",
-            "G1039",
-            "G0038",
-            "G1026",
-            "G1044",
-            "G1004",
-            "G0021",
-            "G0100",
-            "G1001",
-            "G0130",
-            "G0064"
-        ],
-        "T1564.003": [
-            "G0022",
-            "G0094",
-            "G0078",
-            "G0050",
-            "G0047",
-            "G0046",
-            "G0126",
-            "G0079",
-            "G1051",
-            "G0009",
-            "G1022",
-            "G0007",
-            "G0099",
-            "G0052",
-            "G1055",
-            "G0059",
-            "G0073",
-            "G0133"
-        ],
         "T1583.008": [
             "G1020"
         ],
@@ -9971,7 +10675,8 @@
             "G0027"
         ],
         "T1608.006": [
-            "G1020"
+            "G1020",
+            "G1059"
         ],
         "T1021.005": [
             "G0036",
@@ -10003,61 +10708,10 @@
             "G0129",
             "G0032"
         ],
-        "T1027.010": [
-            "G0094",
-            "G0040",
-            "G0050",
-            "G0069",
-            "G0037",
-            "G0047",
-            "G0077",
-            "G0046",
-            "G0034",
-            "G0121",
-            "G1052",
-            "G0143",
-            "G0010",
-            "G0092",
-            "G0114",
-            "G1051",
-            "G0127",
-            "G0140",
-            "G0117",
-            "G0115",
-            "G0091",
-            "G0080",
-            "G0102",
-            "G1040",
-            "G1001",
-            "G0090",
-            "G0059",
-            "G0061",
-            "G0073"
-        ],
         "T1027.012": [
             "G0094",
             "G0047",
             "G0129"
-        ],
-        "T1027.015": [
-            "G0094",
-            "G0047",
-            "G1018",
-            "G0126",
-            "G0065",
-            "G0103",
-            "G0021",
-            "G1055",
-            "G0090",
-            "G0027"
-        ],
-        "T1027.016": [
-            "G0094",
-            "G0050",
-            "G0047",
-            "G0046",
-            "G0129",
-            "G0099"
         ],
         "T1036.004": [
             "G0094",
@@ -10082,7 +10736,8 @@
             "G1055",
             "G0056",
             "G0059",
-            "G1016"
+            "G1016",
+            "G1059"
         ],
         "T1036.007": [
             "G0094",
@@ -10114,30 +10769,10 @@
             "G0094",
             "G1035"
         ],
-        "T1059.006": [
-            "G0094",
-            "G0035",
-            "G0069",
-            "G0095",
-            "G0128",
-            "G0106",
-            "G0087",
-            "G1048",
-            "G1052",
-            "G0067",
-            "G0010",
-            "G1039",
-            "G0016",
-            "G1021",
-            "G0060",
-            "G0131",
-            "G1006",
-            "G1055",
-            "G1056"
-        ],
         "T1071.002": [
             "G0094",
             "G0096",
+            "G1045",
             "G0035",
             "G0083",
             "G1054"
@@ -10149,20 +10784,6 @@
             "G0083",
             "G0010",
             "G0007"
-        ],
-        "T1078.003": [
-            "G0094",
-            "G0050",
-            "G0125",
-            "G0046",
-            "G0081",
-            "G1041",
-            "G0010",
-            "G0016",
-            "G1047",
-            "G1040",
-            "G0056",
-            "G0051"
         ],
         "T1102.001": [
             "G0094",
@@ -10239,22 +10860,6 @@
             "G1033",
             "G1004"
         ],
-        "T1124": [
-            "G0094",
-            "G1017",
-            "G0046",
-            "G1012",
-            "G0121",
-            "G0128",
-            "G1048",
-            "G0126",
-            "G0089",
-            "G0010",
-            "G0114",
-            "G0060",
-            "G0012",
-            "G0032"
-        ],
         "T1132.002": [
             "G0094"
         ],
@@ -10298,7 +10903,8 @@
             "G1053",
             "G0048",
             "G0076",
-            "G1055"
+            "G1055",
+            "G1058"
         ],
         "T1497.001": [
             "G0094",
@@ -10315,7 +10921,8 @@
             "G0047",
             "G0065",
             "G0099",
-            "G1001"
+            "G1001",
+            "G1059"
         ],
         "T1539": [
             "G0094",
@@ -10329,15 +10936,6 @@
         ],
         "T1546.001": [
             "G0094"
-        ],
-        "T1552.004": [
-            "G0094",
-            "G1017",
-            "G0139",
-            "G0106",
-            "G1015",
-            "G1053",
-            "G1056"
         ],
         "T1557": [
             "G0094",
@@ -10363,11 +10961,6 @@
             "G0094",
             "G0035"
         ],
-        "T1564.011": [
-            "G0094",
-            "G1048",
-            "G1041"
-        ],
         "T1566": [
             "G0094",
             "G1049",
@@ -10388,27 +10981,6 @@
             "G0099",
             "G0134"
         ],
-        "T1585.001": [
-            "G0094",
-            "G1011",
-            "G0050",
-            "G0034",
-            "G1012",
-            "G1015",
-            "G1052",
-            "G0065",
-            "G0003",
-            "G1051",
-            "G1033",
-            "G1050",
-            "G0117",
-            "G0032",
-            "G1036",
-            "G1055",
-            "G1001",
-            "G0059",
-            "G1056"
-        ],
         "T1586.002": [
             "G0094",
             "G1037",
@@ -10427,6 +10999,7 @@
         ],
         "T1587": [
             "G0094",
+            "G1045",
             "G1052",
             "G1036"
         ],
@@ -10437,10 +11010,12 @@
             "G0098",
             "G0102",
             "G0027",
-            "G0061"
+            "G0061",
+            "G1059"
         ],
         "T1588.005": [
             "G0094",
+            "G1045",
             "G1003"
         ],
         "T1589.002": [
@@ -10471,7 +11046,8 @@
             "G1054",
             "G0007",
             "G0032",
-            "G1036"
+            "G1036",
+            "G1059"
         ],
         "T1593.001": [
             "G0094",
@@ -10519,35 +11095,6 @@
             "G0059",
             "G1057"
         ],
-        "T1620": [
-            "G0094",
-            "G0047",
-            "G0046",
-            "G0032"
-        ],
-        "T1657": [
-            "G0094",
-            "G1049",
-            "G1015",
-            "G1052",
-            "G1024",
-            "G0083",
-            "G1053",
-            "G1021",
-            "G1051",
-            "G1050",
-            "G1026",
-            "G1032",
-            "G1055",
-            "G1040",
-            "G1016",
-            "G1056",
-            "G1057"
-        ],
-        "T1678": [
-            "G0094",
-            "G0129"
-        ],
         "T1680": [
             "G0094",
             "G1017",
@@ -10563,24 +11110,6 @@
         "T1682": [
             "G0094",
             "G1044"
-        ],
-        "T1684.001": [
-            "G0094",
-            "G0096",
-            "G0069",
-            "G1046",
-            "G1015",
-            "G1052",
-            "G1031",
-            "G1054",
-            "G1033",
-            "G0007",
-            "G1044",
-            "G0099",
-            "G1004",
-            "G1055",
-            "G0090",
-            "G1056"
         ],
         "T1102": [
             "G1011",
@@ -10598,22 +11127,6 @@
             "G0100",
             "G1055",
             "G0061"
-        ],
-        "T1566.003": [
-            "G1011",
-            "G0037",
-            "G1046",
-            "G1012",
-            "G1052",
-            "G0049",
-            "G0016",
-            "G0070",
-            "G0112",
-            "G1022",
-            "G0032",
-            "G1036",
-            "G0059",
-            "G0130"
         ],
         "T1597": [
             "G1011"
@@ -10674,19 +11187,6 @@
             "G0061",
             "G1016"
         ],
-        "T1059.004": [
-            "G1017",
-            "G0096",
-            "G0139",
-            "G0106",
-            "G1015",
-            "G1048",
-            "G1052",
-            "G1041",
-            "G0143",
-            "G1047",
-            "G1056"
-        ],
         "T1069.002": [
             "G1017",
             "G0035",
@@ -10704,7 +11204,9 @@
         ],
         "T1070.007": [
             "G1017",
-            "G1048"
+            "G1045",
+            "G1048",
+            "G1059"
         ],
         "T1074": [
             "G1017",
@@ -10716,6 +11218,7 @@
         "T1090": [
             "G1017",
             "G0096",
+            "G1045",
             "G0069",
             "G0047",
             "G0034",
@@ -10747,6 +11250,7 @@
         ],
         "T1090.003": [
             "G1017",
+            "G1045",
             "G0047",
             "G0128",
             "G0065",
@@ -10775,21 +11279,8 @@
             "G0032"
         ],
         "T1552": [
-            "G1017"
-        ],
-        "T1555": [
             "G1017",
-            "G0096",
-            "G0120",
-            "G0069",
-            "G0037",
-            "G0077",
-            "G0087",
-            "G0049",
-            "G0038",
-            "G1026",
-            "G1001",
-            "G0064"
+            "G1059"
         ],
         "T1573.001": [
             "G1017",
@@ -10820,6 +11311,7 @@
         ],
         "T1584.008": [
             "G1017",
+            "G1045",
             "G0128",
             "G0065",
             "G0007"
@@ -10907,19 +11399,6 @@
             "G1055",
             "G0027"
         ],
-        "T1132.001": [
-            "G0040",
-            "G0125",
-            "G0069",
-            "G0034",
-            "G0081",
-            "G0060",
-            "G0127",
-            "G1044",
-            "G0032",
-            "G0064",
-            "G0073"
-        ],
         "T1197": [
             "G0040",
             "G0096",
@@ -10972,16 +11451,6 @@
             "G0106",
             "G1048",
             "G0016"
-        ],
-        "T1070.003": [
-            "G0096",
-            "G0045",
-            "G0139",
-            "G0143",
-            "G1051",
-            "G1023",
-            "G0032",
-            "G0059"
         ],
         "T1071.004": [
             "G0096",
@@ -11059,7 +11528,11 @@
             "G0123"
         ],
         "T1599": [
-            "G0096"
+            "G0096",
+            "G1045"
+        ],
+        "T1020.001": [
+            "G1045"
         ],
         "T1048.003": [
             "G1045",
@@ -11074,10 +11547,65 @@
             "G0064",
             "G0061"
         ],
+        "T1059.008": [
+            "G1045"
+        ],
+        "T1059.013": [
+            "G1045",
+            "G0139",
+            "G1056"
+        ],
+        "T1070.009": [
+            "G1045"
+        ],
+        "T1072": [
+            "G1045",
+            "G0050",
+            "G0034",
+            "G0129",
+            "G1051",
+            "G0091",
+            "G0028",
+            "G1055",
+            "G1057",
+            "G1059"
+        ],
         "T1098.004": [
             "G1045",
             "G0139",
             "G1006"
+        ],
+        "T1110.001": [
+            "G1045",
+            "G0016",
+            "G0007",
+            "G1055"
+        ],
+        "T1199": [
+            "G1045",
+            "G0045",
+            "G0125",
+            "G0034",
+            "G1041",
+            "G1005",
+            "G1039",
+            "G0016",
+            "G0007",
+            "G0115",
+            "G1004",
+            "G1055",
+            "G0027",
+            "G1059"
+        ],
+        "T1543.005": [
+            "G1045"
+        ],
+        "T1556": [
+            "G1045",
+            "G1016"
+        ],
+        "T1569": [
+            "G1045"
         ],
         "T1572": [
             "G1045",
@@ -11096,8 +11624,19 @@
             "G0059",
             "G1016"
         ],
+        "T1595": [
+            "G1045"
+        ],
+        "T1602.001": [
+            "G1045"
+        ],
         "T1602.002": [
             "G1045"
+        ],
+        "T1610": [
+            "G1045",
+            "G0139",
+            "G1056"
         ],
         "T1685.006": [
             "G1045",
@@ -11199,7 +11738,8 @@
             "G0007",
             "G0068",
             "G1016",
-            "G0133"
+            "G0133",
+            "G1058"
         ],
         "T1039": [
             "G0045",
@@ -11209,7 +11749,8 @@
             "G0060",
             "G0007",
             "G0117",
-            "G0054"
+            "G0054",
+            "G1059"
         ],
         "T1074.002": [
             "G0045",
@@ -11224,20 +11765,6 @@
             "G0027",
             "G0061"
         ],
-        "T1199": [
-            "G0045",
-            "G0125",
-            "G0034",
-            "G1041",
-            "G1005",
-            "G1039",
-            "G0016",
-            "G0007",
-            "G0115",
-            "G1004",
-            "G1055",
-            "G0027"
-        ],
         "T1218.004": [
             "G0045",
             "G0129"
@@ -11251,27 +11778,12 @@
             "G0050",
             "G0010"
         ],
-        "T1072": [
-            "G0050",
-            "G0034",
-            "G0129",
-            "G1051",
-            "G0091",
-            "G0028",
-            "G1055",
-            "G1057"
-        ],
         "T1137": [
             "G0050",
             "G0047"
         ],
         "T1216.001": [
             "G0050"
-        ],
-        "T1222.002": [
-            "G0050",
-            "G0139",
-            "G0106"
         ],
         "T1550.003": [
             "G0050",
@@ -11301,45 +11813,13 @@
         "T1564.004": [
             "G0050"
         ],
-        "T1571": [
-            "G0050",
-            "G0069",
-            "G1042",
-            "G0047",
-            "G0046",
-            "G0034",
-            "G0106",
-            "G1052",
-            "G0105",
-            "G1003",
-            "G0099",
-            "G0032",
-            "G0091",
-            "G1047",
-            "G0090",
-            "G0059",
-            "G0064"
-        ],
-        "T1078.004": [
-            "G0125",
-            "G1015",
-            "G0004",
-            "G1053",
-            "G0016",
-            "G0007",
-            "G1023",
-            "G1004",
-            "G1055",
-            "G0064",
-            "G1056",
-            "G1057"
-        ],
         "T1098": [
             "G0125",
             "G1015",
             "G0032",
             "G1055",
-            "G1056"
+            "G1056",
+            "G1059"
         ],
         "T1110.003": [
             "G0125",
@@ -11352,7 +11832,8 @@
             "G0007",
             "G0032",
             "G1001",
-            "G0064"
+            "G0064",
+            "G1059"
         ],
         "T1213.002": [
             "G0125",
@@ -11361,7 +11842,8 @@
             "G0114",
             "G0007",
             "G1004",
-            "G1055"
+            "G1055",
+            "G1059"
         ],
         "T1530": [
             "G0125",
@@ -11469,13 +11951,6 @@
             "G0108",
             "G0030"
         ],
-        "T1213.006": [
-            "G0037",
-            "G0034",
-            "G1041",
-            "G0010",
-            "G1057"
-        ],
         "T1573.002": [
             "G0037",
             "G1042",
@@ -11531,12 +12006,6 @@
             "G0016",
             "G0056"
         ],
-        "T1048.002": [
-            "G1046",
-            "G1012",
-            "G1054",
-            "G0007"
-        ],
         "T1056": [
             "G1046",
             "G0087",
@@ -11568,16 +12037,13 @@
             "G0016",
             "G1057"
         ],
-        "T1059.013": [
-            "G0139",
-            "G1056"
-        ],
         "T1071": [
             "G0139",
             "G0106",
             "G1032",
             "G1047",
-            "G0059"
+            "G0059",
+            "G1059"
         ],
         "T1204.003": [
             "G0139"
@@ -11599,9 +12065,6 @@
             "G1003"
         ],
         "T1609": [
-            "G0139"
-        ],
-        "T1610": [
             "G0139"
         ],
         "T1611": [
@@ -11626,7 +12089,8 @@
         "T1608.005": [
             "G0046",
             "G0122",
-            "G1014"
+            "G1014",
+            "G1059"
         ],
         "T1674": [
             "G0046"
@@ -11681,7 +12145,8 @@
             "G0129",
             "G1053",
             "G1006",
-            "G1004"
+            "G1004",
+            "G1059"
         ],
         "T1052.001": [
             "G0129",
@@ -11764,11 +12229,6 @@
         ],
         "T1204": [
             "G1015",
-            "G1004"
-        ],
-        "T1213.005": [
-            "G1015",
-            "G0117",
             "G1004"
         ],
         "T1484.002": [
@@ -11866,31 +12326,17 @@
             "G1031",
             "G0012"
         ],
-        "T1543.001": [
-            "G1052"
-        ],
         "T1546.004": [
             "G1052"
         ],
         "T1547.013": [
             "G1052"
         ],
-        "T1555.001": [
-            "G1052"
-        ],
         "T1588.007": [
             "G1052",
             "G0007",
-            "G1057"
-        ],
-        "T1683.001": [
-            "G1052",
-            "G0099",
-            "G1056"
-        ],
-        "T1683.002": [
-            "G1052",
-            "G0099"
+            "G1057",
+            "G1059"
         ],
         "T1531": [
             "G1024",
@@ -11901,7 +12347,8 @@
         ],
         "T1036.001": [
             "G0067",
-            "G0112"
+            "G0112",
+            "G1058"
         ],
         "T1123": [
             "G0067",
@@ -11955,7 +12402,8 @@
             "G0114",
             "G1054",
             "G0090",
-            "G0059"
+            "G0059",
+            "G1059"
         ],
         "T1583.002": [
             "G1041",
@@ -12005,9 +12453,6 @@
         "T1546.013": [
             "G0010"
         ],
-        "T1564.012": [
-            "G0010"
-        ],
         "T1615": [
             "G0010"
         ],
@@ -12040,10 +12485,6 @@
         "T1200": [
             "G0105"
         ],
-        "T1056.002": [
-            "G1039",
-            "G0085"
-        ],
         "T1202": [
             "G1039",
             "G0032"
@@ -12062,11 +12503,6 @@
         "T1098.005": [
             "G0016"
         ],
-        "T1110.001": [
-            "G0016",
-            "G0007",
-            "G1055"
-        ],
         "T1136.003": [
             "G0016",
             "G1004"
@@ -12080,12 +12516,9 @@
         "T1556.007": [
             "G0016"
         ],
-        "T1586.003": [
-            "G0016",
-            "G0099"
-        ],
         "T1649": [
-            "G0016"
+            "G0016",
+            "G1059"
         ],
         "T1651": [
             "G0016",
@@ -12131,7 +12564,8 @@
             "G0001"
         ],
         "T1563.002": [
-            "G0001"
+            "G0001",
+            "G1059"
         ],
         "T1001.001": [
             "G0007"
@@ -12155,7 +12589,8 @@
             "G1047"
         ],
         "T1213": [
-            "G0007"
+            "G0007",
+            "G1059"
         ],
         "T1498": [
             "G0007"
@@ -12170,6 +12605,9 @@
             "G0007"
         ],
         "T1547": [
+            "G1044"
+        ],
+        "T1697": [
             "G1044"
         ],
         "T1568.003": [
@@ -12234,21 +12672,8 @@
         "T1055.004": [
             "G0061"
         ],
-        "T1556": [
-            "G1016"
-        ],
         "T1565": [
             "G1016"
-        ],
-        "T1195.001": [
-            "G1056",
-            "G1057"
-        ],
-        "T1546.016": [
-            "G1056"
-        ],
-        "T1677": [
-            "G1056"
         ],
         "T1069.003": [
             "G1057"
@@ -12258,6 +12683,12 @@
         ],
         "T1684": [
             "G1057"
+        ],
+        "T1574.014": [
+            "G1059"
+        ],
+        "T1598.001": [
+            "G1059"
         ]
     },
     "attributions": {
@@ -13598,6 +14029,14 @@
                 "via_target": "T1190"
             }
         ],
+        "CVE-2023-46805": [
+            {
+                "id": "G1045",
+                "via": "G1045",
+                "via_type": "relationship",
+                "via_target": "T1190"
+            }
+        ],
         "CVE-2023-48788": [
             {
                 "id": "G1051",
@@ -13635,6 +14074,14 @@
                 "via": "G0049",
                 "via_type": "relationship",
                 "via_target": "T1068"
+            }
+        ],
+        "CVE-2024-3400": [
+            {
+                "id": "G1045",
+                "via": "G1045",
+                "via_type": "relationship",
+                "via_target": "T1190"
             }
         ],
         "CVE-2024-37085": [
