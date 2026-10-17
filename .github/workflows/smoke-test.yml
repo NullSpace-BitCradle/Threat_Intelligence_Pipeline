@@ -6,11 +6,21 @@ on:
     paths:
       - 'docs/**'
       - 'tests/smoke/**'
+      # tests/conftest.py loads for the smoke suite and imports runtime code,
+      # so the lockfiles and that conftest gate it as much as docs/ does.
+      - 'tests/conftest.py'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
       - '.github/workflows/smoke-test.yml'
   pull_request:
     paths:
       - 'docs/**'
       - 'tests/smoke/**'
+      # tests/conftest.py loads for the smoke suite and imports runtime code,
+      # so the lockfiles and that conftest gate it as much as docs/ does.
+      - 'tests/conftest.py'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
       - '.github/workflows/smoke-test.yml'
   schedule:
     - cron: '47 8 * * *'  # Daily at 08:47 UTC. Schedules can start hours late, so this is not ordered after the database update; the staleness check covers that
@@ -35,7 +45,9 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install --require-hashes -r requirements-dev.txt
+          # requirements.txt too: tests/conftest.py imports tip.utils.http, which
+          # needs requests. The dev lock only carried it transitively before.
+          pip install --require-hashes -r requirements.txt -r requirements-dev.txt
           playwright install --with-deps chromium
 
       - name: Serve docs/ and run smoke tests against it
@@ -63,7 +75,9 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install --require-hashes -r requirements-dev.txt
+          # requirements.txt too: tests/conftest.py imports tip.utils.http, which
+          # needs requests. The dev lock only carried it transitively before.
+          pip install --require-hashes -r requirements.txt -r requirements-dev.txt
           playwright install --with-deps chromium
 
       - name: Run smoke tests against deployed site
