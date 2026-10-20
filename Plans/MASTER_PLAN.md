@@ -3,7 +3,7 @@ slug: tip-master-plan
 status: active
 version: 2.0
 authored: 2026-05-08
-updated: 2026-09-27
+updated: 2026-10-20
 authored_by: maintainer (PAI Algorithm v6.3.0, E3)
 supersedes: Plans/ROADMAP.md (removed 2026-06-20; git history retains it)
 review_cadence: monthly + after each phase ships
@@ -35,7 +35,7 @@ ID rules:
 
 ## 2. Executive summary
 
-On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. EPSS scoring (I1, PR #8), failure alerting with the freshness banner (I16, PR #10), technique coverage through MITRE CTID mappings and an inferred tier (I21, PR #11), and watchlists with the "what changed" log (I7, I8, PR #12) are merged too. APT linkage by explicit ATT&CK attribution (I30, I32, PR #16) replaced technique overlap on 2026-09-27, and the MCP demo was recaptured on that data (T10.7). The cross-vendor audit that gates a Partner Network demo (T10.8) ran on 2026-10-04: a GPT-lineage pass found eight issues in P10 and I29, all eight are fixed in PR #33, and seven are live on merge. The eighth (F3, description-text CWEs) clears from the shipped shards on the next full weekly run.
+On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. EPSS scoring (I1, PR #8), failure alerting with the freshness banner (I16, PR #10), technique coverage through MITRE CTID mappings and an inferred tier (I21, PR #11), and watchlists with the "what changed" log (I7, I8, PR #12) are merged too. APT linkage by explicit ATT&CK attribution (I30, I32, PR #16) replaced technique overlap on 2026-09-27, and the MCP demo was recaptured on that data (T10.7). The cross-vendor audit that gates a Partner Network demo (T10.8) ran on 2026-10-04: a GPT-lineage pass found eight issues in P10 and I29, all eight are fixed in PR #33, and seven are live on merge. The eighth (F3, description-text CWEs) cleared from the shipped shards with the full weekly re-crawls of 2026-10-11 and 2026-10-18, checked on 2026-10-20: of the 1,909 records whose CWE list was made only of ids named in their description, 27 now have no CWE and live NVD assigns none to any of them, and the other 1,881 keep lists that NVD assigns (a 60-record random sample matched NVD exactly). The workflow hardening of 2026-09-30 (PRs #29 to #31) got its own GPT-lineage audit on 2026-10-20, fixed in PR #40.
 
 ## 3. Current state, measured
 
@@ -177,6 +177,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | I30, I32 | APT linkage by explicit attribution: a CVE links to a group only where the enterprise ATT&CK bundle cites it (group entry, a group relationship, or a campaign attributed to the group), each link official with its citing object as evidence; technique overlap removed from shards, index, site, and MCP. First run 2026-09-27: 199 pairs, 118 CVEs, 74 groups; curated 1,728 to 1,734; 117 curated CVEs linked (985 overlap-linked before) | 2026-09-27 | PR #16 |
 | T10.8 | Cross-vendor audit of P10 and I29: eight findings fixed with red-first tests (credited-CAPEC filter, KEV unknown is null, NVD-only CWE list, shard D3FEND, capped chain CWEs, demo provenance wording, CVE id bound, DEMO.md) | 2026-10-04 | PR #33 |
 | T10.9 | Demo summary wording for a CVE with no defenses: says so plainly, no empty tier lists (red-first test; DEMO.md regenerated only for the daily EPSS date) | 2026-10-05 | PR #34 |
+| (no ID) | Cross-vendor audit of the workflow hardening (#29 to #31) on `34d4d6d`: five codex findings replayed; three fixed red-first (unlistable clone directory aborts the Vulnrichment resync, GitHub token stripped before it can reach a logged InvalidHeader, a STIX body without `objects` is never cached), two rebutted (detail in `Plans/workflow-hardening.isa.md`) | 2026-10-20 | PR #40 |
 
 ## 6. Dropped
 

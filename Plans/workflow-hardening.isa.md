@@ -5,7 +5,7 @@ project: Threat_Intelligence_Pipeline
 phase: complete
 progress: 23/23
 started: 2026-09-30T17:20:00Z
-updated: 2026-09-30T17:50:00Z
+updated: 2026-10-20T18:15:00Z
 principal_stated_goal: "yes, push and merge, and add the always-clone change and fix the other issues as well"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 2
@@ -154,7 +154,7 @@ Why: the changes only count if they ship through the same gates as everything el
 
 ## Remaining Work
 
-- [ ] Cross-vendor audit of #29 to #31: the reviews ran on Claude because Codex is over its usage limit until 2026-10-29.
+- [x] Cross-vendor audit of #29 to #31: done 2026-10-20 on `34d4d6d` (codex, GPT lineage, isolated copy). Five findings, all replayed: three fixed red-first in PR #40 (an unlistable clone directory now aborts the resync instead of passing the floor short; the GitHub token is stripped so requests cannot quote it in a logged InvalidHeader; a STIX body without an `objects` list fails like a 404 and is never cached). Two rebutted: a failed state write after the DB write never publishes, because the step fails and the commit step runs only on success; the STIX cache outliving a run needs a long-lived process, and none exists.
 - [ ] Watch the first scheduled runs after merge: daily clone wall time against the 600s clone timeout.
 - [ ] The cached STIX bundle stays in memory for the whole `--force` run; free it after the campaigns step if runner memory ever gets tight.
 - [ ] The D3FEND ontology can now take about 6 minutes to fall back to degraded (3 attempts at 120s). Give it a shorter timeout if that ever matters.
