@@ -120,3 +120,13 @@ def test_failed_stix_download_is_not_cached(monkeypatch):
         fetch_stix_bundle()
     assert fetch_stix_bundle() == {"objects": []}
     assert len(calls) == 2
+
+
+def test_stix_response_without_objects_is_not_cached(monkeypatch):
+    """A 200 carrying an error object fails like a 404 instead of being
+    cached and handed to every consumer for the rest of the run."""
+    calls = _script(monkeypatch, _Resp(200, {"error": "not a bundle"}), _Resp(200, {"objects": []}))
+    with pytest.raises(requests.exceptions.RequestException):
+        fetch_stix_bundle()
+    assert fetch_stix_bundle() == {"objects": []}
+    assert len(calls) == 2

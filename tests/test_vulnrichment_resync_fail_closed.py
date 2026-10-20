@@ -5,6 +5,7 @@ last_commit_sha; update() returns False so the step fails. The git clone is
 replaced by a prepared directory; nothing touches the network.
 """
 import json
+import os
 import subprocess
 
 import pytest
@@ -143,5 +144,23 @@ def test_clone_failing_twice_keeps_everything(resync_env, monkeypatch):
 
     assert proc.update() is False
     assert clones["n"] == 2
+    assert db.read_bytes() == before
+    assert not state.exists()
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root lists a mode 000 directory anyway")
+def test_bootstrap_aborts_on_unlistable_directory(resync_env):
+    """A clone subtree that cannot be listed aborts the resync. rglob skipped
+    it silently, so a partial DB passed the floor and advanced the sha."""
+    proc, db, state, clone = resync_env
+    hidden = clone.parent / "2xxx"
+    hidden.mkdir()
+    (hidden / "CVE-2024-2000.json").write_text(json.dumps(_enrichment_json("CVE-2024-2000")))
+    hidden.chmod(0)
+    before = db.read_bytes()
+    try:
+        assert proc.update() is False
+    finally:
+        hidden.chmod(0o755)
     assert db.read_bytes() == before
     assert not state.exists()
