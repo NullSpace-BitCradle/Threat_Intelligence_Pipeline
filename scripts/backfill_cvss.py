@@ -77,7 +77,9 @@ def fetch_cvss_map(missing: set, delay: float) -> dict:
         print(f"Resuming from startIndex={start_index} ({len(found)} already found)")
 
     headers = {}
-    api_key = os.environ.get("NVD_API_KEY")
+    # Stripped: requests quotes a rejected header value, key included, in the
+    # error printed on every retry below.
+    api_key = os.environ.get("NVD_API_KEY", "").strip()
     if api_key:
         headers["apiKey"] = api_key
 
@@ -149,7 +151,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    delay = 1.0 if os.environ.get("NVD_API_KEY") else 6.5
+    delay = 1.0 if os.environ.get("NVD_API_KEY", "").strip() else 6.5
     print(f"Rate delay: {delay}s/request ({'keyed' if delay == 1.0 else 'keyless'})")
 
     missing = load_missing_ids()

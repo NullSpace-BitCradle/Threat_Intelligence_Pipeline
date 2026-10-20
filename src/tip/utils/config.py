@@ -152,7 +152,9 @@ class Config:
         """
         env_var = self.get(f'api.{api_name}.api_key_env')
         if env_var:
-            return os.environ.get(env_var)
+            # Stripped: a pasted secret can end in a newline, and requests
+            # quotes a header value it rejects, key included, in the error.
+            return os.environ.get(env_var, "").strip() or None
         return None
     
     def get_database_path(self, db_name: str) -> str:
