@@ -178,6 +178,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | T10.8 | Cross-vendor audit of P10 and I29: eight findings fixed with red-first tests (credited-CAPEC filter, KEV unknown is null, NVD-only CWE list, shard D3FEND, capped chain CWEs, demo provenance wording, CVE id bound, DEMO.md) | 2026-10-04 | PR #33 |
 | T10.9 | Demo summary wording for a CVE with no defenses: says so plainly, no empty tier lists (red-first test; DEMO.md regenerated only for the daily EPSS date) | 2026-10-05 | PR #34 |
 | (no ID) | Cross-vendor audit of the workflow hardening (#29 to #31) on `34d4d6d`: five codex findings replayed; three fixed red-first (unlistable clone directory aborts the Vulnrichment resync, GitHub token stripped before it can reach a logged InvalidHeader, a STIX body without `objects` is never cached), two rebutted (detail in `Plans/workflow-hardening.isa.md`) | 2026-10-20 | PR #40 |
+| (no ID) | NVD API key stripped before it reaches a request header (`Config.get_api_key`, `scripts/backfill_cvss.py`), the last credential-in-header site found by a sweep over header construction and env reads; a key pasted with a newline was quoted in the logged or printed InvalidHeader (review finding on PR #40) | 2026-10-20 | PR #41 |
 
 ## 6. Dropped
 
