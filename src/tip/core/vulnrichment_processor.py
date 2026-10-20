@@ -26,6 +26,10 @@ config = get_config()
 CISA_ADP_ORG_ID = "134c704f-9b21-4f2e-91b3-4a467353bcc0"
 
 
+def _raise(error: OSError) -> None:
+    raise error
+
+
 class VulnrichmentProcessor:
     """Processes CISA Vulnrichment data for CVE enrichment"""
 
@@ -47,7 +51,9 @@ class VulnrichmentProcessor:
         and only to the API, never to raw file hosts.
         """
         headers = {"Accept": "application/vnd.github+json"}
-        token = os.environ.get("GITHUB_TOKEN")
+        # Stripped: requests rejects a header value with a newline and quotes
+        # the whole value, token included, in the exception update() logs.
+        token = os.environ.get("GITHUB_TOKEN", "").strip()
         if token:
             headers["Authorization"] = f"Bearer {token}"
         return headers
@@ -199,9 +205,19 @@ class VulnrichmentProcessor:
             # in-memory DB only once the whole clone has been read. Any file
             # that cannot be read or parsed aborts the resync: an incomplete
             # dict must not be saved, and last_commit_sha must not advance.
+            # Path.walk with on_error raising, not rglob: rglob skips a
+            # directory it cannot list, and the rest of the clone could then
+            # pass the floor as if it were complete. Directories are matched
+            # too, as rglob did, so a CVE-*.json that is not a file aborts.
             fresh: Dict[str, Any] = {}
             cve_count = 0
-            for json_file in clone_dir.rglob("CVE-*.json"):
+            json_files = [
+                root / name
+                for root, dirs, names in clone_dir.walk(on_error=_raise)
+                for name in [*dirs, *names]
+                if name.startswith("CVE-") and name.endswith(".json")
+            ]
+            for json_file in json_files:
                 try:
                     with open(json_file, 'r', encoding='utf-8') as f:
                         cve_json = json.load(f)
