@@ -400,6 +400,18 @@ def test_head_check_sends_github_token_and_only_to_the_api(vr_env, monkeypatch):
     assert all("sekrit-token" not in u for u, _ in calls)
 
 
+def test_token_with_surrounding_whitespace_is_stripped(monkeypatch):
+    """A secret saved with a trailing newline made requests reject the header
+    and quote the whole Authorization value in the exception that update()
+    logs. A whitespace-only token sends no header at all."""
+    monkeypatch.setenv("GITHUB_TOKEN", "sekrit-token\n")
+    headers = VulnrichmentProcessor()._api_headers()
+    requests.models.PreparedRequest().prepare_headers(headers)
+    assert headers["Authorization"] == "Bearer sekrit-token"
+    monkeypatch.setenv("GITHUB_TOKEN", " \n")
+    assert "Authorization" not in VulnrichmentProcessor()._api_headers()
+
+
 def test_api_calls_without_token_send_no_auth_header(vr_env, monkeypatch):
     proc, db, state = vr_env
     _no_clone(monkeypatch)

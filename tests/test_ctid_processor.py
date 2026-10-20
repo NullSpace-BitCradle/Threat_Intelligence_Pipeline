@@ -286,3 +286,15 @@ def test_load_ctid_db_tolerates_missing_and_malformed(tmp_path):
     good = tmp_path / "good.json"
     good.write_text(json.dumps({"cves": {"CVE-2024-0001": {"techniques": [{"id": "T1190"}]}}}))
     assert ctid.ctid_techniques(ctid.load_ctid_db(str(good))["CVE-2024-0001"]) == [{"id": "T1190"}]
+
+
+def test_token_with_surrounding_whitespace_is_stripped(monkeypatch):
+    """Same class as the Vulnrichment header: a token with a newline made
+    requests quote the whole Authorization value in InvalidHeader, which
+    update_database logs."""
+    monkeypatch.setenv("GITHUB_TOKEN", "sekrit-token\n")
+    headers = ctid.CTIDProcessor()._headers(api=True)
+    requests.models.PreparedRequest().prepare_headers(headers)
+    assert headers["Authorization"] == "Bearer sekrit-token"
+    monkeypatch.setenv("GITHUB_TOKEN", " \n")
+    assert "Authorization" not in ctid.CTIDProcessor()._headers(api=True)

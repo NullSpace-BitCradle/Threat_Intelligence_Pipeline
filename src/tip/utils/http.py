@@ -89,7 +89,8 @@ def fetch_stix_bundle(url: Optional[str] = None) -> Dict[str, Any]:
     """The ATT&CK STIX bundle, downloaded once per process and shared read-only.
 
     Only a successful download is cached; a failure raises and the next
-    caller tries again.
+    caller tries again. A body without an ``objects`` list is a failure too,
+    so an error object served with a 200 is never cached.
     """
     url = url or config.get('database.groups.url', DEFAULT_STIX_URL)
     cached = _stix_cache.get(url)
@@ -99,6 +100,10 @@ def fetch_stix_bundle(url: Optional[str] = None) -> Dict[str, Any]:
     response = get_with_retry(url, timeout=download_timeout())
     response.raise_for_status()
     bundle: Dict[str, Any] = response.json()
+    if not isinstance(bundle, dict) or not isinstance(bundle.get("objects"), list):
+        raise requests.exceptions.InvalidJSONError(
+            f"{url} returned a body that is not a STIX bundle", response=response
+        )
     _stix_cache[url] = bundle
     return bundle
 
