@@ -35,48 +35,49 @@ ID rules:
 
 ## 2. Executive summary
 
-On 2026-09-27 TIP is live, auto-updating, and fails closed. The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. EPSS scoring (I1, PR #8), failure alerting with the freshness banner (I16, PR #10), technique coverage through MITRE CTID mappings and an inferred tier (I21, PR #11), and watchlists with the "what changed" log (I7, I8, PR #12) are merged too. APT linkage by explicit ATT&CK attribution (I30, I32, PR #16) replaced technique overlap on 2026-09-27, and the MCP demo was recaptured on that data (T10.7). The cross-vendor audit that gates a Partner Network demo (T10.8) ran on 2026-10-04: a GPT-lineage pass found eight issues in P10 and I29, all eight are fixed in PR #33, and seven are live on merge. The eighth (F3, description-text CWEs) cleared from the shipped shards with the full weekly re-crawls of 2026-10-11 and 2026-10-18, checked on 2026-10-20: of the 1,909 records whose CWE list was made only of ids named in their description, 27 now have no CWE and live NVD assigns none to any of them, and the other 1,881 keep lists that NVD assigns (a 60-record random sample matched NVD exactly). The workflow hardening of 2026-09-30 (PRs #29 to #31) got its own GPT-lineage audit on 2026-10-20, fixed in PR #40.
+On 2026-10-20 TIP is live, auto-updating, and fails closed, with nothing in flight; the open risk with a date on it is repo size (I17, §7). The September review remediation (PR #1), MCP Phase B with its six-tool surface and scripted demo (P10, PR #4), and the inherited-CWE fix (I29, PR #5) are all merged to `main`. EPSS scoring (I1, PR #8), failure alerting with the freshness banner (I16, PR #10), technique coverage through MITRE CTID mappings and an inferred tier (I21, PR #11), and watchlists with the "what changed" log (I7, I8, PR #12) are merged too. APT linkage by explicit ATT&CK attribution (I30, I32, PR #16) replaced technique overlap on 2026-09-27, and the MCP demo was recaptured on that data (T10.7). The cross-vendor audit that gates a Partner Network demo (T10.8) ran on 2026-10-04: a GPT-lineage pass found eight issues in P10 and I29, all eight are fixed in PR #33, and seven are live on merge. The eighth (F3, description-text CWEs) cleared from the shipped shards with the full weekly re-crawls of 2026-10-11 and 2026-10-18, checked on 2026-10-20: of the 1,909 records whose CWE list was made only of ids named in their description, 27 now have no CWE and live NVD assigns none to any of them, and the other 1,881 keep lists that NVD assigns (a 60-record random sample matched NVD exactly). The workflow hardening of 2026-09-30 (PRs #29 to #31) got its own GPT-lineage audit on 2026-10-20, fixed in PR #40, and a review finding on that fix (the NVD API key) in PR #41.
 
 ## 3. Current state, measured
 
-Measured on `main` at `7cc25b6` on 2026-09-27, after that day's weekly run.
+Measured on `main` at `c72e752` on 2026-10-20: the weekly data is from the 2026-10-18 run, the reference data from that morning's daily run.
 
-**Entity index** (`docs/data/entity_index.json`, v1.5): 4,348 entities, 13.25 MB, generated 2026-09-27T19:27Z. It was 7.81 MB before the first weekly run with I29, I21, and I32 data; the growth has not been broken down by field yet.
+**Entity index** (`docs/data/entity_index.json`, v1.5): 4,382 entities, 13.38 MB, generated 2026-10-18T13:01Z.
 
 | Type | Count |
 |------|------:|
-| cve | 1,734 |
+| cve | 1,756 |
 | cwe | 969 |
-| technique | 697 |
+| technique | 706 |
 | capec | 559 |
-| apt_group | 176 |
+| apt_group | 178 |
 | defend | 147 |
-| campaign | 56 |
+| campaign | 57 |
 | owasp | 10 |
 
-- The curated CVE tier (Layer 2) is KEV, or APT-linked by ATT&CK citation, or SSVC exploitation `active`: 1,726 KEV CVEs, 6 cited CVEs outside KEV, and 2 SSVC `active` CVEs outside KEV.
-- The index has 0 dangling relationship targets by construction; the generator dropped 1,104 on this build and counts them in `meta.dropped_dangling_rels`.
-- APT links come only from ATT&CK citations: `groups_db.json` holds 199 pairs over 118 CVEs, and 117 curated CVEs carry a link.
+- The curated CVE tier (Layer 2) is KEV, or APT-linked by ATT&CK citation, or SSVC exploitation `active`: 1,748 KEV CVEs, 6 cited CVEs outside KEV, and 2 SSVC `active` CVEs outside KEV.
+- The index has 0 dangling relationship targets by construction; the generator dropped 1,123 on this build and counts them in `meta.dropped_dangling_rels`.
+- APT links come only from ATT&CK citations: `groups_db.json` holds 201 pairs over 120 CVEs and 74 groups, and 119 curated CVEs carry a link. The 120th, CVE-2019-19871, is not in NVD.
 
-**All-CVE tier.** `docs/data/cve_ids_index.json` holds 398,520 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 132.6 MB in total. `docs/` is 180 MB.
+**All-CVE tier.** `docs/data/cve_ids_index.json` holds 409,355 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 137.3 MB in total. `docs/` is 187 MB.
 
-**Reference data.** KEV: 1,726 entries. Vulnrichment: 188,262 entries. EPSS: the curated file scores all 1,734 curated CVEs daily.
+**Reference data.** KEV: 1,748 entries. Vulnrichment: 200,796 entries. EPSS: the curated file scores 1,755 of the 1,756 curated CVEs daily (no score for CVE-2026-21589).
 
-**Tests.** 834 unit tests and 107 Playwright smoke tests. `mypy` is clean on 33 source files. CI gates `src/tip_mcp` coverage at 90% (measured 96.67%).
+**Tests.** 873 unit tests and 108 Playwright smoke tests. `mypy` is clean on 34 source files. CI gates `src/tip_mcp` coverage at 90% (measured 96.86%).
 
 **CI and repo.**
 
 - `tests.yml`: unit tests, mypy, and the MCP coverage gate on every push to `main` and every PR.
-- `smoke-test.yml`: local gate on pushes and PRs touching the site, plus a daily 07:00 UTC canary against the live site.
-- `run-pipeline.yml`: weekly CVE pipeline, Sunday 08:00 UTC.
-- `update-databases.yml`: daily reference databases, 06:00 UTC.
+- `smoke-test.yml`: local gate on pushes and PRs touching the site, the smoke tests, or the runtime and dev lockfiles, plus a daily 08:47 UTC canary against the live site.
+- `run-pipeline.yml`: weekly CVE pipeline, Sunday 08:37 UTC.
+- `update-databases.yml`: daily reference databases, 06:17 UTC.
+- Schedules sit off the top of the hour and can still start hours late; the weekly run of 2026-10-18 committed at 13:01 UTC.
 - CodeQL runs as GitHub's default setup. Dependabot covers pip and GitHub Actions.
 - Actions are pinned to commit SHAs. Three hash-locked lockfiles carry a 7-day cooldown and install with `--require-hashes`.
 - Data runs fail closed, share one concurrency group, build on the latest `main`, and never force push.
-- The repo is about 2.9 GB on GitHub, mostly history growth (see I17).
+- The repo is 3.25 GiB packed (GitHub reports 3,403,766 KB), mostly history growth. 525 MiB of new objects landed between `7cc25b6` (2026-09-27) and `c72e752`, about 160 MiB a week, so it reaches GitHub's 5 GB guidance between late December 2026 and early January 2027 (see I17). That rate is a slight overestimate: the window holds one extra weekly run, dispatched by hand on 2026-10-05.
 - A ruleset on `main` blocks force push and deletion. It requires no checks, by decision (I33, dropped 2026-09-27).
 
-**MCP.** Seven tools on `mcp` 2.2.0: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`, `build_attack_chain`, `get_defenses`, `kev_status`, `recent_changes`. The repo root carries `.mcp.json`. `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`.
+**MCP.** Seven tools on `mcp` 2.3.0: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`, `build_attack_chain`, `get_defenses`, `kev_status`, `recent_changes`. The repo root carries `.mcp.json`. `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`.
 
 ## 4. Roadmap
 
@@ -88,7 +89,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 
 ### 4.2 NEXT
 
-- **T10.8** · Cross-vendor (GPT) audit of P10 and I29 · DONE (PR #33) · audit 2026-10-04 on `5f9f005`, eight findings, each replayed on `main` before fixing, a non-builder review PASS on the fix. F1: `build_attack_chain` credited a CWE and CAPEC path to a CVE that credits no CAPEC (CVE-2021-40449 on T1027). F2: `kev_status` answered `in_kev: false` with no source; now null. F3: CWE ids regexed out of description text were labeled NVD-assigned; the fallback is gone, and up to 1,909 shard records clear on the next weekly run. F4: shard CVE pages dropped D3FEND. F5: a capped chain listed CWEs no returned CVE used. F6: the demo misexplained why CVE-side defenses are derived. F7: an overlong CVE id raised instead of `bad_param`. F8: DEMO.md regenerated
+- **T10.8** · Cross-vendor (GPT) audit of P10 and I29 · DONE (PR #33) · audit 2026-10-04 on `5f9f005`, eight findings, each replayed on `main` before fixing, a non-builder review PASS on the fix. F1: `build_attack_chain` credited a CWE and CAPEC path to a CVE that credits no CAPEC (CVE-2021-40449 on T1027). F2: `kev_status` answered `in_kev: false` with no source; now null. F3: CWE ids regexed out of description text were labeled NVD-assigned; the fallback is gone, and the weekly runs of 2026-10-11 and 2026-10-18 cleared it from the shards (checked 2026-10-20, see §2). F4: shard CVE pages dropped D3FEND. F5: a capped chain listed CWEs no returned CVE used. F6: the demo misexplained why CVE-side defenses are derived. F7: an overlong CVE id raised instead of `bad_param`. F8: DEMO.md regenerated
 - **T10.9** · Demo summary wording for a CVE with no defenses (review nit, PR #33) · DONE (PR #34) · `scripts/mcp_demo.py` renders "Tiers: . The CVE to technique links behind them are , but" when `get_defenses` returns nothing (CVE-2001-0507); pre-existing, the demo never hits it · ~15 min
 - **I30** · APT lookup id mismatch · DONE (PR #16) · the processor passed bare technique ids (`1134`) to `lookup_by_techniques`, whose keys are `T1134`, so shard `APT_GROUPS` was always empty. Fixed by deleting the overlap lookup, not repairing it: shard `APT_GROUPS` now comes from I32 attribution · small
 - **I32** · APT linkage by explicit attribution · DONE (PR #16) · decided: a CVE links to an APT group only when the enterprise ATT&CK bundle cites that CVE on the group's intrusion-set, on a relationship sourced from the group, or on a campaign (or a relationship sourced from it) attributed to the group; revoked and deprecated objects skipped; each link official, source MITRE ATT&CK, with the citing object as `via`, `via_type`, `via_target`. Technique-overlap linking removed from the shards, the entity index (985 of 1,728 curated CVEs carried it, labeled derived), and the MCP; the site, MCP, and change log drop overlap links from older indexes. Measured on the live bundle 2026-09-27 after review: 118 CVEs, 74 groups, 199 pairs, 111 of the CVEs in KEV (117, 70, 193, 110 before the regex fix); on the committed shards the curated tier grows from 1,728 to 1,734 CVEs (6 attributed CVEs outside KEV; CVE-2019-19871, cited for G0096, is not in NVD). Software two-hop citations (13 more CVEs) stay out of scope · ~1 day
@@ -98,14 +99,14 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 - **T15.1** · Change log slack follow-up (P15) · DONE (PR #14) · `BASELINE_SLACK` lowered to 250, with a regression test for the 1,726 to 1,300 to 1,726 case; a shrink of 10 to 14% can still read its recovery as news, accepted · review finding (LOW, PR #12): a 10 to 29% upstream KEV or curated shrink that passes the 50% write floor has its removals suppressed, but the recovery on the next run passes the 500-record addition slack and logs up to 500 false `kev_added` or `curated_added` events. Fix: lower `BASELINE_SLACK` to about 250 (the motivating 1,728 to 1,950 growth still passes) or skip the slack when the previous run warned on a shrink · ~1 hour
 
 - **T16.1** · Surface a refused attributions write (P15) · DONE (PR #18) · built as: the refusal returns `False` from `update_database`, a failed step carried by the existing failed/degraded/partial means exit 1 rule, not a new summary field; a failed daily or weekly run already skips its commit step (`if: success()`), so no workflow change was needed, and the existing `Alert on failure` step opens or comments on the `pipeline-failure` issue · review note (LOW, PR #16): when the collapse guard refuses a groups_db.json write the daily run stays green and only a log warning and freshness age signal it; record the refusal in the run summary so `pipeline_alert.py` opens an issue · ~1 hour
-- **T16.2** · Software two-hop APT attribution (P15) · LATER · CVEs cited on malware or tools a group uses (13 CVEs on 2026-09-27), as a separate, lower tier than direct attribution · ~half day
-
 ### 4.3 LATER
+
+- **T16.2** · Software two-hop APT attribution (P15) · LATER · CVEs cited on malware or tools a group uses (13 CVEs on 2026-09-27), as a separate, lower tier than direct attribution · ~half day
 
 - **T13.3** · CSV export from investigation pinning (P13) · LATER · analysts leave the tool with spreadsheets · ~hours
 - **T13.4** · ATT&CK Navigator layer JSON export (P13) · LATER · the standard way to share technique coverage; also the replacement path in I31 · ~hours
 - **I15** · STIX 2.1 export (P15) · LATER · industry interchange format from pinned investigations · ~1 to 2 days
-- **I17 / T14.3** · Move shards off git history · LATER · every weekly shard rewrite adds to history; the repo is about 2.6 GB against GitHub's 5 GB guidance; move shards to release assets or object storage and track size per run · ~half day for monitoring, more for the move
+- **I17 / T14.3** · Move shards off git history · LATER · every weekly shard rewrite adds to history; the repo is 3.25 GiB packed and grows about 160 MiB a week (measured 2026-10-20, §3), so it reaches GitHub's 5 GB guidance between late December 2026 and early January 2027; move shards to release assets or object storage and track size per run · ~half day for monitoring, more for the move
 - **I2** · MITRE ATLAS framework (P15) · LATER · AI and ML adversary tactics; fits the AI-security positioning · ~1 day
 - **I3** · CWE Top 25 beside OWASP Top 10 (P15) · LATER · the more cited industry list; small dataset · ~2 to 4 hours
 - **I4** · Sigma rules pivot from CVE or technique (P15) · LATER · detection content per CVE is a differentiator · ~1 to 2 days
@@ -175,8 +176,16 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | I21 | Technique coverage: MITRE CTID's analyst KEV mappings (official, 419 CVEs, 1,177 links) and one exploitation technique inferred from the CVSS vector (inferred) only where CTID, the chain, and inherited parents give none, each link labeled with its source and tier on the site and in the MCP; measured on CVE-2024, coverage 71.8% to 90.5% of records (18.6 points inferred); curated set unchanged | 2026-09-27 | PR #11 |
 | I7, I8 | Watchlists and the "what changed" log: a 30-day change event log (`docs/data/changes.json.gz`) diffed from published state before each source overwrites it, with baseline and removal guards and count and byte backstops; watch toggles, `#/watching`, `#/changes`, and MCP `recent_changes`; measured worst case 3,293 events, 85 KB | 2026-09-27 | PR #12 |
 | I30, I32 | APT linkage by explicit attribution: a CVE links to a group only where the enterprise ATT&CK bundle cites it (group entry, a group relationship, or a campaign attributed to the group), each link official with its citing object as evidence; technique overlap removed from shards, index, site, and MCP. First run 2026-09-27: 199 pairs, 118 CVEs, 74 groups; curated 1,728 to 1,734; 117 curated CVEs linked (985 overlap-linked before) | 2026-09-27 | PR #16 |
+| T15.1 | Change log addition slack lowered to 250, with a regression test for the 1,726 to 1,300 to 1,726 case | 2026-09-27 | PR #14 |
+| T10.7 | MCP demo recaptured on the I29, EPSS, and I21 data; `mcp_demo.py --check` matches | 2026-09-27 | PR #15 |
+| T16.1 | A refused attributions write fails the run, so the existing alert opens an issue | 2026-09-27 | PR #18 |
+| I31 | `docs/mitre/` removed (vendored Navigator, unreferenced, outside the CSP) | 2026-09-27 | PR #19 |
+| (no ID) | Workflow hardening: Vulnrichment GitHub API calls authenticated, then refreshed by one HEAD check and a fail-closed shallow clone; reference downloads retried through `get_with_retry`; the STIX bundle fetched once per run; workflow crons moved off the top of the hour (`Plans/workflow-hardening.isa.md`) | 2026-09-30 | PR #28, #29, #30, #31 |
+| (no ID) | PyJWT 2.15.0 in the MCP lock (GHSA-42vr-xj54-vc7v) | 2026-10-01 | PR #32 |
 | T10.8 | Cross-vendor audit of P10 and I29: eight findings fixed with red-first tests (credited-CAPEC filter, KEV unknown is null, NVD-only CWE list, shard D3FEND, capped chain CWEs, demo provenance wording, CVE id bound, DEMO.md) | 2026-10-04 | PR #33 |
 | T10.9 | Demo summary wording for a CVE with no defenses: says so plainly, no empty tier lists (red-first test; DEMO.md regenerated only for the daily EPSS date) | 2026-10-05 | PR #34 |
+| (no ID) | Dependabot: mypy 2.4.0, `mcp` 2.3.0 | 2026-10-10 | PR #36, #37 |
+| (no ID) | pytest-playwright 0.10.0, with the smoke workflow now installing the runtime lock and running on dependency changes (0.10.0 dropped `requests` from the dev lock, which broke every smoke test while `tests.yml` stayed green) | 2026-10-17 | PR #38, #39 |
 | (no ID) | Cross-vendor audit of the workflow hardening (#29 to #31) on `34d4d6d`: five codex findings replayed; three fixed red-first (unlistable clone directory aborts the Vulnrichment resync, GitHub token stripped before it can reach a logged InvalidHeader, a STIX body without `objects` is never cached), two rebutted (detail in `Plans/workflow-hardening.isa.md`) | 2026-10-20 | PR #40 |
 | (no ID) | NVD API key stripped before it reaches a request header (`Config.get_api_key`, `scripts/backfill_cvss.py`), the last credential-in-header site found by a sweep over header construction and env reads; a key pasted with a newline was quoted in the logged or printed InvalidHeader (review finding on PR #40) | 2026-10-20 | PR #41 |
 
@@ -192,13 +201,13 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| Repo reaches GitHub's 5 GB guidance around early 2027 at the current weekly rewrites (about 2.6 GB today) | High | I17: move shards off git history before then |
+| Repo reaches GitHub's 5 GB guidance between late December 2026 and early January 2027 at the current weekly rewrites (3.25 GiB packed on 2026-10-20, about 160 MiB a week) | High | I17: move shards off git history before then |
 | Silent staleness: upstream outages fail red, and a data run that fails or stops happening now opens an issue | Low | I16 alerting and freshness banner (DONE, PR #10) |
 | Single maintainer; knowledge and review live in one head | High | This plan, ISC-backed PRs, CI gates; I33 would enforce checks |
-| Cross-vendor audits depend on a free Codex quota | Medium | T10.8 ran 2026-10-04; later audits still wait on quota, and a Claude-side non-builder review covers the gap |
+| Cross-vendor audits depend on a free Codex quota | Medium | T10.8 ran 2026-10-04 and the workflow hardening audit 2026-10-20; later audits still wait on quota, and a Claude-side non-builder review covers the gap |
 | Wrong or noisy mappings ship with authoritative labels | Medium | I29 labels inherited links; I21 labels every technique link by source (CTID official, chain derived, inferred lowest); I30 and I32 fix APT linkage |
 | Unused third-party code served on the site origin outside the CSP (`docs/mitre/`) | Closed | I31 removed it on 2026-09-27 |
-| Site size on Pages: `docs/` is 176.8 MB and grows with every run | Low | Watch with I17 monitoring |
+| Site size on Pages: `docs/` is 187 MB and grows with every run | Low | Watch with I17 monitoring |
 | Worklist graph unmanageable for large inputs | Low | Capped at 25 ids; a summary view is T13.1 follow-up work |
 | The roadmap derails focus | High if items run in parallel | P15 stays serial, one item at a time with its own criteria |
 
@@ -242,6 +251,8 @@ Task ISAs for P10, I29, and later work live in the maintainer's private workspac
 ## 11. Decisions log
 
 Append-only, newest first. Older entries are kept verbatim.
+
+- 2026-10-20: plan trued up to `main` at `c72e752`. §3 re-measured; §5 gained the PRs merged since 2026-09-27 that it was missing (#14, #15, #18, #19, #28 to #32, #36 to #39); T16.2 moved to LATER to match its status. Repo growth was measured, not estimated: 525 MiB of new objects between `7cc25b6` and `c72e752`, which moves the I17 deadline from "early 2027" to late December 2026 or early January 2027.
 
 - 2026-09-28: first real events in the change log, from the daily run at 13:10 UTC (`43c5f15`). It logged 2 `kev_added` (CVE-2026-88771 and CVE-2026-88772, Citrix NetScaler) and 2 `ssvc_exploitation_changed` (the same two, none to `active`). Checked against the live CISA KEV catalog (released 2026-09-27T21:30Z, 1,728 entries): both were added 2026-09-27 with a due date of 2026-09-30, and no other CVE was added after 2026-09-25, so none was missed. Neither CVE is curated yet, so `related` holds only vendor and product; the next weekly run should log a `curated_added` event for each with CWE and APT ids. `freshness.json` has kev, vulnrichment, epss, and cwe at 13:14Z.
 - 2026-09-27: T17.1 added from a graphify structural pass on the repo. The loader's single boundary is what let I32 strip overlap links from the MCP in one change, so the investigation must weigh that before any split.
