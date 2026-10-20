@@ -152,8 +152,9 @@ class CTIDProcessor:
     def _headers(self, api: bool) -> Dict[str, str]:
         headers = {"Accept": "application/vnd.github+json"} if api else {}
         # CI passes GITHUB_TOKEN so the tree call is not rate limited per IP.
-        # The token goes in a header only, never in a URL.
-        token = os.environ.get("GITHUB_TOKEN")
+        # The token goes in a header only, never in a URL. Stripped, since
+        # requests quotes a header value with a newline in its exception.
+        token = os.environ.get("GITHUB_TOKEN", "").strip()
         if token and api:
             headers["Authorization"] = f"Bearer {token}"
         return headers
