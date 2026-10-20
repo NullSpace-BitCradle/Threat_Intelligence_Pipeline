@@ -58,7 +58,7 @@ Measured on `main` at `c72e752` on 2026-10-20: the weekly data is from the 2026-
 - The index has 0 dangling relationship targets by construction; the generator dropped 1,123 on this build and counts them in `meta.dropped_dangling_rels`.
 - APT links come only from ATT&CK citations: `groups_db.json` holds 201 pairs over 120 CVEs and 74 groups, and 119 curated CVEs carry a link. The 120th, CVE-2019-19871, is not in NVD.
 
-**All-CVE tier.** `docs/data/cve_ids_index.json` holds 409,355 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 137.3 MB in total. `docs/` is 187 MB.
+**All-CVE tier.** `docs/data/cve_ids_index.json` holds 409,355 CVE ids. Every one opens through 28 per-year shards (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`), 137.3 MB in total. `docs/` is 195 MB.
 
 **Reference data.** KEV: 1,748 entries. Vulnrichment: 200,796 entries. EPSS: the curated file scores 1,755 of the 1,756 curated CVEs daily (no score for CVE-2026-21589).
 
@@ -67,14 +67,14 @@ Measured on `main` at `c72e752` on 2026-10-20: the weekly data is from the 2026-
 **CI and repo.**
 
 - `tests.yml`: unit tests, mypy, and the MCP coverage gate on every push to `main` and every PR.
-- `smoke-test.yml`: local gate on pushes and PRs touching the site, the smoke tests, or the runtime and dev lockfiles, plus a daily 08:47 UTC canary against the live site.
+- `smoke-test.yml`: local gate on pushes and PRs touching the site, the smoke tests, `tests/conftest.py`, the runtime and dev lockfiles, or the workflow itself, plus a daily 08:47 UTC canary against the live site.
 - `run-pipeline.yml`: weekly CVE pipeline, Sunday 08:37 UTC.
 - `update-databases.yml`: daily reference databases, 06:17 UTC.
 - Schedules sit off the top of the hour and can still start hours late; the weekly run of 2026-10-18 committed at 13:01 UTC.
 - CodeQL runs as GitHub's default setup. Dependabot covers pip and GitHub Actions.
 - Actions are pinned to commit SHAs. Three hash-locked lockfiles carry a 7-day cooldown and install with `--require-hashes`.
 - Data runs fail closed, share one concurrency group, build on the latest `main`, and never force push.
-- The repo is 3.25 GiB packed (GitHub reports 3,403,766 KB), mostly history growth. 525 MiB of new objects landed between `7cc25b6` (2026-09-27) and `c72e752`, about 160 MiB a week, so it reaches GitHub's 5 GB guidance between late December 2026 and early January 2027 (see I17). That rate is a slight overestimate: the window holds one extra weekly run, dispatched by hand on 2026-10-05.
+- The repo is 3.25 GiB packed (GitHub reports 3,403,766 KB), mostly history growth. About 520 MiB of new objects landed between `7cc25b6` (2026-09-27) and `c72e752` (packed size, so it varies a little with the clone's delta layout), about 160 MiB a week. That window holds four CVE runs in 3.3 weeks, one of them dispatched by hand on 2026-10-05, so the scheduled rate alone is nearer 125 MiB a week. At those rates the repo reaches GitHub's 5 GB guidance between late December 2026 and late January 2027 (see I17).
 - A ruleset on `main` blocks force push and deletion. It requires no checks, by decision (I33, dropped 2026-09-27).
 
 **MCP.** Seven tools on `mcp` 2.3.0: `lookup_entity`, `pivot_from_entity`, `search_threat_intel`, `build_attack_chain`, `get_defenses`, `kev_status`, `recent_changes`. The repo root carries `.mcp.json`. `scripts/mcp_demo.py` records the CVE-2023-44487 walkthrough to `src/tip_mcp/DEMO.md`.
@@ -99,6 +99,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 - **T15.1** · Change log slack follow-up (P15) · DONE (PR #14) · `BASELINE_SLACK` lowered to 250, with a regression test for the 1,726 to 1,300 to 1,726 case; a shrink of 10 to 14% can still read its recovery as news, accepted · review finding (LOW, PR #12): a 10 to 29% upstream KEV or curated shrink that passes the 50% write floor has its removals suppressed, but the recovery on the next run passes the 500-record addition slack and logs up to 500 false `kev_added` or `curated_added` events. Fix: lower `BASELINE_SLACK` to about 250 (the motivating 1,728 to 1,950 growth still passes) or skip the slack when the previous run warned on a shrink · ~1 hour
 
 - **T16.1** · Surface a refused attributions write (P15) · DONE (PR #18) · built as: the refusal returns `False` from `update_database`, a failed step carried by the existing failed/degraded/partial means exit 1 rule, not a new summary field; a failed daily or weekly run already skips its commit step (`if: success()`), so no workflow change was needed, and the existing `Alert on failure` step opens or comments on the `pipeline-failure` issue · review note (LOW, PR #16): when the collapse guard refuses a groups_db.json write the daily run stays green and only a log warning and freshness age signal it; record the refusal in the run summary so `pipeline_alert.py` opens an issue · ~1 hour
+
 ### 4.3 LATER
 
 - **T16.2** · Software two-hop APT attribution (P15) · LATER · CVEs cited on malware or tools a group uses (13 CVEs on 2026-09-27), as a separate, lower tier than direct attribution · ~half day
@@ -106,7 +107,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 - **T13.3** · CSV export from investigation pinning (P13) · LATER · analysts leave the tool with spreadsheets · ~hours
 - **T13.4** · ATT&CK Navigator layer JSON export (P13) · LATER · the standard way to share technique coverage; also the replacement path in I31 · ~hours
 - **I15** · STIX 2.1 export (P15) · LATER · industry interchange format from pinned investigations · ~1 to 2 days
-- **I17 / T14.3** · Move shards off git history · LATER · every weekly shard rewrite adds to history; the repo is 3.25 GiB packed and grows about 160 MiB a week (measured 2026-10-20, §3), so it reaches GitHub's 5 GB guidance between late December 2026 and early January 2027; move shards to release assets or object storage and track size per run · ~half day for monitoring, more for the move
+- **I17 / T14.3** · Move shards off git history · LATER · every weekly shard rewrite adds to history; the repo is 3.25 GiB packed and grows 125 to 160 MiB a week (measured 2026-10-20, §3), so it reaches GitHub's 5 GB guidance between late December 2026 and late January 2027; move shards to release assets or object storage and track size per run · ~half day for monitoring, more for the move
 - **I2** · MITRE ATLAS framework (P15) · LATER · AI and ML adversary tactics; fits the AI-security positioning · ~1 day
 - **I3** · CWE Top 25 beside OWASP Top 10 (P15) · LATER · the more cited industry list; small dataset · ~2 to 4 hours
 - **I4** · Sigma rules pivot from CVE or technique (P15) · LATER · detection content per CVE is a differentiator · ~1 to 2 days
@@ -180,6 +181,8 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | T10.7 | MCP demo recaptured on the I29, EPSS, and I21 data; `mcp_demo.py --check` matches | 2026-09-27 | PR #15 |
 | T16.1 | A refused attributions write fails the run, so the existing alert opens an issue | 2026-09-27 | PR #18 |
 | I31 | `docs/mitre/` removed (vendored Navigator, unreferenced, outside the CSP) | 2026-09-27 | PR #19 |
+| (no ID) | EPSS smoke tests no longer depend on the deployed EPSS data | 2026-09-27 | PR #20 |
+| (no ID) | Site copy without em dashes | 2026-09-27 | PR #22 |
 | (no ID) | Workflow hardening: Vulnrichment GitHub API calls authenticated, then refreshed by one HEAD check and a fail-closed shallow clone; reference downloads retried through `get_with_retry`; the STIX bundle fetched once per run; workflow crons moved off the top of the hour (`Plans/workflow-hardening.isa.md`) | 2026-09-30 | PR #28, #29, #30, #31 |
 | (no ID) | PyJWT 2.15.0 in the MCP lock (GHSA-42vr-xj54-vc7v) | 2026-10-01 | PR #32 |
 | T10.8 | Cross-vendor audit of P10 and I29: eight findings fixed with red-first tests (credited-CAPEC filter, KEV unknown is null, NVD-only CWE list, shard D3FEND, capped chain CWEs, demo provenance wording, CVE id bound, DEMO.md) | 2026-10-04 | PR #33 |
@@ -201,13 +204,13 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| Repo reaches GitHub's 5 GB guidance between late December 2026 and early January 2027 at the current weekly rewrites (3.25 GiB packed on 2026-10-20, about 160 MiB a week) | High | I17: move shards off git history before then |
+| Repo reaches GitHub's 5 GB guidance between late December 2026 and late January 2027 at the current weekly rewrites (3.25 GiB packed on 2026-10-20, 125 to 160 MiB a week) | High | I17: move shards off git history before then |
 | Silent staleness: upstream outages fail red, and a data run that fails or stops happening now opens an issue | Low | I16 alerting and freshness banner (DONE, PR #10) |
 | Single maintainer; knowledge and review live in one head | High | This plan, ISC-backed PRs, CI gates; I33 would enforce checks |
 | Cross-vendor audits depend on a free Codex quota | Medium | T10.8 ran 2026-10-04 and the workflow hardening audit 2026-10-20; later audits still wait on quota, and a Claude-side non-builder review covers the gap |
 | Wrong or noisy mappings ship with authoritative labels | Medium | I29 labels inherited links; I21 labels every technique link by source (CTID official, chain derived, inferred lowest); I30 and I32 fix APT linkage |
 | Unused third-party code served on the site origin outside the CSP (`docs/mitre/`) | Closed | I31 removed it on 2026-09-27 |
-| Site size on Pages: `docs/` is 187 MB and grows with every run | Low | Watch with I17 monitoring |
+| Site size on Pages: `docs/` is 195 MB and grows with every run | Low | Watch with I17 monitoring |
 | Worklist graph unmanageable for large inputs | Low | Capped at 25 ids; a summary view is T13.1 follow-up work |
 | The roadmap derails focus | High if items run in parallel | P15 stays serial, one item at a time with its own criteria |
 
@@ -252,7 +255,7 @@ Task ISAs for P10, I29, and later work live in the maintainer's private workspac
 
 Append-only, newest first. Older entries are kept verbatim.
 
-- 2026-10-20: plan trued up to `main` at `c72e752`. §3 re-measured; §5 gained the PRs merged since 2026-09-27 that it was missing (#14, #15, #18, #19, #28 to #32, #36 to #39); T16.2 moved to LATER to match its status. Repo growth was measured, not estimated: 525 MiB of new objects between `7cc25b6` and `c72e752`, which moves the I17 deadline from "early 2027" to late December 2026 or early January 2027.
+- 2026-10-20: plan trued up to `main` at `c72e752`. §3 re-measured; §5 gained every non-docs PR merged since 2026-09-27 that it was missing (#14, #15, #18 to #20, #22, #28 to #32, #36 to #39); docs-only PRs stay out. T16.2 moved to LATER to match its status. Repo growth was measured, not estimated: about 520 MiB of new objects between `7cc25b6` and `c72e752`, which moves the I17 deadline from "early 2027" to between late December 2026 and late January 2027.
 
 - 2026-09-28: first real events in the change log, from the daily run at 13:10 UTC (`43c5f15`). It logged 2 `kev_added` (CVE-2026-88771 and CVE-2026-88772, Citrix NetScaler) and 2 `ssvc_exploitation_changed` (the same two, none to `active`). Checked against the live CISA KEV catalog (released 2026-09-27T21:30Z, 1,728 entries): both were added 2026-09-27 with a due date of 2026-09-30, and no other CVE was added after 2026-09-25, so none was missed. Neither CVE is curated yet, so `related` holds only vendor and product; the next weekly run should log a `curated_added` event for each with CWE and APT ids. `freshness.json` has kev, vulnrichment, epss, and cwe at 13:14Z.
 - 2026-09-27: T17.1 added from a graphify structural pass on the repo. The loader's single boundary is what let I32 strip overlap links from the MCP in one change, so the investigation must weigh that before any split.
