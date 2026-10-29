@@ -330,7 +330,7 @@ def _apply_kev_db(loader: IndexLoader, record: dict, meta: dict) -> None:
         return
     entry = kev_db.get(record["id"].upper())
     record["kev"] = _kev_listed(entry)
-    detail = {k: entry[k] for _, k in _KEV_FIELDS if entry.get(k) is not None} if record["kev"] else None
+    detail = {k: entry[k] for _, k in _KEV_FIELDS if entry.get(k) is not None} if entry and record["kev"] else None
     if detail:
         record["kev_detail"] = detail
     else:
