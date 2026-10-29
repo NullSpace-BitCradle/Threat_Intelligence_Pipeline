@@ -89,15 +89,15 @@ class PipelineOrchestrator:
                 # NVD was unavailable — do NOT claim "no new CVEs" (the exact
                 # lie this hardening removes). Skip processing, preserve last-good.
                 log_warning(
-                    "Skipping CVE processing — NVD unavailable this run "
-                    "(degraded); last-good data preserved, will resume next run"
+                    "Skipping CVE processing: NVD unavailable this run "
+                    "(degraded); last-good data preserved, will retry next run"
                 )
                 processing_results = {
                     'success': False, 'degraded': True, 'message': 'NVD unavailable'
                 }
             else:
-                log_info("No new CVEs to process")
-                processing_results = {'success': True, 'message': 'No new CVEs'}
+                log_error("Skipping CVE processing: CVE retrieval failed")
+                processing_results = {'success': False, 'message': 'CVE retrieval failed'}
 
             # Step 3b: Fetch campaign data. A failure keeps the last-good
             # campaigns_db.json but is a failed step: the run goes red.
@@ -276,21 +276,19 @@ class PipelineOrchestrator:
             nvd_cves = self.cve_processor.retrieve_cves_from_nvd()
             
             if not nvd_cves:
-                log_info("No new CVEs found")
-                duration = time.time() - start_time
-                
+                # The fetch is a full crawl, so zero rows is an NVD fault, not
+                # a quiet week. Fail with that reason; nothing is written, so
+                # last-good data stays.
+                error = "NVD returned no CVEs for a full crawl"
+                log_error(error)
                 self.results['cve_retrieval'] = {
-                    'status': 'success',
-                    'duration': duration,
+                    'status': 'failed',
+                    'duration': time.time() - start_time,
                     'cve_count': 0,
+                    'error': error,
                     'timestamp': datetime.now().isoformat()
                 }
-                
-                return {
-                    'success': True,
-                    'cve_count': 0,
-                    'data': {}
-                }
+                return {'success': False, 'cve_count': 0, 'error': error}
             
             # Process NVD data into our format
             processed_cves = self.cve_processor.process_nvd_cves(nvd_cves)
@@ -330,7 +328,8 @@ class PipelineOrchestrator:
             # NVD was unreachable/too slow past the retry budget. This is a
             # DEGRADED run, NOT "no new CVEs" — do NOT write/truncate the
             # cve_output file; leave last-good data in place. The progress file
-            # (not cleaned up on failure) lets the next run resume.
+            # (not cleaned up on failure) lets the next local run resume; CI
+            # keeps no progress file, so a CI run starts over.
             log_warning(
                 "NVD unavailable — skipping CVE retrieval, last-good output "
                 f"preserved ({e.partial_count} CVEs seen this run, resume at "

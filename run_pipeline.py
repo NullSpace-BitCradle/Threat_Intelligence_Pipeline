@@ -22,7 +22,7 @@ def main() -> int:
 Examples:
   tip                          # Run complete pipeline (fetches all CVEs from 1999)
   tip --force                 # Force update even if not needed
-  tip --cve-only              # Process CVEs only (with resume capability)
+  tip --cve-only              # Process CVEs only (resumes locally from cve_progress.json)
   tip --cve-only --clear-progress  # Start CVE retrieval from beginning
   tip --db-only               # Update databases only
   tip --status                # Show pipeline status

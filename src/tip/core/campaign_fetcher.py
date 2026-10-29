@@ -93,6 +93,14 @@ def _extract_campaigns(stix_data: Dict[str, Any]) -> Dict[str, Any]:
                 stix_id_to_mitre[obj["id"]] = ref.get("external_id", "")
                 break
 
+    # "uses" also points at malware and tools; only live attack-patterns are
+    # techniques, as in apt_processor.
+    live_techniques = {
+        obj["id"] for obj in objects
+        if obj.get("type") == "attack-pattern"
+        and not (obj.get("revoked") or obj.get("x_mitre_deprecated"))
+    }
+
     # Process relationships: campaign -> group, campaign -> technique
     campaign_groups: Dict[str, list] = {mid: [] for mid in mitre_id_map.values()}
     campaign_techniques: Dict[str, list] = {mid: [] for mid in mitre_id_map.values()}
@@ -116,7 +124,7 @@ def _extract_campaigns(stix_data: Dict[str, Any]) -> Dict[str, Any]:
                     campaign_groups[campaign_mid].append(group_mitre_id)
 
         # Campaign uses technique
-        if rel_type == "uses" and source_ref in stix_campaigns:
+        if rel_type == "uses" and source_ref in stix_campaigns and target_ref in live_techniques:
             tech_mitre_id = stix_id_to_mitre.get(target_ref)
             if tech_mitre_id:
                 campaign_mid = mitre_id_map[source_ref]

@@ -42,8 +42,8 @@ def _bare_processor():
     proc.techniques_db = {}
     proc.logger = logging.getLogger("test")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
-    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
+    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
+    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: [], load=lambda: False)
     return proc
 

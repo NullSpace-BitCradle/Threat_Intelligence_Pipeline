@@ -54,6 +54,17 @@ class TestVulnrichmentProcessor:
         result = processor._extract_enrichment(data)
         assert result is None
 
+    def test_extract_cisa_cvss_without_ssvc_is_kept(self):
+        """A CISA CVSS score with no SSVC block is still the NVD fallback score"""
+        from tip.core.vulnrichment_processor import VulnrichmentProcessor
+        processor = VulnrichmentProcessor()
+        data = {"containers": {"adp": [{
+            "providerMetadata": {"orgId": "134c704f-9b21-4f2e-91b3-4a467353bcc0"},
+            "metrics": [{"cvssV3_1": {"baseScore": 7.5, "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}],
+        }]}}
+        result = processor._extract_enrichment(data)
+        assert result == {"cisaCVSS": {"baseScore": 7.5, "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}
+
     def test_lookup_found(self, sample_vulnrichment_db):
         """Looking up a CVE with Vulnrichment data should return it"""
         from tip.core.vulnrichment_processor import VulnrichmentProcessor

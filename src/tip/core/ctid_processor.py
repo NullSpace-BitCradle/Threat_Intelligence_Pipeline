@@ -115,11 +115,12 @@ def parse_mappings(raw: Any) -> Dict[str, Dict[str, Any]]:
         if not _CVE_RE.match(cve):
             # Non-CVE capabilities are out of scope; the KEV set has none today.
             continue
+        if mtype not in MAPPING_TYPES:
+            # 'uncategorized' and unknown types carry no stated relation, so
+            # their technique field is never read or checked.
+            continue
         if not _TECH_RE.match(tech):
             raise CTIDFormatError(f"mapping object {i} ({cve}) has technique {tech!r}")
-        if mtype not in MAPPING_TYPES:
-            # 'uncategorized' and unknown types carry no stated relation.
-            continue
         comment = obj.get("comments")
         comment = comment.strip() if isinstance(comment, str) and comment.strip() else None
         rec = out.setdefault(cve, {"group": obj.get("capability_group") or None, "techniques": []})

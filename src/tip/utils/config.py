@@ -14,81 +14,29 @@ logger = logging.getLogger(__name__)
 # Marks root handlers owned by Config.setup_logging so a repeat call replaces them.
 _TIP_HANDLER_ATTR = '_tip_pipeline_handler'
 
+# config.json at the repo root, found from this file rather than the working
+# directory, so the pipeline reads the same config wherever it is started.
+DEFAULT_CONFIG_FILE = Path(__file__).resolve().parents[3] / "config.json"
+
+
 class Config:
     """Centralized configuration management"""
     
-    def __init__(self, config_file: str = "config.json"):
-        self.config_file = config_file
+    def __init__(self, config_file: Optional[str] = None):
+        self.config_file = str(config_file or DEFAULT_CONFIG_FILE)
         self.config = self._load_config()
     
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from file or create default"""
-        config_path = Path(self.config_file)
-        
-        if config_path.exists():
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config: Dict[str, Any] = json.load(f)
-                logger.info(f"Loaded configuration from {self.config_file}")
-                return config
-            except Exception as e:
-                logger.error(f"Failed to load config file {self.config_file}: {e}")
-                logger.info("Using default configuration")
-        else:
-            logger.info(f"Config file {self.config_file} not found, using default configuration")
-        
-        return self._get_default_config()
-    
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration"""
-        return {
-            "api": {
-                "nvd": {
-                    "base_url": "https://services.nvd.nist.gov/rest/json/cves/2.0/",
-                    "api_key_env": "NVD_API_KEY",
-                    "timeout": 30,
-                    "retry_limit": 3,
-                    "retry_delay": 5,
-                    "results_per_page": 2000
-                },
-                "d3fend": {
-                    "base_url": "https://d3fend.mitre.org/api/offensive-technique/attack/",
-                    "timeout": 30
-                }
-            },
-            "database": {
-                "download_timeout": 120,
-                "capec": {
-                    "url": "https://capec.mitre.org/data/csv/1000.csv.zip",
-                    "file": "resources/capec_db.json"
-                },
-                "cwe": {
-                    "url": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
-                    "file": "resources/cwe_db.json"
-                },
-                "techniques": {
-                    "file": "resources/techniques_db.json"
-                },
-                "defend": {
-                    "file": "resources/defend_db.jsonl"
-                }
-            },
-            "processing": {
-                "max_threads": 10,
-                "batch_size": 1000,
-                "enable_concurrent_processing": True
-            },
-            "files": {
-                "cve_output": "results/new_cves.jsonl",
-                "last_update": "lastUpdate.txt",
-                "database_dir": "database"
-            },
-            "logging": {
-                "level": "INFO",
-                "format": "%(asctime)s - %(levelname)s - %(message)s",
-                "file": None  # Set to filename to enable file logging
-            }
-        }
+        """Load the configuration file. A missing or unreadable file raises:
+        silently running on built-in defaults sent data to other paths with
+        no download URLs, and failed later with misleading errors."""
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config: Dict[str, Any] = json.load(f)
+        except (OSError, ValueError) as e:
+            raise RuntimeError(f"Cannot load config file {self.config_file}: {e}") from e
+        logger.info(f"Loaded configuration from {self.config_file}")
+        return config
     
     def get(self, key_path: str, default: Any = None) -> Any:
         """
