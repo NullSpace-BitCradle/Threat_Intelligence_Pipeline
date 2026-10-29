@@ -104,7 +104,7 @@ def test_index_write_is_all_or_nothing_on_serialization_failure(tmp_path):
     from tip.core.entity_index_generator import write_outputs
     before = _seed_indexes(tmp_path)
     with pytest.raises(TypeError):
-        write_outputs({"new": 1}, {"new": 2}, tmp_path, {"bad": {1}}, out_dir=tmp_path)
+        write_outputs({"entities": {"new": 1}}, {"new": 2}, tmp_path, {"bad": {1}}, out_dir=tmp_path)
     assert {n: (tmp_path / n).read_bytes() for n in before} == before
 
 
@@ -122,7 +122,7 @@ def test_index_write_is_all_or_nothing_on_temp_write_failure(tmp_path, monkeypat
 
     monkeypatch.setattr(aio, "_write_temp", flaky)
     with pytest.raises(OSError):
-        write_outputs({"new": 1}, {"new": 2}, tmp_path, {"new": 3}, out_dir=tmp_path)
+        write_outputs({"entities": {"new": 1}}, {"new": 2}, tmp_path, {"new": 3}, out_dir=tmp_path)
     assert {n: (tmp_path / n).read_bytes() for n in before} == before
     assert _no_temps(tmp_path)
 
@@ -130,10 +130,30 @@ def test_index_write_is_all_or_nothing_on_temp_write_failure(tmp_path, monkeypat
 def test_index_write_publishes_all_three(tmp_path):
     from tip.core.entity_index_generator import write_outputs
     _seed_indexes(tmp_path)
-    write_outputs({"e": 1}, {"s": 2}, tmp_path, {"c": 3}, out_dir=tmp_path)
-    assert json.loads((tmp_path / "entity_index.json").read_text()) == {"e": 1}
+    write_outputs({"entities": {"e": 1}}, {"s": 2}, tmp_path, {"c": 3}, out_dir=tmp_path)
+    assert json.loads((tmp_path / "entity_index.json").read_text()) == {"entities": {"e": 1}}
     assert json.loads((tmp_path / "search_index.json").read_text()) == {"s": 2}
     assert json.loads((tmp_path / "cve_ids_index.json").read_text()) == {"c": 3}
+
+
+@pytest.mark.parametrize("new_entities", [{}, {"E1": {}}])
+def test_index_write_refuses_to_shrink_the_entity_index(tmp_path, new_entities):
+    """An empty index, or one under half the existing size, writes nothing."""
+    from tip.core.entity_index_generator import write_outputs
+    (tmp_path / "entity_index.json").write_text(
+        json.dumps({"entities": {f"E{i}": {} for i in range(100)}}))
+    before = _seed_indexes_except_entity(tmp_path)
+    with pytest.raises(aio.DataFloorError):
+        write_outputs({"entities": new_entities}, {"s": 2}, tmp_path, {"c": 3}, out_dir=tmp_path)
+    assert len(json.loads((tmp_path / "entity_index.json").read_text())["entities"]) == 100
+    assert {n: (tmp_path / n).read_bytes() for n in before} == before
+
+
+def _seed_indexes_except_entity(out_dir):
+    names = ("search_index.json", "cve_ids_index.json")
+    for n in names:
+        (out_dir / n).write_text(json.dumps({"old": n}))
+    return {n: (out_dir / n).read_bytes() for n in names}
 
 
 # ISC-56 ----------------------------------------------------------------------

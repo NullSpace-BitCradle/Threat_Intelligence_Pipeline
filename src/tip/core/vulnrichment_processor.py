@@ -112,7 +112,9 @@ class VulnrichmentProcessor:
                     "vector": cvss.get("vectorString", "")
                 }
 
-        return result if found_ssvc else None
+        # A CISA CVSS score is worth keeping on its own: it is the fallback
+        # when NVD has no score.
+        return result if found_ssvc or "cisaCVSS" in result else None
 
     @performance_timer("update_vulnrichment")
     def update(self) -> bool:

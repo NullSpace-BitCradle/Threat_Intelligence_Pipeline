@@ -56,3 +56,34 @@ def test_backfill_sends_a_valid_header_and_prints_no_key(monkeypatch, tmp_path, 
 
     assert sent == [{"apiKey": "sekrit-key"}]
     assert "sekrit-key" not in capsys.readouterr().out
+
+
+def test_backfill_advances_by_rows_returned_not_page_size(monkeypatch, tmp_path):
+    """A short page (NVD returned 2 of a 2000-row page) must not skip the CVEs
+    after it: the next request starts where the returned rows end."""
+    backfill = _load_backfill()
+    monkeypatch.setattr(backfill, "CHECKPOINT", tmp_path / "checkpoint.json")
+    monkeypatch.setattr(backfill.time, "sleep", lambda _s: None)
+    corpus = [{"cve": {"id": f"CVE-2020-{i:04d}", "metrics": {"cvssMetricV31": [
+        {"type": "Primary", "cvssData": {"baseScore": 5.0, "vectorString": "v", "version": "3.1"}}]}}}
+        for i in range(5)]
+    starts = []
+
+    class _Resp:
+        status_code = 200
+
+        def __init__(self, start):
+            self.start = start
+
+        def json(self):
+            return {"totalResults": len(corpus), "vulnerabilities": corpus[self.start:self.start + 2]}
+
+    class _Session:
+        def get(self, url, params=None, **kwargs):
+            starts.append(params["startIndex"])
+            return _Resp(params["startIndex"])
+
+    monkeypatch.setattr(backfill.requests, "Session", _Session)
+    found = backfill.fetch_cvss_map({c["cve"]["id"] for c in corpus}, delay=0)
+    assert starts == [0, 2, 4]
+    assert sorted(found) == [c["cve"]["id"] for c in corpus]

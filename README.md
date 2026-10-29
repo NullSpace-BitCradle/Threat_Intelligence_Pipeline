@@ -139,7 +139,7 @@ python -m http.server 8000 --directory docs
 PYTHONPATH=src python run_pipeline.py                   # Full pipeline
 PYTHONPATH=src python run_pipeline.py --force           # Force update even if not needed
 PYTHONPATH=src python run_pipeline.py --db-only         # Update reference databases only
-PYTHONPATH=src python run_pipeline.py --cve-only        # Process CVEs only (with resume)
+PYTHONPATH=src python run_pipeline.py --cve-only        # Process CVEs only (resumes locally from cve_progress.json)
 PYTHONPATH=src python run_pipeline.py --clear-progress  # Clear progress file and start CVE retrieval from the beginning
 PYTHONPATH=src python run_pipeline.py --status          # Show pipeline status
 PYTHONPATH=src python run_pipeline.py --verbose         # Enable verbose logging

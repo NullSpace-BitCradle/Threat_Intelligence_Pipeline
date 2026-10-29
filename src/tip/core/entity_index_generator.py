@@ -16,7 +16,7 @@ from typing import Callable
 
 from tip_intel import cve_blocks
 from tip_intel.search_terms import tokenize_name as _tokenize_name
-from tip.utils.atomic_io import atomic_replace_many
+from tip.utils.atomic_io import atomic_replace_many, check_floor
 from tip.database.database_optimizer import JSONLManager
 from tip.core.id_normalize import (
     cwe_capecs_with_ancestors,
@@ -922,7 +922,8 @@ def write_outputs(
 
     All files are serialized in memory, then published together: every temp
     file is written before any target is replaced, so a failure cannot leave
-    a mix of old and new indexes.
+    a mix of old and new indexes. Raises DataFloorError, writing nothing,
+    when the new entity index is empty or under half the existing one.
     """
     target_dir = Path(out_dir) if out_dir is not None else Path(base_dir) / "docs" / "data"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -936,6 +937,11 @@ def write_outputs(
     ]
     if cve_ids_index is not None:
         items.append((target_dir / "cve_ids_index.json", _dump(cve_ids_index)))
+
+    # The same 50% floor every reference DB gets: a missing input prints
+    # [SKIP] upstream, and must not blank the index the site and MCP read.
+    check_floor(target_dir / "entity_index.json", entity_index,
+                counter=lambda d: len(d.get("entities") or {}))
 
     print(f"\nWriting {len(items)} index files to {target_dir}...")
     atomic_replace_many(items)

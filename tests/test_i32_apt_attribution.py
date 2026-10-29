@@ -266,8 +266,8 @@ def _processor(groups_db: dict) -> CVEProcessor:
     proc.techniques_db = {}
     proc.logger = logging.getLogger("test_i32")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
-    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
+    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
+    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     proc.get_defend_techniques = lambda t: []
     proc.apt_processor = APTProcessor()
     proc.apt_processor.groups_db = groups_db

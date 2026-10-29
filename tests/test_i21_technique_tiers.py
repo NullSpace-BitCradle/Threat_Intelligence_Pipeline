@@ -33,8 +33,8 @@ def _processor(ctid_db=CTID_DB):
     proc.capec_db = {"63": {"techniques": "::TAXONOMY NAME:ATTACK:ENTRY ID:1059::"}}
     proc.logger = logging.getLogger("test_i21")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
-    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
+    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
+    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     seen: list = []
     # I32: APT groups come from ATT&CK attribution, looked up by CVE id.
     proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: seen.append(c) or [])

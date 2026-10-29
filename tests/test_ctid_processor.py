@@ -148,6 +148,8 @@ def test_parse_missing_comment_is_null():
 def test_parse_skips_uncategorized_and_non_cve_capabilities():
     raw = {"mapping_objects": [
         _obj("CVE-2024-0001", "T1190", "uncategorized"),
+        # A row the parser skips is never checked, so a tactic id there is fine.
+        _obj("CVE-2024-0002", "TA0001", "uncategorized"),
         _obj("not-a-cve", "T1190", "exploitation_technique"),
     ]}
     assert ctid.parse_mappings(raw) == {}

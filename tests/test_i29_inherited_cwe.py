@@ -46,8 +46,8 @@ def _processor():
     proc.logger = logging.getLogger("test_i29")
     proc.owasp_processor = SimpleNamespace(
         get_owasp_categories_for_cwes=lambda cwes: {o for c in cwes for o in OWASP.get(c.replace("CWE-", ""), [])})
-    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None)
-    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None)
+    proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
+    proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     seen_techs: list = []
     # I32: attribution is looked up by CVE id; a stub with no technique
     # lookup proves the processor never asks for one.

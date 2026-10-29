@@ -301,12 +301,23 @@ def test_reference_db_writers_enforce_floor(tmp_path, monkeypatch, name, new_siz
 # ISC-10 / ISC-11 ------------------------------------------------------------
 
 def test_cwe_url_is_https():
-    from tip.utils.config import Config
     repo_root = Path(__file__).resolve().parents[1]
     cfg = json.loads((repo_root / "config.json").read_text())
     assert cfg["database"]["cwe"]["url"].startswith("https://")
-    default = Config.__new__(Config)._get_default_config()
-    assert default["database"]["cwe"]["url"].startswith("https://")
+
+
+def test_config_is_found_from_any_directory_and_fails_loudly(tmp_path, monkeypatch):
+    """config.json resolves from the repo root, not the working directory, and
+    a missing or broken file raises instead of falling back to defaults."""
+    from tip.utils.config import Config
+    monkeypatch.chdir(tmp_path)
+    assert Config().get("database.cwe.url").startswith("https://")
+    with pytest.raises(RuntimeError, match="missing.json"):
+        Config(str(tmp_path / "missing.json"))
+    broken = tmp_path / "broken.json"
+    broken.write_text('{"api": ')
+    with pytest.raises(RuntimeError, match="broken.json"):
+        Config(str(broken))
 
 
 def _cwe_zip(path, ns):

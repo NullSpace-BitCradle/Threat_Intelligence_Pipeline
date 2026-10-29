@@ -139,7 +139,8 @@ class CVEProcessor:
         outage, not the end of the corpus. Pages are paced by
         ``nvd_request_delay``. When the fetch resumes from a progress file,
         ``self.last_fetch_resumed_from`` records the start index so the caller
-        can report a partial refresh.
+        can report a partial refresh. Resume is local only: the progress file
+        is gitignored and CI does not cache it, so CI runs always start at 0.
         """
         self.last_fetch_resumed_from = 0
         try:
@@ -294,8 +295,9 @@ class CVEProcessor:
                 if len(all_cves) % log_interval == 0 or start_index >= total_results:
                     self.logger.info(f"Retrieved {len(cves)} CVEs (index {start_index}/{total_results})")
 
-                # Save progress at configured interval
-                if len(all_cves) % save_interval == 0:
+                # Save each time the count crosses a save interval; pages
+                # are 2000 rows, so testing len % interval missed most.
+                if len(all_cves) // save_interval > (len(all_cves) - len(cves)) // save_interval:
                     progress_data = {
                         'last_index': start_index,
                         'total_retrieved': len(all_cves),
@@ -759,8 +761,13 @@ class CVEProcessor:
         try:
             self._load_epss()
             self._load_ctid()
-            # groups_db.json as the database step just wrote it, not as it
-            # stood when this processor was built.
+            # Reference data as the database step just wrote it, not as it
+            # stood when this processor was built before that step ran. A
+            # failed read keeps what was loaded at start.
+            self.cwe_db = self._load_cwe_db() or self.cwe_db
+            self.capec_db = self._load_capec_db() or self.capec_db
+            self.kev_processor.load()
+            self.vulnrichment_processor.load()
             self.apt_processor.load()
             results = self.process_cve_pipeline(cve_data)
             # Successful records are saved even when the run fails below:

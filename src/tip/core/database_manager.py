@@ -399,19 +399,25 @@ class DatabaseManager:
         raise RuntimeError(f"D3FEND request failed after {D3FEND_ATTEMPTS} attempts for {url}: {last_error}")
 
     def _extract_d3fend_techniques(self, d3fend_response: Dict[str, Any]) -> List[Dict[str, str]]:
-        """Extract defensive technique information from D3FEND API response"""
+        """Extract defensive technique information from D3FEND API response.
+
+        A reply without a results.bindings list raises, so the fail-closed
+        update keeps the previous file (every live reply has one, empty when
+        the technique has no defenses). A single malformed binding is skipped
+        with a warning instead of costing the technique its good bindings.
+        """
+        # D3FEND API response nests data under off_to_def
+        off_to_def = d3fend_response.get('off_to_def', d3fend_response) if isinstance(d3fend_response, dict) else None
+        results = off_to_def.get('results') if isinstance(off_to_def, dict) else None
+        bindings = results.get('bindings') if isinstance(results, dict) else None
+        if not isinstance(bindings, list):
+            raise RuntimeError("D3FEND reply has no results.bindings list")
+
         defensive_techniques = []
-        
-        try:
-            # D3FEND API returns data in a specific format
-            # Navigate the response structure to find defensive techniques
-            # D3FEND API response nests data under off_to_def
-            off_to_def = d3fend_response.get('off_to_def', d3fend_response)
-            bindings = off_to_def.get('results', {}).get('bindings', [])
-            
-            for binding in bindings:
+        for binding in bindings:
+            try:
                 technique_info = {}
-                
+
                 # Extract defensive technique ID
                 if 'def_tech' in binding:
                     def_tech_uri = binding['def_tech'].get('value', '')
@@ -421,32 +427,31 @@ class DatabaseManager:
                         # Use canonical D3FEND ID (e.g., D3-FA) if available, fall back to fragment name
                         technique_info['id'] = self._d3fend_canonical_ids.get(fragment, fragment)
                         technique_info['d3fend_fragment'] = fragment
-                
+
                 # Extract technique label/name
                 if 'def_tech_label' in binding:
                     technique_info['name'] = binding['def_tech_label'].get('value', '')
-                
+
                 # Extract definition if available
                 if 'def_artifact_rel_label' in binding:
                     technique_info['relationship'] = binding['def_artifact_rel_label'].get('value', '')
-                
-                if technique_info.get('id'):
-                    defensive_techniques.append(technique_info)
-            
-            # Remove duplicates based on ID
-            seen_ids = set()
-            unique_techniques = []
-            for tech in defensive_techniques:
-                if tech['id'] not in seen_ids:
-                    seen_ids.add(tech['id'])
-                    unique_techniques.append(tech)
-            
-            return unique_techniques
-            
-        except Exception as e:
-            self.logger.debug(f"Error extracting D3FEND techniques: {e}")
-            return []
-    
+            except (AttributeError, TypeError) as e:
+                self.logger.warning(f"Skipping malformed D3FEND binding {binding!r:.200}: {e}")
+                continue
+
+            if technique_info.get('id'):
+                defensive_techniques.append(technique_info)
+
+        # Remove duplicates based on ID
+        seen_ids = set()
+        unique_techniques = []
+        for tech in defensive_techniques:
+            if tech['id'] not in seen_ids:
+                seen_ids.add(tech['id'])
+                unique_techniques.append(tech)
+
+        return unique_techniques
+
     def _update_kev_database(self) -> Dict[str, Any]:
         """Download and process CISA KEV data"""
         kev_processor = KEVProcessor()

@@ -45,8 +45,10 @@ def extract_cvss(cve: dict) -> dict | None:
         if primary:
             data = primary.get("cvssData", {})
             score = data.get("baseScore")
+            # Like cve_processor.py, the first version present decides; a
+            # null score there means no CVSS, not a fall through.
             if score is None:
-                continue
+                return None
             return {
                 "score": score,
                 "vector": data.get("vectorString", ""),
@@ -107,7 +109,10 @@ def fetch_cvss_map(missing: set, delay: float) -> dict:
 
         payload = resp.json()
         total = payload["totalResults"]
-        for item in payload.get("vulnerabilities", []):
+        page = payload.get("vulnerabilities", [])
+        if not page and start_index < total:
+            raise SystemExit(f"NVD returned an empty page at index {start_index} of {total}")
+        for item in page:
             cve = item.get("cve", {})
             cve_id = cve.get("id")
             if cve_id in missing:
@@ -115,7 +120,8 @@ def fetch_cvss_map(missing: set, delay: float) -> dict:
                 if cvss:
                     found[cve_id] = cvss
 
-        start_index += PAGE_SIZE
+        # NVD can return a short page; advancing by PAGE_SIZE skipped the rest.
+        start_index += len(page)
         CHECKPOINT.write_text(json.dumps({"next_index": start_index, "found": found}))
         pages_done = start_index // PAGE_SIZE
         pages_total = (total + PAGE_SIZE - 1) // PAGE_SIZE
