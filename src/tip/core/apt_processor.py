@@ -15,7 +15,6 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
-from tip.utils.atomic_io import write_reference_db, count_groups
 from tip.utils.http import fetch_stix_bundle
 
 config = get_config()
@@ -288,22 +287,6 @@ class APTProcessor:
             "attributions": attributions,
         }
 
-    def update(self) -> bool:
-        """Download, process, and save groups database"""
-        try:
-            stix_data = self.download()
-            data = self._process_stix_data(stix_data)
-            refused = attributions_collapsed(data, self.db_path)
-            if refused:
-                self.logger.warning(f"Groups database not written: {refused}")
-                return False
-            self.groups_db = data
-            self._save(self.groups_db)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to update groups database: {e}")
-            return False
-
     def load(self) -> bool:
         """Load groups database from disk"""
         try:
@@ -317,12 +300,6 @@ class APTProcessor:
         except Exception as e:
             self.logger.error(f"Failed to load groups database: {e}")
             return False
-
-    def _save(self, data: Dict[str, Any]) -> None:
-        """Floor-check and atomically save the groups database"""
-        write_reference_db(self.db_path, data, count_groups, indent=2)
-        group_count = len(data.get("groups", {}))
-        self.logger.info(f"Saved {group_count} groups to {self.db_path}")
 
     def lookup_attributions(self, cve_id: str) -> List[Dict[str, Any]]:
         """APT groups ATT&CK cites for this CVE, with the citing object.

@@ -97,11 +97,12 @@ def test_download_failure_without_recovery_wrapper(no_network, tmp_path, monkeyp
 
 
 def test_kev_update_failure_returns_false(no_network, tmp_path):
+    from tip.core.database_manager import DatabaseManager
     from tip.core.kev_processor import KEVProcessor
-    proc = KEVProcessor()
-    proc.db_path = str(tmp_path / "kev_db.json")
     from tip.utils.error_handler import NetworkError
     with pytest.raises(NetworkError):
-        proc.download()
-    assert proc.update() is False
+        KEVProcessor().download()
+    manager = DatabaseManager()
+    manager.databases["kev"]["file"] = str(tmp_path / "kev_db.json")
+    assert manager.update_database("kev") is False
     assert not (tmp_path / "kev_db.json").exists()

@@ -269,12 +269,3 @@ class EPSSProcessor:
             f"Saved EPSS for {curated['meta']['curated_count']} curated CVEs to {self.db_path}"
         )
         return int(curated['meta']['curated_count'])
-
-    def update(self) -> bool:
-        """Fetch (once) and publish the curated file. False on any failure."""
-        try:
-            self.write_curated(self.fetch())
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to update EPSS: {e}")
-            return False
