@@ -57,6 +57,9 @@ def test_pivot_accepts_apt_group_and_alias(loader, name):
 
 
 def test_pivot_kev_filter_returns_only_kev_cves(loader):
+    # The fixture catalog lists two CVEs only; without a catalog the filter
+    # reads the graph's kev flag. Catalog precedence: test_audit_2026_10.py.
+    loader._kev_db = False
     resp = pivot_from_entity_impl(loader, "A09:2021", "kev")
     assert resp["ok"] is True
     assert {h["id"] for h in resp["data"]} == {"CVE-2018-13382", "CVE-2019-7192", "CVE-2021-30533"}

@@ -31,8 +31,8 @@ cannot be read).
 ### Type vocabulary
 
 Types use the entity graph's names: `cve`, `cwe`, `capec`, `technique`,
-`defend`, `apt_group`, `owasp`, `campaign`. `kev` filters to CVEs flagged
-KEV. The legacy names `d3fend` (for `defend`) and `apt` (for `apt_group`) are
+`defend`, `apt_group`, `owasp`, `campaign`. `kev` filters to CVEs in the
+KEV catalog (`kev_db.json`, else the graph's flag). The legacy names `d3fend` (for `defend`) and `apt` (for `apt_group`) are
 accepted on input; output always uses the graph names, on both the entity
 path and the shard path.
 
@@ -157,6 +157,9 @@ path and the shard path.
   when the graph and shards have no record either, `in_kev` is `null` (unknown),
   never `false`. A catalog entry that is not an object counts as listed and
   raises a `meta.warnings` entry.
+  `lookup_entity` takes a CVE's `kev` and `kev_detail` from the same
+  catalog (`meta.kev_source`), since the graph and shards are rebuilt
+  weekly and the catalog daily.
 - **`recent_changes`** (I8) reads `docs/data/changes.json.gz`, the event log
   the data runs write (event types and rules in the top-level README). An
   `entity_id` matches an event's CVE, any id in its `related` lists, or its
@@ -191,7 +194,7 @@ cd Threat_Intelligence_Pipeline
 pip install -r requirements-mcp.txt
 ```
 
-`requirements-mcp.txt` pins `mcp==2.2.0`. The server uses the 2.x API
+`requirements-mcp.txt` pins `mcp==2.3.0`. The server uses the 2.x API
 (`mcp.server.mcpserver.MCPServer`, the renamed FastMCP); it does not import
 on mcp 1.x.
 
