@@ -103,7 +103,6 @@ def _processor(tmp_path, monkeypatch):
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db = {}
     proc.capec_db = {}
-    proc.techniques_db = {}
     proc.logger = logging.getLogger("test_epss_pipeline")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)

@@ -685,10 +685,6 @@ function linkProvOf(relData, id) {
     return (map && map[id]) || null;
 }
 
-function isCtidProv(prov) {
-    return !!prov && prov.tier === 'official' && String(prov.source || '').indexOf('CTID') !== -1;
-}
-
 // How one link was made: 'CTID' (an analyst mapping), 'via CTID' (a D3FEND
 // defense reached through a CTID technique, derived), 'inferred', 'cited'
 // (ATT&CK cites the CVE for an APT group, I32), or 'chain' for every link

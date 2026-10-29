@@ -103,24 +103,3 @@ def safe_parse_capec_techniques(techniques_string: str) -> List[str]:
     except (IndexError, AttributeError) as e:
         logger.warning(f"Failed to parse techniques from: {techniques_string[:100]}... Error: {e}")
         return []
-
-def validate_file_exists(file_path: str) -> bool:
-    """
-    Validate that a file exists and is readable
-    
-    Args:
-        file_path: Path to the file
-        
-    Returns:
-        bool: True if file exists and is readable
-    """
-    import os
-    if not os.path.exists(file_path):
-        logger.error(f"File does not exist: {file_path}")
-        return False
-    
-    if not os.access(file_path, os.R_OK):
-        logger.error(f"File is not readable: {file_path}")
-        return False
-    
-    return True

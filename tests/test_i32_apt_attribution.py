@@ -263,7 +263,6 @@ def _processor(groups_db: dict) -> CVEProcessor:
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db = {"20": {"ChildOf": [], "RelatedAttackPatterns": ["10"]}}
     proc.capec_db = {"10": {"techniques": "::TAXONOMY NAME:ATTACK:ENTRY ID:1190::"}}
-    proc.techniques_db = {}
     proc.logger = logging.getLogger("test_i32")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
