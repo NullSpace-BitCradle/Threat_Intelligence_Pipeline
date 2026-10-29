@@ -191,6 +191,19 @@ def test_update_without_entity_index_skips_curated_file(scratch, monkeypatch, ca
     assert "skipping epss_curated.json" in caplog.text
 
 
+def test_skipped_curated_file_is_not_fresh(scratch, monkeypatch):
+    """freshness.json advances EPSS only on fresh_writes, so a run that
+    skipped the curated file must not claim it."""
+    from tip.core.database_manager import DatabaseManager
+    _serve(monkeypatch, make_csv())
+    manager = DatabaseManager()
+    assert manager.update_database("epss") is True
+    assert "epss" in manager.fresh_writes
+    (scratch / "entity_index.json").unlink()
+    assert manager.update_database("epss") is True
+    assert "epss" not in manager.fresh_writes
+
+
 def test_update_without_entity_index_still_fails_on_bad_download(scratch, monkeypatch):
     (scratch / "entity_index.json").unlink()
     _serve(monkeypatch, make_csv(header="#nope\n"))

@@ -475,11 +475,12 @@ class DatabaseManager:
         stix_data = apt_processor.download()
         return apt_processor._process_stix_data(stix_data)
 
-    def _update_epss_database(self) -> None:
+    def _update_epss_database(self) -> int:
         """Fetch EPSS and publish the curated-tier file. The processor owns
         the write (compact JSON, floor on the bulk row count); raises on any
-        failure so update_database reports it and keeps the existing file."""
-        self.epss_processor.write_curated(self.epss_processor.fetch())
+        failure so update_database reports it and keeps the existing file.
+        Returns the curated count, 0 when it skipped the write."""
+        return self.epss_processor.write_curated(self.epss_processor.fetch())
 
     def _update_ctid_database(self) -> None:
         """Fetch the newest CTID KEV mapping file and write ctid_db.json. The
@@ -515,7 +516,12 @@ class DatabaseManager:
                     zip_file = str(Path(tmp) / f"{db_name}_data.zip")
                     self._download_file(db_config['url'], zip_file)
                     data = db_config['processor'](zip_file)
-            elif db_name in ('epss', 'ctid'):
+            elif db_name == 'epss':
+                # 0 means no entity index yet: nothing written, so not fresh.
+                if db_config['processor']():
+                    self.fresh_writes.add(db_name)
+                return True
+            elif db_name == 'ctid':
                 db_config['processor']()
                 self.fresh_writes.add(db_name)
                 return True
