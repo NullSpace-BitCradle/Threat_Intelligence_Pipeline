@@ -27,7 +27,7 @@ var WORKLIST_COLUMNS = [
 ];
 
 function parseWorklistIds(raw) {
-    var seen = {};
+    var seen = Object.create(null);  // no inherited keys: "constructor" is an ID like any other
     var out = [];
     var parts = (raw || '').split(/[\s,]+/);
     for (var i = 0; i < parts.length; i++) {
@@ -77,9 +77,11 @@ async function resolveWorklistRow(id) {
         }
         return row;
     }
-    var ent = getEntity(id);
+    // Resolved like the search bar, so "APT29" and "t1059" find G0016 and T1059.
+    var ent = resolveEntity(id);
     if (ent) {
         row.found = true;
+        row.id = ent.id;
         row.type = ent.type || '';
         row.name = ent.name || id;
         if (typeof ent.cvss_score === 'number') row.cvss = ent.cvss_score;

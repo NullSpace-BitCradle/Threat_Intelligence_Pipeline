@@ -255,3 +255,30 @@ def test_csp_present_and_no_violations(page: Page) -> None:
     csp_console = [m for m in console if "Content Security Policy" in m or "Refused to" in m]
     assert violations == [], violations
     assert csp_console == [], csp_console
+
+
+# 2026-10-29 audit ------------------------------------------------------
+
+
+def test_worklist_resolves_names_and_lowercase_ids_like_search(page: Page) -> None:
+    page.goto(f"{BASE_URL}#/list/APT29,t1059,constructor")
+    rows = page.locator("#worklist-table tbody tr")
+    expect(rows).to_have_count(3, timeout=TIMEOUT_MS)
+    table = page.locator("#worklist-table")
+    expect(table).to_contain_text("G0016")
+    expect(table).to_contain_text("T1059")
+    # A built-in object key is an id like any other: listed, and not found.
+    expect(rows.filter(has_text="constructor")).to_contain_text("not found")
+
+
+def test_builtin_object_key_is_not_an_entity(page: Page) -> None:
+    page.goto(f"{BASE_URL}#/cwe/constructor")
+    expect(page.locator("#result-main")).to_contain_text("Entity not found", timeout=TIMEOUT_MS)
+
+
+def test_two_shard_cves_from_one_year_both_resolve(page: Page) -> None:
+    """One streamed scan serves every id asked for in the same tick."""
+    page.goto(f"{BASE_URL}#/list/{SHARD_ONLY_CVE},CVE-1999-0001")
+    rows = page.locator("#worklist-table tbody tr")
+    expect(rows).to_have_count(2, timeout=TIMEOUT_MS)
+    expect(rows.filter(has_text="not found")).to_have_count(0)

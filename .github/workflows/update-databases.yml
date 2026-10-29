@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Manual trigger
 
 permissions:
-  contents: write
+  contents: read
 
 # Both data workflows rewrite docs/data and lastUpdate.txt; never let them overlap.
 concurrency:
@@ -20,17 +20,16 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Job-level permissions replace the workflow-level block: contents to
-    # publish data, issues to open and close pipeline-failure alerts.
+    # Runs the pipeline and its dependencies with a read-only token and no
+    # credentials on disk, so nothing that executes here can push to the repo.
+    # The publish job below holds the write token and runs no pipeline code.
     permissions:
-      contents: write
-      issues: write
+      contents: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          persist-credentials: false
 
       # A run queued behind another data run (shared concurrency group) is
       # checked out at the SHA it was triggered on, which predates the other
@@ -53,14 +52,88 @@ jobs:
         env:
           PYTHONPATH: src
           # The CTID step lists the mappings-explorer tree through the GitHub
-          # API; the token lifts the per-IP limit. Sent as a header only.
+          # API; the token lifts the per-IP limit. Sent as a header only, and
+          # read-only in this job.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python run_pipeline.py --db-only
 
-      # Runs only when the pipeline step succeeded (default if: success()), so a
-      # failed or degraded run never publishes. Only data paths are staged, and a
-      # run that changed nothing but lastUpdate.txt makes no commit.
+      # Hands the data change to the publish job as a binary patch. Runs only
+      # when the pipeline step succeeded, so a failed run never publishes.
+      - name: Export data changes
+        run: |
+          git add docs/data docs/database lastUpdate.txt
+          git diff --cached --binary --no-renames -- docs/data docs/database lastUpdate.txt > data.patch
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: data-patch
+          path: data.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: update
+    # Runs after a failed or cancelled pipeline too, so the alert steps fire.
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # contents to publish data, issues to open and close pipeline-failure
+    # alerts. Only checkout, git and the stdlib alert script run here.
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Sync to latest main
+        run: git pull --ff-only origin main
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        if: needs.update.result == 'success'
+        with:
+          name: data-patch
+          path: ${{ runner.temp }}/data-patch
+
+      # The data is flat, mode 100644 files, never a rename, so a patch with
+      # any other mode (a symlink, an executable) or a rename header is
+      # refused before git sees it. --include checks only a rename's new
+      # name, so after applying, anything staged that is not a flat,
+      # non-dot file in the data paths fails the run. Together the patch
+      # cannot reach .git, code, or git's own config files (.gitignore and
+      # .gitattributes).
+      - name: Apply data changes
+        if: needs.update.result == 'success'
+        env:
+          PATCH: ${{ runner.temp }}/data-patch/data.patch
+        run: |
+          # Collected, not grep -q: an early exit in a pipe is SIGPIPE under
+          # pipefail, which would read as "no match" on a large patch.
+          bad=$(grep -E '^(new file |new )?mode ' "$PATCH" | grep -v 'mode 100644$' || true)
+          if grep -Eq '^(rename|copy) (from|to|old|new) ' "$PATCH" || [ -n "$bad" ]; then
+            echo "Refusing to publish: the data patch has a rename or a mode other than 100644." >&2
+            exit 1
+          fi
+          if [ -s "$PATCH" ]; then
+            git apply --index --include='docs/data/*' --include='docs/database/*' --include=lastUpdate.txt "$PATCH"
+          fi
+          outside=$(git diff --cached --no-renames --name-only | grep -vE '^docs/(data|database)/[^./][^/]*$|^lastUpdate\.txt$' || true)
+          if [ -n "$outside" ]; then
+            echo "Refusing to publish: the data patch touches $outside" >&2
+            exit 1
+          fi
+          modes=$(git diff --cached --no-renames --raw | grep -vE '^:(000000|100644) (000000|100644) ' || true)
+          if [ -n "$modes" ]; then
+            echo "Refusing to publish: the data patch stages a mode other than 100644: $modes" >&2
+            exit 1
+          fi
+
+      # A run that changed nothing but lastUpdate.txt makes no commit.
       - name: Commit and push if data changed
+        if: needs.update.result == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -81,23 +154,24 @@ jobs:
           fi
           git push origin HEAD:main
 
-      # I16 alerting. The failure step also runs on cancellation, because a
-      # job timeout cancels the job instead of failing it. Both steps call a
-      # script that logs and exits 0 on any error, so alerting cannot change
-      # the run's result.
+      # I16 alerting. The publish job runs even when the pipeline job failed
+      # or was cancelled (a job timeout cancels instead of failing), and the
+      # outcome reported is the pipeline's unless it succeeded. Both steps
+      # call a script that logs and exits 0 on any error, so alerting cannot
+      # change the run's result.
       - name: Alert on failure
-        if: failure() || cancelled()
+        if: failure() || cancelled() || needs.update.result != 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
-          RUN_OUTCOME: ${{ job.status }}
+          RUN_OUTCOME: ${{ needs.update.result == 'success' && job.status || needs.update.result }}
           REPO_OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 scripts/pipeline_alert.py run
 
       - name: Close failure alert on success
-        if: success()
+        if: success() && needs.update.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
