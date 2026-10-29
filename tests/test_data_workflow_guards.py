@@ -16,7 +16,7 @@ DATA_WORKFLOWS = ["run-pipeline.yml", "update-databases.yml"]
 
 
 def _job_header(text):
-    """Lines of the single job, from its name to its first step."""
+    """Lines of the first (pipeline) job, from its name to its first step."""
     jobs = text.split("\njobs:\n", 1)[1]
     return jobs.split("    steps:", 1)[0]
 
@@ -27,6 +27,8 @@ def test_job_runs_only_on_main(name):
     assert "workflow_dispatch:" in text  # manual trigger stays
     header = _job_header(text)
     assert re.search(r"^    if: github\.ref == 'refs/heads/main'\s*$", header, re.M), header
+    publish = _jobs(text)["publish"].split("    steps:", 1)[0]
+    assert re.search(r"^    if: always\(\) && github\.ref == 'refs/heads/main'\s*$", publish, re.M), publish
 
 
 @pytest.mark.parametrize("name", DATA_WORKFLOWS)
@@ -56,8 +58,8 @@ def test_syncs_to_latest_main_before_running(name):
 
 ALL_WORKFLOWS = sorted(p.name for p in WORKFLOWS.glob("*.yml"))
 ALERTING_JOBS = {
-    "update-databases.yml": {"update"},
-    "run-pipeline.yml": {"pipeline"},
+    "update-databases.yml": {"publish"},
+    "run-pipeline.yml": {"publish"},
     "smoke-test.yml": {"smoke-live"},
 }
 
@@ -256,11 +258,32 @@ def test_no_expressions_in_script_inputs(name):
 
 
 @pytest.mark.parametrize("name", DATA_WORKFLOWS)
-def test_data_job_keeps_contents_write(name):
-    """Job-level permissions replace the workflow block, so contents: write
-    must be restated next to issues: write or the push step breaks."""
-    header = _job_header((WORKFLOWS / name).read_text())
-    assert re.search(r"^    permissions:\n      contents: write\n      issues: write$", header, re.M)
+def test_pipeline_code_never_holds_a_write_token(name):
+    """The job that installs dependencies and runs the pipeline gets a
+    read-only token and leaves no credentials on disk. Only the publish job,
+    which runs no pipeline code, can push."""
+    text = (WORKFLOWS / name).read_text()
+    assert re.search(r"^permissions:\n  contents: read$", text, re.M)
+    jobs = _jobs(text)
+    assert len(jobs) == 2 and "publish" in jobs
+    build = next(body for job, body in jobs.items() if job != "publish")
+    assert re.search(r"^    permissions:\n      contents: read\n\n", build, re.M)
+    assert "persist-credentials: false" in build
+    assert "write" not in "".join(level for scope, _, level in _permission_grants(text)
+                                  if scope not in ("", "publish"))
+    publish = jobs["publish"]
+    assert re.search(r"^    permissions:\n      contents: write\n      issues: write$", publish, re.M)
+    for code in ("pip install", "run_pipeline.py", "setup.py", "setup-python"):
+        assert code not in publish, code
+    assert "--include='docs/data/*' --include='docs/database/*' --include=lastUpdate.txt" in publish
+    apply = _step(publish, "Apply data changes")
+    assert apply.index("grep -v 'mode 100644$' || true") < apply.index("git apply")
+    assert "grep -qv" not in apply  # SIGPIPE under pipefail reads as no match
+    assert apply.index("git apply") < apply.index("git diff --cached --no-renames --raw")
+    assert apply.index("^(rename|copy) (from|to|old|new) ") < apply.index("git apply")
+    assert "^docs/(data|database)/[^./][^/]*$" in apply
+    # --include matches a rename's new name only: what got staged is checked too.
+    assert apply.index("git apply") < apply.index("git diff --cached --no-renames --name-only")
 
 
 @pytest.mark.parametrize("name", DATA_WORKFLOWS)
@@ -271,15 +294,31 @@ def test_data_workflow_alerts_on_failure_and_closes_on_success(name):
     ok_at = text.index("- name: Close failure alert on success")
     assert commit < fail_at and commit < ok_at, "alerts must run after the publish step"
 
+    build = next(job for job in _jobs(text) if job != "publish")
     fail = _step(text, "Alert on failure")
-    assert "if: failure() || cancelled()" in fail
-    assert "RUN_OUTCOME: ${{ job.status }}" in fail
+    assert f"if: failure() || cancelled() || needs.{build}.result != 'success'" in fail
+    assert (f"RUN_OUTCOME: ${{{{ needs.{build}.result == 'success' && job.status"
+            f" || needs.{build}.result }}}}") in fail
     assert "REPO_OWNER: ${{ github.repository_owner }}" in fail
     ok = _step(text, "Close failure alert on success")
-    assert "if: success()" in ok
+    assert f"if: success() && needs.{build}.result == 'success'" in ok
     assert "RUN_OUTCOME: success" in ok
     for step in (fail, ok):
         assert "GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in step
+        assert "run: python3 scripts/pipeline_alert.py run" in step
+
+
+def test_live_canary_alerts_when_smoke_fails_or_times_out():
+    """A timeout cancels the job instead of failing it (2026-10-26 and 10-27
+    runs died in playwright install), so the alert covers both."""
+    job = _jobs((WORKFLOWS / "smoke-test.yml").read_text())["smoke-live"]
+    assert re.search(r"^    timeout-minutes: 20$", job, re.M)
+    fail = _step(job, "Alert on failure")
+    assert "if: (failure() || cancelled()) && github.ref == 'refs/heads/main'" in fail
+    assert "RUN_OUTCOME: ${{ job.status }}" in fail
+    ok = _step(job, "Close failure alert on success")
+    assert "if: success() && github.ref == 'refs/heads/main'" in ok
+    for step in (fail, ok):
         assert "run: python3 scripts/pipeline_alert.py run" in step
 
 

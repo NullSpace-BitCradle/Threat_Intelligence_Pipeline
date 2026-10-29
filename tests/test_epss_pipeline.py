@@ -208,7 +208,8 @@ def test_workflows_stage_only_data_paths(workflow):
     commit is what the code writes under docs/data: the curated file."""
     text = (REPO_ROOT / ".github" / "workflows" / workflow).read_text()
     adds = re.findall(r"^\s*git add (.+)$", text, re.MULTILINE)
-    assert adds == ["docs/data docs/database lastUpdate.txt"]
+    # Staged twice: to export the patch in the pipeline job, then to commit.
+    assert adds == ["docs/data docs/database lastUpdate.txt"] * 2
     assert "epss" not in text.lower()
 
 
