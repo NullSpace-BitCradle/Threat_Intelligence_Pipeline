@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable
 
 from tip_intel import cve_blocks
+from tip_intel.search_terms import tokenize_name as _tokenize_name
 from tip.utils.atomic_io import atomic_replace_many
 from tip.database.database_optimizer import JSONLManager
 from tip.core.id_normalize import (
@@ -104,14 +105,6 @@ def _parse_capec_technique_ids(techniques_str: str) -> list[str]:
     if not techniques_str:
         return []
     return re.findall(r"TAXONOMY NAME:ATTACK:ENTRY ID:([^:]+)", techniques_str)
-
-
-def _tokenize_name(name: str) -> list[str]:
-    """Split a name into lowercase search tokens (words 3+ chars)."""
-    if not name:
-        return []
-    words = re.split(r"[\s\-_/,.:;()\[\]]+", name.lower())
-    return [w for w in words if len(w) >= 3]
 
 
 def build_cve_entity_record(

@@ -18,6 +18,7 @@ import re
 from typing import Any, Optional
 
 from tip_intel import cve_blocks
+from tip_intel.search_terms import tokenize_name
 from tip_intel.link_tiers import (
     CTID_DEFEND_SOURCE,
     CTID_FIELD,
@@ -54,8 +55,8 @@ VALID_TYPES = set(GRAPH_TYPES) | set(TYPE_ALIASES) | {KEV_TYPE}
 
 # CVE suffixes are 4 to 7 digits today; allow up to 19. An unbounded suffix
 # would reach int() in the loader and raise past Python's digit limit.
-_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,19}$", re.IGNORECASE)
-_CVE_SHAPED_RE = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE)
+_CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,19}$", re.IGNORECASE | re.ASCII)
+_CVE_SHAPED_RE = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE | re.ASCII)
 
 
 def _overlong_cve_error(value: str) -> Optional[dict]:
@@ -110,9 +111,11 @@ def _ensure_loaded(loader: IndexLoader) -> Optional[dict]:
     return None
 
 
-def _type_matches(want: str, ttype: Optional[str], rel_type: str, target: Optional[dict]) -> bool:
+def _type_matches(
+    loader: IndexLoader, want: str, ttype: Optional[str], rel_type: str, tid: str, target: Optional[dict]
+) -> bool:
     if want == KEV_TYPE:
-        return ttype == "cve" and bool(target and target.get("kev"))
+        return ttype == "cve" and _kev_flag(loader, tid, target)
     return ttype == want or rel_type == want
 
 
@@ -318,6 +321,23 @@ def _shard_error(exc: ShardReadError) -> dict:
     )
 
 
+def _apply_kev_db(loader: IndexLoader, record: dict, meta: dict) -> None:
+    """Overwrite a CVE record's kev flag and kev_detail from kev_db.json, the
+    daily catalog kev_status reads. The graph and shards only change weekly,
+    so a CVE CISA added since then would otherwise read as not in KEV."""
+    kev_db = loader.kev_db
+    if kev_db is None:
+        return
+    entry = kev_db.get(record["id"].upper())
+    record["kev"] = _kev_listed(entry)
+    detail = {k: entry[k] for _, k in _KEV_FIELDS if entry.get(k) is not None} if record["kev"] else None
+    if detail:
+        record["kev_detail"] = detail
+    else:
+        record.pop("kev_detail", None)
+    meta["kev_source"] = "kev_db.json"
+
+
 def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
     """Look up a single entity by ID.
 
@@ -366,6 +386,8 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         record["rels"] = rels_out
 
         meta: dict = {"source": "entity_index.json", "rel_count": len(rels_out)}
+        if record.get("type") == "cve":
+            _apply_kev_db(loader, record, meta)
         indexed_epss = "epss" in record
         # The shard adds what the index does not carry: D3FEND relationship
         # semantics on defend rels, and intel blocks for indexes generated
@@ -396,13 +418,12 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
             payload, shard_name = shard_hit
             record = _build_shard_record(entity_id, payload, shard_name)
             record["epss"], epss_source = _resolve_epss(loader, record["id"], record.get("epss"), "shard")
-            return ok_response(
-                record,
-                meta={
-                    "source": "shard", "shard": shard_name, "rel_count": len(record["rels"]),
-                    "epss_source": epss_source,
-                },
-            )
+            meta = {
+                "source": "shard", "shard": shard_name, "rel_count": len(record["rels"]),
+                "epss_source": epss_source,
+            }
+            _apply_kev_db(loader, record, meta)
+            return ok_response(record, meta=meta)
 
     return _not_found(loader, entity_id)
 
@@ -450,7 +471,7 @@ def pivot_from_entity_impl(
                 if target is None:
                     continue
                 ttype = target.get("type")
-                if want is not None and not _type_matches(want, ttype, rel_type, target):
+                if want is not None and not _type_matches(loader, want, ttype, rel_type, tid, target):
                     continue
                 hit = {
                     "id": target.get("id", tid),
@@ -489,7 +510,7 @@ def pivot_from_entity_impl(
                     # the rel label is already a graph type name.
                     ttype = rtype
                     name = rel.get("name") or tid
-                if want is not None and not _type_matches(want, ttype, rtype, target):
+                if want is not None and not _type_matches(loader, want, ttype, rtype, tid, target):
                     continue
                 shard_hit_rel = {
                     "id": tid,
@@ -554,7 +575,12 @@ def search_threat_intel_impl(
     if not_loaded is not None:
         return not_loaded
 
-    tokens = [t for t in query.lower().split() if t]
+    # A word the index holds whole (an ID, an alias) stays whole; otherwise it
+    # splits on the punctuation the index split names on, so "HTTP/2" and
+    # "reset." still match.
+    tokens = []
+    for word in query.lower().split():
+        tokens.extend([word] if word in loader.search_index else tokenize_name(word))
     if not tokens:
         return ok_response([], meta={"source": "search_index.json", "count": 0})
 
@@ -571,7 +597,7 @@ def search_threat_intel_impl(
         if ent is None:
             continue
         ttype = ent.get("type")
-        if wanted is not None and not any(_type_matches(w, ttype, "", ent) for w in wanted):
+        if wanted is not None and not any(_type_matches(loader, w, ttype, "", eid, ent) for w in wanted):
             continue
         hits.append(
             {
