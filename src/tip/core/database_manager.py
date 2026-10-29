@@ -183,21 +183,23 @@ class DatabaseManager:
 
             cwe_data: Dict[str, Any] = {}
             root = tree.getroot()
+            # MITRE bumps the namespace with each schema major (cwe-7 to cwe-8 in CWE 5.0), so take it from the root.
+            ns = root.tag[:root.tag.index('}') + 1] if root.tag.startswith('{') else ''
 
             # Parse CWE entries
-            for weakness in root.findall('.//{http://cwe.mitre.org/cwe-7}Weakness'):
+            for weakness in root.findall(f'.//{ns}Weakness'):
                 cwe_id = weakness.get('ID')
                 if cwe_id:
                     # Extract name (it's an XML attribute, not a child element)
                     name = weakness.get('Name', '')
 
                     # Extract description
-                    desc_elem = weakness.find('{http://cwe.mitre.org/cwe-7}Description')
+                    desc_elem = weakness.find(f'{ns}Description')
                     description = desc_elem.text if desc_elem is not None else ''
 
                     # Extract parent relationships from Related_Weaknesses
                     child_of = []
-                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}Related_Weakness'):
+                    for rel in weakness.findall(f'.//{ns}Related_Weakness'):
                         if rel.get('Nature') == 'ChildOf':
                             parent_id = rel.get('CWE_ID')
                             if parent_id:
@@ -205,7 +207,7 @@ class DatabaseManager:
                     
                     # Extract related attack patterns
                     related_capecs = []
-                    for rel in weakness.findall('.//{http://cwe.mitre.org/cwe-7}Related_Attack_Patterns/{http://cwe.mitre.org/cwe-7}Related_Attack_Pattern'):
+                    for rel in weakness.findall(f'.//{ns}Related_Attack_Patterns/{ns}Related_Attack_Pattern'):
                         capec_id = rel.get('CAPEC_ID')
                         if capec_id:
                             related_capecs.append(capec_id)
