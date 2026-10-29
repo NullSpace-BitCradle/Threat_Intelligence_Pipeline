@@ -278,6 +278,9 @@ def test_pipeline_code_never_holds_a_write_token(name):
     assert "--include='docs/data/*' --include='docs/database/*' --include=lastUpdate.txt" in publish
     apply = _step(publish, "Apply data changes")
     assert apply.index("mode 120000") < apply.index("git apply")
+    assert apply.index("^(rename|copy) (from|to) ") < apply.index("git apply")
+    # --include matches a rename's new name only: what got staged is checked too.
+    assert apply.index("git apply") < apply.index("git diff --cached --no-renames --name-only")
 
 
 @pytest.mark.parametrize("name", DATA_WORKFLOWS)
