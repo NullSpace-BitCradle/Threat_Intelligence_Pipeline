@@ -98,24 +98,26 @@ jobs:
           name: data-patch
           path: ${{ runner.temp }}/data-patch
 
-      # Only data paths can apply, and the data never holds a symlink or a
-      # rename, so a patch with either is refused before git sees it. git
-      # apply also refuses to write through a symlink. --include checks only
-      # a rename's new name, so after applying, anything staged outside the
-      # data paths fails the run. Together the patch cannot reach .git or code.
+      # The data is flat, mode 100644 files, never a rename, so a patch with
+      # any other mode (a symlink, an executable) or a rename header is
+      # refused before git sees it. --include checks only a rename's new
+      # name, so after applying, anything staged that is not a flat,
+      # non-dot file in the data paths fails the run. Together the patch
+      # cannot reach .git, code, or git's own config files (.gitignore and
+      # .gitattributes).
       - name: Apply data changes
         if: needs.update.result == 'success'
         env:
           PATCH: ${{ runner.temp }}/data-patch/data.patch
         run: |
-          if grep -Eq '^(new file |new )?mode 120000|^(rename|copy) (from|to) ' "$PATCH"; then
-            echo "Refusing to publish: the data patch adds a symlink or a rename." >&2
+          if grep -Eq '^(rename|copy) (from|to) ' "$PATCH" || grep -E '^(new file |new )?mode ' "$PATCH" | grep -qv 'mode 100644$'; then
+            echo "Refusing to publish: the data patch has a rename or a mode other than 100644." >&2
             exit 1
           fi
           if [ -s "$PATCH" ]; then
             git apply --index --include='docs/data/*' --include='docs/database/*' --include=lastUpdate.txt "$PATCH"
           fi
-          outside=$(git diff --cached --no-renames --name-only | grep -vE '^(docs/data/|docs/database/)|^lastUpdate\.txt$' || true)
+          outside=$(git diff --cached --no-renames --name-only | grep -vE '^docs/(data|database)/[^./][^/]*$|^lastUpdate\.txt$' || true)
           if [ -n "$outside" ]; then
             echo "Refusing to publish: the data patch touches $outside" >&2
             exit 1
