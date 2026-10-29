@@ -9,6 +9,7 @@ import json
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,13 @@ import anyio  # noqa: E402  (mcp dependency; import after the skip guard)
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+# pytest-playwright keeps an asyncio loop running on the main thread for the whole session,
+# so anyio.run there fails when tests/smoke runs first; a fresh thread has no loop.
+def _run(fn):
+    with ThreadPoolExecutor(1) as pool:
+        return pool.submit(anyio.run, fn).result()
 
 
 async def _session() -> tuple[list, dict, dict, dict, dict, dict]:
@@ -57,7 +65,7 @@ async def _session() -> tuple[list, dict, dict, dict, dict, dict]:
 
 
 def test_stdio_server_lists_tools_and_answers_lookup():
-    tools, entity, pivot, chain, defenses, kev, changes = anyio.run(_session)
+    tools, entity, pivot, chain, defenses, kev, changes = _run(_session)
 
     by_name = dict(tools)
     assert set(by_name) == {
@@ -127,4 +135,4 @@ def test_repo_mcp_json_is_portable_and_launches_server():
             async with mcp.Client(params) as client:
                 return {t.name for t in (await client.list_tools()).tools}
 
-    assert len(anyio.run(listed)) == 7
+    assert len(_run(listed)) == 7

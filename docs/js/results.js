@@ -517,9 +517,16 @@ function renderDetailTabs(container, entity, related, detail) {
         for (const relEntity of relData.entities) {
             const card = document.createElement('div');
             card.className = 'entity-card';
-            card.addEventListener('click', () => {
-                window.location.hash = '#/' + relEntity.type + '/' + relEntity.id;
-            });
+            // Like the sidebar: an id the index does not hold (a shard-only
+            // CVE can name one) is plain text, never a link to "not found".
+            if (getEntity(relEntity.id)) {
+                card.addEventListener('click', () => {
+                    window.location.hash = '#/' + relEntity.type + '/' + relEntity.id;
+                });
+            } else {
+                card.classList.add('entity-card-unlinked');
+                card.title = relEntity.id + ' is not in the curated index';
+            }
 
             const left = document.createElement('div');
 
@@ -853,7 +860,12 @@ function addCweChipSection(content, label, ids, inherited) {
             chip.title = 'Inferred: ' + cid + ' is a ChildOf parent of a weakness NVD assigned. NVD did not assign it.';
             chip.appendChild(makeInheritedBadge(chip.title));
         }
-        chip.addEventListener('click', function() { navigateToEntity(cid); });
+        if (getEntity(cid)) {
+            chip.addEventListener('click', function() { navigateToEntity(cid); });
+        } else {
+            chip.classList.add('overview-entity-unlinked');
+            if (!inherited) chip.title = cid + ' is not in the curated index';
+        }
         section.appendChild(chip);
     });
     content.appendChild(section);

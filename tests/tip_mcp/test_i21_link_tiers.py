@@ -269,7 +269,9 @@ def test_legacy_fixture_output_is_byte_identical_to_main(loader):
     """Every tool call on the pre-I21 fixture returns exactly what main's
     tools returned (recorded in fixtures/legacy_outputs_main.json), minus
     the CVE to APT group technique-overlap links I32 removed (re-recorded
-    2026-09-27; the only change was those links and the counts they made)."""
+    2026-09-27; the only change was those links and the counts they made).
+    lookup_entity re-recorded 2026-10-29: CVE kev and kev_detail now come
+    from kev_db.json (meta kev_source), and nothing else changed."""
     from pathlib import Path
 
     golden = json.loads((Path(__file__).parent / "fixtures" / "legacy_outputs_main.json").read_text())

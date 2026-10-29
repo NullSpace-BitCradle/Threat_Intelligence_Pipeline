@@ -918,6 +918,14 @@
 "epss": null,
 "id": "CVE-2002-0367",
 "kev": true,
+"kev_detail": {
+"dateAdded": "2022-03-03",
+"dueDate": "2022-03-24",
+"knownRansomwareCampaignUse": "Known",
+"product": "Windows",
+"requiredAction": "Apply updates per vendor instructions.",
+"vendorProject": "Microsoft"
+},
 "name": "CVE-2002-0367",
 "phase": "vulnerability",
 "prov": {
@@ -996,6 +1004,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 11,
 "source": "entity_index.json"
 },
@@ -1114,7 +1123,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2013-0431",
-"kev": true,
+"kev": false,
 "name": "CVE-2013-0431",
 "phase": "vulnerability",
 "prov": {
@@ -1139,6 +1148,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 2,
 "source": "entity_index.json"
 },
@@ -1185,7 +1195,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2013-0632",
-"kev": true,
+"kev": false,
 "name": "CVE-2013-0632",
 "phase": "vulnerability",
 "prov": {
@@ -1210,6 +1220,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 2,
 "source": "entity_index.json"
 },
@@ -1256,7 +1267,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2013-2465",
-"kev": true,
+"kev": false,
 "name": "CVE-2013-2465",
 "phase": "vulnerability",
 "prov": {
@@ -1281,6 +1292,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 2,
 "source": "entity_index.json"
 },
@@ -1327,7 +1339,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2018-13382",
-"kev": true,
+"kev": false,
 "name": "CVE-2018-13382",
 "phase": "vulnerability",
 "prov": {
@@ -1346,6 +1358,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 1,
 "source": "entity_index.json"
 },
@@ -1384,7 +1397,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2019-7192",
-"kev": true,
+"kev": false,
 "name": "CVE-2019-7192",
 "phase": "vulnerability",
 "prov": {
@@ -1403,6 +1416,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 1,
 "source": "entity_index.json"
 },
@@ -1441,7 +1455,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2021-30533",
-"kev": true,
+"kev": false,
 "name": "CVE-2021-30533",
 "phase": "vulnerability",
 "prov": {
@@ -1460,6 +1474,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 1,
 "source": "entity_index.json"
 },
@@ -1498,7 +1513,7 @@
 "data": {
 "epss": null,
 "id": "CVE-2022-23748",
-"kev": true,
+"kev": false,
 "name": "CVE-2022-23748",
 "phase": "vulnerability",
 "prov": {
@@ -1529,6 +1544,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 3,
 "source": "entity_index.json"
 },
@@ -3171,7 +3187,15 @@
 "description": "A cross-site scripting vulnerability in TestWidget 1.0 allows remote attackers to inject arbitrary script. Affects versions prior to 1.0.1.",
 "epss": null,
 "id": "CVE-2024-31337",
-"kev": false,
+"kev": true,
+"kev_detail": {
+"dateAdded": "2024-05-01",
+"dueDate": "2024-05-22",
+"knownRansomwareCampaignUse": "Unknown",
+"product": "Fixture App",
+"requiredAction": "Apply mitigations per vendor instructions.",
+"vendorProject": "Example"
+},
 "last_modified": "2024-06-20T08:00:00.000",
 "name": "A cross-site scripting vulnerability in TestWidget 1.0 allows remote attackers to inject arbitrary script",
 "phase": "vulnerability",
@@ -3214,6 +3238,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 5,
 "shard": "CVE-2024.jsonl.gz",
 "source": "shard"
@@ -3358,6 +3383,7 @@
 },
 "meta": {
 "epss_source": null,
+"kev_source": "kev_db.json",
 "rel_count": 5,
 "shard": "CVE-2024.jsonl.gz",
 "source": "shard"

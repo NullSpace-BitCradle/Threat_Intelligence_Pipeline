@@ -61,7 +61,8 @@ jobs:
   smoke-live:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # playwright install alone ran past 10 minutes on 2026-10-26 and 10-27.
+    timeout-minutes: 20
     # Issue write access only here, for the pipeline-stale canary alert.
     permissions:
       contents: read
@@ -100,3 +101,28 @@ jobs:
           FRESHNESS_URL: https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/data/freshness.json
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 scripts/pipeline_alert.py stale
+
+      # A timeout cancels the job instead of failing it, so the alert covers
+      # both; the 10-26 and 10-27 runs died in setup and never ran a test.
+      # The script logs and exits 0 on any error, so alerting cannot change
+      # the run's result.
+      - name: Alert on failure
+        if: (failure() || cancelled()) && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_OUTCOME: ${{ job.status }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/pipeline_alert.py run
+
+      - name: Close failure alert on success
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_OUTCOME: success
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/pipeline_alert.py run
