@@ -7,7 +7,7 @@ This module handles mapping of CWE and CVE data to OWASP Top 10 2021 categories.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Set, Any, Optional
+from typing import Dict, List, Set, Any
 from dataclasses import dataclass
 
 from tip.utils.atomic_io import write_reference_db, count_owasp
@@ -184,46 +184,3 @@ class OWASPProcessor:
             categories = self.get_owasp_categories_for_cwe(cwe_id)
             all_categories.update(categories)
         return all_categories
-    
-    def get_owasp_categories_for_cve(self, cve_data: Dict[str, Any]) -> List[str]:
-        """Get OWASP categories for a CVE based on its CWE associations"""
-        cwe_list = cve_data.get('CWE', [])
-        if not cwe_list:
-            return []
-        
-        # Get all OWASP categories for the CWE list
-        owasp_categories = self.get_owasp_categories_for_cwes(cwe_list)
-        return sorted(list(owasp_categories))
-    
-    def get_owasp_category_info(self, category_id: str) -> Optional[Dict[str, str]]:
-        """Get detailed information about an OWASP category"""
-        return self.owasp_categories.get(category_id)
-    
-    def get_all_owasp_categories(self) -> Dict[str, Dict[str, str]]:
-        """Get all OWASP categories"""
-        return self.owasp_categories
-    
-    def update_owasp_mapping(self, cwe_id: str, owasp_categories: List[str]) -> None:
-        """Update OWASP mapping for a specific CWE ID"""
-        cwe_id = cwe_id.replace("CWE-", "") if cwe_id.startswith("CWE-") else cwe_id
-        self.cwe_owasp_mapping[cwe_id] = owasp_categories
-        self._save_owasp_database()
-        logger.info(f"Updated OWASP mapping for CWE {cwe_id}: {owasp_categories}")
-    
-    def get_mapping_statistics(self) -> Dict[str, Any]:
-        """Get statistics about the OWASP mapping"""
-        total_cwes = len(self.cwe_owasp_mapping)
-        total_categories = len(self.owasp_categories)
-        
-        # Count CWE mappings per category
-        category_counts: Dict[str, int] = {}
-        for cwe_id, categories in self.cwe_owasp_mapping.items():
-            for category in categories:
-                category_counts[category] = category_counts.get(category, 0) + 1
-        
-        return {
-            'total_cwe_mappings': total_cwes,
-            'total_owasp_categories': total_categories,
-            'category_cwe_counts': category_counts,
-            'owasp_categories': list(self.owasp_categories.keys())
-        }

@@ -79,15 +79,6 @@ class Config:
         # Set the final value
         config[keys[-1]] = value
     
-    def save(self) -> None:
-        """Save current configuration to file"""
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=4)
-            logger.info(f"Configuration saved to {self.config_file}")
-        except Exception as e:
-            logger.error(f"Failed to save configuration: {e}")
-    
     def get_api_key(self, api_name: str) -> Optional[str]:
         """
         Get API key from environment variable

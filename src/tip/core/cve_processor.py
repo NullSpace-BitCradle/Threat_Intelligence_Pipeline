@@ -107,12 +107,10 @@ class CVEProcessor:
         self.cve_file = config.get_output_path('cve_output')
         self.cwe_file = config.get_database_path('cwe')
         self.capec_file = config.get_database_path('capec')
-        self.techniques_file = config.get_database_path('techniques')
         
         # Load databases
         self.cwe_db = self._load_cwe_db()
         self.capec_db = self._load_capec_db()
-        self.techniques_db = self._load_techniques_db()
         
         # Initialize OWASP processor
         self.owasp_processor = OWASPProcessor(self.config.config)
@@ -460,16 +458,6 @@ class CVEProcessor:
             self.logger.error(f"Failed to load CAPEC database: {e}")
             return {}
     
-    def _load_techniques_db(self) -> Dict[str, Any]:
-        """Load techniques database"""
-        try:
-            with open(self.techniques_file, 'r') as f:
-                db: Dict[str, Any] = json.load(f)
-                return db
-        except Exception as e:
-            self.logger.error(f"Failed to load techniques database: {e}")
-            return {}
-    
     def get_parent_cwe(self, cwe: str) -> Optional[List[str]]:
         """One level of ChildOf parents as normalized ``CWE-<n>`` ids, or None.
 
@@ -521,16 +509,6 @@ class CVEProcessor:
                 for entry in self.jsonl_manager.read_jsonl(defend_file):
                     if attack_id in entry:
                         result: List[Dict[str, str]] = entry[attack_id].get('defensive_techniques', [])
-                        self.cache.set(cache_key, result, ttl=3600)
-                        return result
-            
-            # Try JSON file as fallback
-            defend_json = defend_file.replace('.jsonl', '.json')
-            if Path(defend_json).exists():
-                with open(defend_json, 'r') as f:
-                    defend_db = json.load(f)
-                    if attack_id in defend_db:
-                        result = defend_db[attack_id].get('defensive_techniques', [])
                         self.cache.set(cache_key, result, ttl=3600)
                         return result
             

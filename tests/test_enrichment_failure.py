@@ -38,7 +38,6 @@ def _processor(tmp_path, monkeypatch, failing_ids):
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db = {}
     proc.capec_db = {}
-    proc.techniques_db = {}
     proc.logger = logging.getLogger("test_enrichment_failure")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=kev_lookup, load=lambda: False)

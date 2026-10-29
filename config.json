@@ -4,8 +4,6 @@
             "base_url": "https://services.nvd.nist.gov/rest/json/cves/2.0/",
             "api_key_env": "NVD_API_KEY",
             "timeout": 30,
-            "retry_limit": 3,
-            "retry_delay": 5,
             "results_per_page": 2000,
             "rate_limit": {
                 "base_delay": 0.5,
@@ -60,21 +58,8 @@
         }
     },
     "processing": {
-        "max_threads": 10,
-        "batch_size": 1000,
-        "enable_concurrent_processing": true,
         "cache_size": 1000,
-        "cache_ttl": 3600,
-        "use_async_processing": false,
-        "max_connections": 100,
-        "connection_pool_size": 20
-    },
-    "database_optimization": {
-        "use_sqlite": false,
-        "cache_size": 1000,
-        "enable_streaming": true,
-        "batch_insert_size": 500,
-        "enable_indexing": true
+        "cache_ttl": 3600
     },
     "files": {
         "cve_output": "results/new_cves.jsonl",
@@ -89,7 +74,6 @@
     },
     "logging": {
         "level": "INFO",
-        "format": "%(asctime)s - %(levelname)s - %(message)s",
         "file": "logs/tip.log",
         "json_file": "logs/tip_errors.json",
         "max_file_size": 10485760,

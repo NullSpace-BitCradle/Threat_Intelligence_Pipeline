@@ -42,7 +42,6 @@ def _processor():
     proc.cwe_db = CWE_DB
     proc.capec_db = {k: {"techniques": "".join(f"::TAXONOMY NAME:ATTACK:ENTRY ID:{t}" for t in v) + "::"}
                      for k, v in CAPEC_TECH.items()}
-    proc.techniques_db = {}
     proc.logger = logging.getLogger("test_i29")
     proc.owasp_processor = SimpleNamespace(
         get_owasp_categories_for_cwes=lambda cwes: {o for c in cwes for o in OWASP.get(c.replace("CWE-", ""), [])})

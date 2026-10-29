@@ -39,7 +39,6 @@ def _bare_processor():
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db = CWE_DB
     proc.capec_db = {}
-    proc.techniques_db = {}
     proc.logger = logging.getLogger("test")
     proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
