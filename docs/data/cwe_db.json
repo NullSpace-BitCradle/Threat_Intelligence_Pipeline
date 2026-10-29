@@ -19,7 +19,7 @@
     },
     "102": {
         "name": "Struts: Duplicate Validation Forms",
-        "description": "The product uses multiple validation forms with the same name, which might cause the Struts Validator to validate a form that the programmer does not expect.",
+        "description": "The product uses multiple Struts validation forms with the same name.",
         "ChildOf": [
             "694",
             "1173",
@@ -71,7 +71,7 @@
     },
     "1025": {
         "name": "Comparison Using Wrong Factors",
-        "description": "The code performs a comparison between two entities, but the comparison examines the wrong factors or characteristics of the entities, which can lead to incorrect results and resultant weaknesses.",
+        "description": "The code performs a comparison between two entities, but the comparison examines the wrong factors or characteristics of the entities.",
         "ChildOf": [
             "697"
         ],
@@ -125,7 +125,7 @@
     },
     "1041": {
         "name": "Use of Redundant Code",
-        "description": "The product has multiple functions, methods, procedures, macros, etc. that\n\t\t\t\t\tcontain the same code.",
+        "description": "The product has multiple functions, methods, procedures, macros, etc. that\n\t\t\t\t\tcontain the same code, i.e., the code has been copied or duplicated.",
         "ChildOf": [
             "710"
         ],
@@ -280,7 +280,7 @@
     },
     "1059": {
         "name": "Insufficient Technical Documentation",
-        "description": "The product does not contain sufficient\n         technical or engineering documentation (whether on paper or\n         in electronic form) that contains descriptions of all the\n         relevant software/hardware elements of the product, such as\n         its usage, structure, architectural components, interfaces, design, implementation,\n         configuration, operation, etc.",
+        "description": "The product does not contain sufficient\n         technical or engineering documentation (whether on paper or\n         in electronic form) that contains descriptions of all of the\n         relevant software/hardware elements of the product.\n",
         "ChildOf": [
             "710"
         ],
@@ -305,7 +305,7 @@
     },
     "1061": {
         "name": "Insufficient Encapsulation",
-        "description": "The product does not sufficiently hide the internal representation and implementation details of data or methods, which might allow external components or modules to modify data unexpectedly, invoke unexpected functionality, or introduce dependencies that the programmer did not intend.",
+        "description": "The product does not sufficiently hide the\n         internal representation and implementation details of data or\n         methods.",
         "ChildOf": [
             "710"
         ],
@@ -339,7 +339,7 @@
         "name": "Runtime Resource Management Control Element in a Component Built to Run on Application Servers",
         "description": "The product uses deployed components from application servers, but it also uses low-level functions/methods for management of resources, instead of the API provided by the application server.",
         "ChildOf": [
-            "710"
+            "695"
         ],
         "RelatedAttackPatterns": []
     },
@@ -379,7 +379,7 @@
         "name": "Struts: Unused Validation Form",
         "description": "An unused validation form indicates that validation logic is not up-to-date.",
         "ChildOf": [
-            "1164",
+            "561",
             "20"
         ],
         "RelatedAttackPatterns": []
@@ -444,6 +444,7 @@
         "name": "Floating Point Comparison with Incorrect Operator",
         "description": "The code performs a comparison such as an\n        equality test between two float (floating point) values, but\n        it uses comparison operators that do not account for the\n        possibility of loss of precision.",
         "ChildOf": [
+            "480",
             "697"
         ],
         "RelatedAttackPatterns": []
@@ -466,7 +467,7 @@
     },
     "108": {
         "name": "Struts: Unvalidated Action Form",
-        "description": "Every Action Form must have a corresponding validation form.",
+        "description": "The product contains a Struts Action Form that does not have a corresponding validation form.",
         "ChildOf": [
             "1173",
             "20"
@@ -475,7 +476,7 @@
     },
     "1080": {
         "name": "Source Code File with Excessive Number of Lines of Code",
-        "description": "A source code file has too many lines of\n\t\t\t\t\tcode.",
+        "description": "A source code file has too many lines of code.",
         "ChildOf": [
             "1120"
         ],
@@ -483,7 +484,7 @@
     },
     "1082": {
         "name": "Class Instance Self Destruction Control Element",
-        "description": "The code contains a class instance that calls the method or function to delete or destroy itself.",
+        "description": "The code contains a class instance that calls the method or function to delete or destroy itself, e.g., use of \"delete this\" in C++.",
         "ChildOf": [
             "1076"
         ],
@@ -515,7 +516,7 @@
     },
     "1086": {
         "name": "Class with Excessive Number of Child Classes",
-        "description": "A class contains an unnecessarily large number of\n\t\t\t\t\tchildren.",
+        "description": "A class contains an unnecessarily large number of\n\t\t\t\t\tchild classes.",
         "ChildOf": [
             "1093"
         ],
@@ -640,7 +641,7 @@
     },
     "11": {
         "name": "ASP.NET Misconfiguration: Creating Debug Binary",
-        "description": "Debugging messages help attackers learn about the system and plan a form of attack.",
+        "description": "The product has an ASP .NET component that contains a debug binary.",
         "ChildOf": [
             "489"
         ],
@@ -763,7 +764,7 @@
     },
     "1112": {
         "name": "Incomplete Documentation of Program Execution",
-        "description": "The document does not fully define all mechanisms that are used\n\t\t\t\t\tto control or influence how product-specific programs are\n\t\t\t\t\texecuted.",
+        "description": "The document does not fully define all mechanisms that are used\n\t\t\t\t\tto control or influence how product-specific programs are\n\t\t\t\t\texecuted, such as environmental variables, configuration files, registry keys, command-line switches or options, or system settings.",
         "ChildOf": [
             "1059"
         ],
@@ -819,7 +820,7 @@
     },
     "1119": {
         "name": "Excessive Use of Unconditional Branching",
-        "description": "The code uses too many unconditional branches (such as\n\t\t\t\t\t\"goto\").",
+        "description": "The code uses too many unconditional branches (such as \"goto\").",
         "ChildOf": [
             "1120"
         ],
@@ -895,14 +896,14 @@
     },
     "1127": {
         "name": "Compilation with Insufficient Warnings or Errors",
-        "description": "The code is compiled without sufficient warnings enabled, which\n\t\t\t\t\tmay prevent the detection of subtle bugs or quality\n\t\t\t\t\tissues.",
+        "description": "The code is compiled without sufficient warnings enabled.",
         "ChildOf": [
             "710"
         ],
         "RelatedAttackPatterns": []
     },
     "113": {
-        "name": "Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Request/Response Splitting')",
+        "name": "Improper Neutralization of CRLF Sequences in HTTP Headers",
         "description": "The product receives data from an HTTP agent/component (e.g., web server, proxy, browser, etc.), but it does not neutralize or incorrectly neutralizes CR and LF characters before the data is included in outgoing HTTP headers.",
         "ChildOf": [
             "93",
@@ -951,7 +952,7 @@
     },
     "1164": {
         "name": "Irrelevant Code",
-        "description": "The product contains code that is not essential for execution,\n\t     i.e. makes no state changes and has no side effects that alter\n\t     data or control flow, such that removal of the code would have no impact\n\t     to functionality or correctness.",
+        "description": "The product contains code that is not essential\n         for execution, i.e., makes no state changes and has no side\n         effects that alter data or control flow - or is unreachable\n         under any circumstances - such that removal of the code would\n         have no impact to intended functionality or\n         correctness.",
         "ChildOf": [
             "710"
         ],
@@ -972,7 +973,7 @@
     },
     "1173": {
         "name": "Improper Use of Validation Framework",
-        "description": "The product does not use, or incorrectly uses, an input validation framework that is provided by the source language or an independent library.",
+        "description": "The product does not use, or incorrectly uses, an input validation framework that is provided by the source language, framework, or an independent library.",
         "ChildOf": [
             "20"
         ],
@@ -1003,7 +1004,7 @@
         "RelatedAttackPatterns": []
     },
     "118": {
-        "name": "Incorrect Access of Indexable Resource ('Range Error')",
+        "name": "Incorrect Access of Indexable Resource",
         "description": "The product does not restrict or incorrectly restricts operations within the boundaries of a resource that is accessed using an index or pointer, such as memory or files.",
         "ChildOf": [
             "664"
@@ -1050,7 +1051,7 @@
     },
     "119": {
         "name": "Improper Restriction of Operations within the Bounds of a Memory Buffer",
-        "description": "The product performs operations on a memory buffer, but it reads from or writes to a memory location outside the buffer's intended boundary. This may result in read or write operations on unexpected memory locations that could be linked to other variables, data structures, or internal program data.",
+        "description": "The product performs operations on a memory buffer, but it reads from or writes to a memory location outside the buffer's intended boundary.",
         "ChildOf": [
             "118",
             "20"
@@ -1121,7 +1122,7 @@
         "RelatedAttackPatterns": []
     },
     "120": {
-        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')",
+        "name": "Buffer Copy without Checking Size of Input",
         "description": "The product copies an input buffer to an output buffer without verifying that the size of the input buffer is less than the size of the output buffer.",
         "ChildOf": [
             "787",
@@ -1159,7 +1160,7 @@
     },
     "1209": {
         "name": "Failure to Disable Reserved Bits",
-        "description": "The reserved bits in a hardware design are not disabled prior to production. Typically, reserved bits are used for future capabilities and should not support any functional logic in the design.   However, designers might covertly use these bits to debug or further develop new capabilities in production hardware. Adversaries with access to these bits will write to them in hopes of compromising hardware state.",
+        "description": "The reserved bits in a hardware design are not disabled prior to production.",
         "ChildOf": [
             "710"
         ],
@@ -1169,7 +1170,7 @@
     },
     "121": {
         "name": "Stack-based Buffer Overflow",
-        "description": "A stack-based buffer overflow condition is a condition where the buffer being overwritten is allocated on the stack (i.e., is a local variable or, rarely, a parameter to a function).",
+        "description": "The product writes past the end of a buffer that was allocated on the stack.",
         "ChildOf": [
             "788",
             "787"
@@ -1178,7 +1179,7 @@
     },
     "122": {
         "name": "Heap-based Buffer Overflow",
-        "description": "A heap overflow condition is a buffer overflow, where the buffer that can be overwritten is allocated in the heap portion of memory, generally meaning that the buffer was allocated using a routine such as malloc().",
+        "description": "The product writes past the end of a buffer that was allocated on the heap.",
         "ChildOf": [
             "788",
             "787"
@@ -1189,7 +1190,7 @@
     },
     "1220": {
         "name": "Insufficient Granularity of Access Control",
-        "description": "The product implements access controls via a policy or other feature with the intention to disable or restrict accesses (reads and/or writes) to assets in a system from untrusted agents. However, implemented access controls lack required granularity, which renders the control policy too broad because it allows accesses from unauthorized agents to the security-sensitive assets.",
+        "description": "The product implements access controls via a policy or other feature with the intention to disable or restrict accesses (reads and/or writes) to assets in a system from untrusted agents. However, implemented access controls lack the required granularity",
         "ChildOf": [
             "284"
         ],
@@ -1327,8 +1328,7 @@
         "name": "Improper Zeroization of Hardware Register",
         "description": "The hardware product does not properly clear sensitive information from built-in registers when the user of the hardware block changes.",
         "ChildOf": [
-            "226",
-            "226"
+            "1272"
         ],
         "RelatedAttackPatterns": [
             "150",
@@ -1338,7 +1338,7 @@
         ]
     },
     "124": {
-        "name": "Buffer Underwrite ('Buffer Underflow')",
+        "name": "Buffer Underwrite",
         "description": "The product writes to a buffer using an index or pointer that references a memory location prior to the beginning of the buffer.",
         "ChildOf": [
             "786",
@@ -1531,7 +1531,7 @@
     },
     "1257": {
         "name": "Improper Access Control Applied to Mirrored or Aliased Memory Regions",
-        "description": "Aliased or mirrored memory regions in hardware designs may have inconsistent read/write permissions enforced by the hardware. A possible result is that an untrusted agent is blocked from accessing a memory region but is not blocked from accessing the corresponding aliased memory region.\n\t\t\t",
+        "description": "Aliased or mirrored memory regions in hardware designs may have inconsistent read/write permissions enforced by the hardware.\n\t\t\t",
         "ChildOf": [
             "284"
         ],
@@ -1542,9 +1542,9 @@
     },
     "1258": {
         "name": "Exposure of Sensitive System Information Due to Uncleared Debug Information",
-        "description": "The hardware does not fully clear security-sensitive values, such as keys and intermediate values in cryptographic operations, when debug mode is entered.",
+        "description": "The hardware product enters debug mode but does not fully clear security-sensitive values, such as keys and intermediate values in cryptographic operations.",
         "ChildOf": [
-            "212"
+            "1272"
         ],
         "RelatedAttackPatterns": [
             "150",
@@ -1555,9 +1555,8 @@
     },
     "1259": {
         "name": "Improper Restriction of Security Token Assignment",
-        "description": "The System-On-A-Chip (SoC) implements a Security Token mechanism to differentiate what actions are allowed or disallowed when a transaction originates from an entity. However, the Security Tokens are improperly protected.",
+        "description": "The System-On-A-Chip (SoC) implements a Security Token mechanism to differentiate what actions are allowed or disallowed when a transaction originates from an entity. However, the Security Tokens are improperly protected, such as improperly restricting the assignment to trusted components.",
         "ChildOf": [
-            "284",
             "1294"
         ],
         "RelatedAttackPatterns": [
@@ -1597,7 +1596,8 @@
         "name": "Improper Access Control for Register Interface",
         "description": "The product uses memory-mapped I/O registers that act as an interface to hardware functionality from software, but there is improper access control to those registers.",
         "ChildOf": [
-            "284"
+            "284",
+            "1220"
         ],
         "RelatedAttackPatterns": [
             "680"
@@ -1626,7 +1626,7 @@
     },
     "1265": {
         "name": "Unintended Reentrant Invocation of Non-reentrant Code Via Nested Calls",
-        "description": "The product invokes code that is believed to be reentrant, but the code performs a call that unintentionally produces a nested invocation of the non-reentrant code.",
+        "description": "The product invokes code that is believed to be reentrant, but the code performs a call that unintentionally produces a nested invocation of non-reentrant code.",
         "ChildOf": [
             "662"
         ],
@@ -1638,7 +1638,7 @@
         "name": "Improper Scrubbing of Sensitive Data from Decommissioned Device",
         "description": "The product does not properly provide a capability for the product administrator to remove sensitive data at the time the product is decommissioned.  A scrubbing capability could be missing, insufficient, or incorrect.",
         "ChildOf": [
-            "404"
+            "212"
         ],
         "RelatedAttackPatterns": [
             "150",
@@ -1650,7 +1650,7 @@
     },
     "1267": {
         "name": "Policy Uses Obsolete Encoding",
-        "description": "The product uses an obsolete encoding mechanism to implement access controls.",
+        "description": "The product uses an encoding mechanism that is no longer trusted, i.e., an obsolete encoding, to implement access controls.",
         "ChildOf": [
             "284"
         ],
@@ -1692,7 +1692,6 @@
         "name": "Generation of Incorrect Security Tokens",
         "description": "The product implements a Security Token mechanism to differentiate what actions are allowed or disallowed when a transaction originates from an entity. However, the Security Tokens generated in the system are incorrect.",
         "ChildOf": [
-            "284",
             "1294"
         ],
         "RelatedAttackPatterns": [
@@ -1757,7 +1756,7 @@
     },
     "1276": {
         "name": "Hardware Child Block Incorrectly Connected to Parent System",
-        "description": "Signals between a hardware IP and the parent system design are incorrectly connected causing security risks.",
+        "description": "Signals between a hardware IP and the parent system design are incorrectly connected.",
         "ChildOf": [
             "284"
         ],
@@ -1786,7 +1785,7 @@
         ]
     },
     "1279": {
-        "name": "Cryptographic Operations are run Before Supporting Units are Ready",
+        "name": "Cryptographic Operations are Run Before Supporting Units are Ready",
         "description": "Performing cryptographic operations without ensuring that the supporting inputs are ready to supply valid data may compromise the cryptographic result.",
         "ChildOf": [
             "696",
@@ -1913,9 +1912,8 @@
     },
     "1290": {
         "name": "Incorrect Decoding of Security Identifiers",
-        "description": "The product implements a decoding mechanism to decode certain bus-transaction signals to security identifiers. If the decoding is implemented incorrectly, then untrusted agents can now gain unauthorized access to the asset.",
+        "description": "The product implements a decoding mechanism to decode certain bus-transaction signals to security identifiers, but it decodes an untrusted agent's security identifier into a trusted agent's security identifier.",
         "ChildOf": [
-            "284",
             "1294"
         ],
         "RelatedAttackPatterns": []
@@ -1930,9 +1928,8 @@
     },
     "1292": {
         "name": "Incorrect Conversion of Security Identifiers",
-        "description": "The product implements a conversion mechanism to map certain bus-transaction signals to security identifiers. However, if the conversion is incorrectly implemented, untrusted agents can gain unauthorized access to the asset.",
+        "description": "The product implements a conversion mechanism to map certain bus-transaction signals to security identifiers, but this conversion between protocols is incorrectly implemented.",
         "ChildOf": [
-            "284",
             "1294"
         ],
         "RelatedAttackPatterns": []
@@ -1960,7 +1957,7 @@
         "name": "Debug Messages Revealing Unnecessary Information",
         "description": "The product fails to adequately prevent the revealing of unnecessary and potentially sensitive system information within debugging messages.",
         "ChildOf": [
-            "200"
+            "215"
         ],
         "RelatedAttackPatterns": [
             "121"
@@ -2003,7 +2000,8 @@
         "description": "The lack of protections on alternate paths to access\n                control-protected assets (such as unprotected shadow registers\n                and other external facing unguarded interfaces) allows an\n                attacker to bypass existing protections to the asset that are\n\t\tonly performed against the primary path.",
         "ChildOf": [
             "420",
-            "288"
+            "288",
+            "1220"
         ],
         "RelatedAttackPatterns": [
             "457",
@@ -2034,7 +2032,6 @@
         "name": "Improper Protection of Physical Side Channels",
         "description": "The device does not contain sufficient protection\n\tmechanisms to prevent physical side channels from exposing\n\tsensitive information due to patterns in physically observable\n\tphenomena such as variations in power consumption,\n\telectromagnetic emissions (EME), or acoustic emissions.",
         "ChildOf": [
-            "203",
             "203"
         ],
         "RelatedAttackPatterns": [
@@ -2054,7 +2051,7 @@
     },
     "1302": {
         "name": "Missing Source Identifier in Entity Transactions on a System-On-Chip (SOC)",
-        "description": "The product implements a security identifier mechanism to differentiate what actions are allowed or disallowed when a transaction originates from an entity. A transaction is sent without a security identifier.",
+        "description": "The product implements a security identifier mechanism to differentiate what actions are allowed or disallowed when a transaction originates from an entity, but the entity does not consistently include the necessary Security Identifier with a security-critical transaction.",
         "ChildOf": [
             "1294"
         ],
@@ -2086,7 +2083,7 @@
     },
     "131": {
         "name": "Incorrect Calculation of Buffer Size",
-        "description": "The product does not correctly calculate the size to be used when allocating a buffer, which could lead to a buffer overflow.",
+        "description": "The product does not correctly calculate the size to be used when allocating a buffer.",
         "ChildOf": [
             "682",
             "682",
@@ -2110,7 +2107,7 @@
     },
     "1311": {
         "name": "Improper Translation of Security Attributes by Fabric Bridge",
-        "description": "The bridge incorrectly translates security attributes from either trusted to untrusted or from untrusted to trusted when converting from one fabric protocol to another.",
+        "description": "The fabric bridge incorrectly translates security attributes from either trusted to untrusted or from untrusted to trusted when converting from one fabric protocol to another.",
         "ChildOf": [
             "284"
         ],
@@ -2223,7 +2220,7 @@
         ]
     },
     "1321": {
-        "name": "Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')",
+        "name": "Improperly Controlled Modification of Object Prototype Attributes",
         "description": "The product receives input from an upstream component that specifies attributes that are to be initialized or updated in an object, but it does not properly control modifications of attributes of the object prototype.",
         "ChildOf": [
             "915",
@@ -2288,7 +2285,7 @@
         "name": "Binding to an Unrestricted IP Address",
         "description": "The product assigns the address 0.0.0.0 for a database server, a cloud service/instance, or any computing resource that communicates remotely.",
         "ChildOf": [
-            "668"
+            "923"
         ],
         "RelatedAttackPatterns": [
             "1"
@@ -2296,7 +2293,7 @@
     },
     "1328": {
         "name": "Security Version Number Mutable to Older Versions",
-        "description": "Security-version number in hardware is mutable, resulting in the ability to downgrade (roll-back) the boot firmware to vulnerable code versions.",
+        "description": "The security version number in the hardware product is mutable, resulting in the ability to downgrade (roll-back) the boot firmware to vulnerable code versions.",
         "ChildOf": [
             "285"
         ],
@@ -2309,16 +2306,14 @@
         "description": "The product contains a component that cannot be updated or patched in order to remove vulnerabilities or significant bugs.",
         "ChildOf": [
             "1357",
-            "1357",
             "664"
         ],
         "RelatedAttackPatterns": []
     },
     "1330": {
         "name": "Remanent Data Readable after Memory Erase",
-        "description": "Confidential information stored in memory circuits is readable or recoverable after being cleared or erased.",
+        "description": "Confidential information stored in memory circuits is readable or recoverable after being cleared or erased, i.e., there is data remanence.",
         "ChildOf": [
-            "1301",
             "1301"
         ],
         "RelatedAttackPatterns": [
@@ -2373,7 +2368,7 @@
     },
     "1335": {
         "name": "Incorrect Bitwise Shift of Integer",
-        "description": "An integer value is specified to be shifted by a negative amount or an amount greater than or equal to the number of bits contained in the value causing an unexpected or indeterminate result.",
+        "description": "An integer value is specified to be shifted by a negative amount or an amount greater than or equal to the number of bits contained in the value.",
         "ChildOf": [
             "682"
         ],
@@ -2391,7 +2386,7 @@
         "name": "Improper Protections Against Hardware Overheating",
         "description": "A hardware device is missing or has inadequate protection features to prevent overheating.",
         "ChildOf": [
-            "693"
+            "1384"
         ],
         "RelatedAttackPatterns": [
             "624",
@@ -2431,7 +2426,6 @@
         "name": "Information Exposure through Microarchitectural State after Transient Execution",
         "description": "The processor does not properly clear microarchitectural state after incorrect microcode assists or speculative execution, resulting in transient execution.",
         "ChildOf": [
-            "226",
             "226"
         ],
         "RelatedAttackPatterns": [
@@ -2448,7 +2442,7 @@
     },
     "1351": {
         "name": "Improper Handling of Hardware Behavior in Exceptionally Cold Environments",
-        "description": "A hardware device, or the firmware running on it, is\n                missing or has incorrect protection features to maintain\n                goals of security primitives when the device is cooled below\n                standard operating temperatures.",
+        "description": "The hardware device, or the firmware running on it, is\n                missing or has incorrect protection mechanisms to maintain\n                goals of security primitives when the device is cooled below\n                standard operating temperatures.",
         "ChildOf": [
             "1384"
         ],
@@ -2612,7 +2606,6 @@
         "name": "Exposure of Sensitive Information in Shared Microarchitectural Structures during Transient Execution",
         "description": "\n\t\t\tA processor event may allow transient operations to access\n\t\t\tarchitecturally restricted data (for example, in another address\n\t\t\tspace) in a shared microarchitectural structure (for example, a CPU\n\t\t\tcache), potentially exposing the data over a covert channel.\n\t\t  ",
         "ChildOf": [
-            "1420",
             "1420"
         ],
         "RelatedAttackPatterns": []
@@ -2621,7 +2614,6 @@
         "name": "Exposure of Sensitive Information caused by Incorrect Data Forwarding during Transient Execution",
         "description": "A processor event or prediction may allow incorrect or stale data to\n\t\t  be forwarded to transient operations, potentially exposing data over a\n\t\t  covert channel.",
         "ChildOf": [
-            "1420",
             "1420"
         ],
         "RelatedAttackPatterns": []
@@ -2630,14 +2622,13 @@
         "name": "Exposure of Sensitive Information caused by Shared Microarchitectural Predictor State that Influences Transient Execution",
         "description": "Shared microarchitectural predictor state may allow code to influence\n\t\t\t\ttransient execution across a hardware boundary, potentially exposing\n\t\t\t\tdata that is accessible beyond the boundary over a covert channel.\n\t\t\t",
         "ChildOf": [
-            "1420",
             "1420"
         ],
         "RelatedAttackPatterns": []
     },
     "1426": {
         "name": "Improper Validation of Generative AI Output",
-        "description": "The product invokes a generative AI/ML\n\t\t\tcomponent whose behaviors and outputs cannot be directly\n\t\t\tcontrolled, but the product does not validate or\n\t\t\tinsufficiently validates the outputs to ensure that they\n\t\t\talign with the intended security, content, or privacy\n\t\t\tpolicy.",
+        "description": "The product invokes a generative AI/ML\n\tcomponent whose behaviors and outputs cannot be directly\n\tcontrolled, but the product does not validate or\n\tinsufficiently validates the outputs to ensure that they\n\talign with the intended security, content, or privacy\n\tpolicy.",
         "ChildOf": [
             "707"
         ],
@@ -2679,7 +2670,8 @@
         "name": "Driving Intermediate Cryptographic State/Results to Hardware Module Outputs",
         "description": "The product uses a hardware module implementing a cryptographic\n\t\t  algorithm that writes sensitive information about the intermediate\n\t\t  state or results of its cryptographic operations via one of its output\n\t\t  wires (typically the output port containing the final result).",
         "ChildOf": [
-            "200"
+            "201",
+            "325"
         ],
         "RelatedAttackPatterns": []
     },
@@ -2719,6 +2711,70 @@
             "6"
         ]
     },
+    "1461": {
+        "name": "Hardware Simulation / Synthesis Mismatch",
+        "description": "\n\t\tThe hardware design contains structures that are interpreted\n\t\tdifferently during synthesis than during simulation, which\n\t\tcause inconsistencies in security-relevant behavior between\n\t\tthe synthesized implementation and the simulation.\n\t  ",
+        "ChildOf": [
+            "435"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1462": {
+        "name": "Improper Session Management",
+        "description": "The product does not properly manage user-related sessions such as setting appropriate configurations and settings for sessions on creation and handling sessions throughout their lifetime.",
+        "ChildOf": [
+            "284"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1463": {
+        "name": "Insufficient Session Timeout Value",
+        "description": "The product establishes an authenticated user session, but it does not properly set a timeout for the session. That is, the timeout is set to an excessively large value or is not set at all.",
+        "ChildOf": [
+            "1462"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1464": {
+        "name": "Improper Session Invalidation",
+        "description": "The product establishes a session for an authenticated user, but it does not properly invalidate or terminate the session when it is required.",
+        "ChildOf": [
+            "1462"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1465": {
+        "name": "Improper Session Invalidation after User Logout",
+        "description": "The product provides a logout functionality or otherwise attempts to end an active session for a user, but it does not properly invalidate the session upon logout.",
+        "ChildOf": [
+            "1464"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1466": {
+        "name": "Improper Session Invalidation after Authentication Credential Change",
+        "description": "The product provides a capability for users to change their authentication credentials, such as username or password, but it does not properly invalidate any current authenticated sessions after this authentication credential change.",
+        "ChildOf": [
+            "1464"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1467": {
+        "name": "Use of Singular Authentication Artifact for Multiple User Sessions",
+        "description": "The product provides an authentication artifact, such as an authentication token, for an authenticated user session, but the same artifact is used for every authenticated user session, potentially across multiple different applications.",
+        "ChildOf": [
+            "1462"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1469": {
+        "name": "Improper Check for Credential Expiration",
+        "description": "The product receives a request that includes a credential such as a key, certificate, password, confirmation code, or token, but the product does not check whether the credential is expired.",
+        "ChildOf": [
+            "284"
+        ],
+        "RelatedAttackPatterns": []
+    },
     "147": {
         "name": "Improper Neutralization of Input Terminators",
         "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could be interpreted as input terminators when they are sent to a downstream component.",
@@ -2728,6 +2784,64 @@
         "RelatedAttackPatterns": [
             "460"
         ]
+    },
+    "1470": {
+        "name": "Improper External Identity Verification",
+        "description": "\n\t\tThe product supports user accounts that include a user's external\n\t\tidentifier or communications channel - such as email, phone number,\n\t\tsocial media account, or domain name - but it does not properly verify\n\t\tthat the user actually controls the associated identifier or channel.\n\t  ",
+        "ChildOf": [
+            "285",
+            "923"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1471": {
+        "name": "Insufficiently Controlled Parser Differential",
+        "description": "The product uses a common specification or format that is shared\n\t\tbetween multiple components or entities, but the components have\n\t\tdifferent parsers that can interpret the same input in different,\n\t\tsecurity-relevant ways.\n\t  ",
+        "ChildOf": [
+            "436"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1472": {
+        "name": "Generation of Credential with Long Expiration",
+        "description": "The product generates or relies on a credential such as a key,\n\t\tcertificate, password, confirmation code, or token, but the credential\n\t\tdoes not expire or has an expiration that is too long, i.e., the\n\t\texpiration is insufficient for the intended security policy of the\n\t\tproduct.\n\t  ",
+        "ChildOf": [
+            "284",
+            "664"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1473": {
+        "name": "Improper Expiration of Cached Data",
+        "description": "\n\t    The product uses or supports data in a cache, but it does\n\t    not properly specify an expiration with a date, time, or\n\t    time period that is sufficient for the intended security\n\t    policy of the product or its adminstrators.\n\t  ",
+        "ChildOf": [
+            "664"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1474": {
+        "name": "Non-Equivalent Data Transformation",
+        "description": "\n\t    The product parses or transforms data into another format,\n\t    structure, or representation, but the newly-produced data\n\t    is not semantically equivalent to the original data.\n\t  ",
+        "ChildOf": [
+            "664"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1475": {
+        "name": "Incomplete Data/State Propagation",
+        "description": "The product passes control to another component\n\t  or function, or it performs a state transition, but it does\n\t  not provide some security-critical data/state that is needed\n\t  by the receiving component/function.",
+        "ChildOf": [
+            "664"
+        ],
+        "RelatedAttackPatterns": []
+    },
+    "1476": {
+        "name": "Improper Request Propagation before Data Reception in Write Transactions in a Bus Architecture",
+        "description": "\n\t    The product uses a multi-manager shared bus architecture\n\t    with an on-chip interconnect that speculatively propagates\n\t    a request for a write transaction, but it does not ensure\n\t    that the remaining steps required by the manager module to\n\t    complete the request are fulfilled in a timely manner.\n\t  ",
+        "ChildOf": [
+            "841"
+        ],
+        "RelatedAttackPatterns": []
     },
     "148": {
         "name": "Improper Neutralization of Input Leaders",
@@ -2807,7 +2921,7 @@
     },
     "154": {
         "name": "Improper Neutralization of Variable Name Delimiters",
-        "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could be interpreted as variable name delimiters when they are sent to a downstream component.",
+        "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could be interpreted as variable name delimiters when they are sent to a downstream component, such as a \"$\" that could be used to access an environment variable.",
         "ChildOf": [
             "138"
         ],
@@ -2825,7 +2939,7 @@
     },
     "156": {
         "name": "Improper Neutralization of Whitespace",
-        "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could be interpreted as whitespace when they are sent to a downstream component.",
+        "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could be interpreted as whitespace when they are sent to a downstream component, e.g., space or tab.",
         "ChildOf": [
             "138"
         ],
@@ -2947,8 +3061,8 @@
         "RelatedAttackPatterns": []
     },
     "172": {
-        "name": "Encoding Error",
-        "description": "The product does not properly encode or decode the data, resulting in unexpected values.",
+        "name": "Improper Encoding or Decoding of Data",
+        "description": "The product does not properly encode or decode data, resulting in unexpected values that are not equivalent to the original data.",
         "ChildOf": [
             "707"
         ],
@@ -2988,7 +3102,7 @@
     },
     "174": {
         "name": "Double Decoding of the Same Data",
-        "description": "The product decodes the same input twice, which can limit the effectiveness of any protection mechanism that occurs in between the decoding operations.",
+        "description": "The product decodes the same input twice.",
         "ChildOf": [
             "172",
             "675"
@@ -3037,7 +3151,7 @@
     },
     "179": {
         "name": "Incorrect Behavior Order: Early Validation",
-        "description": "The product validates input before applying protection mechanisms that modify the input, which could allow an attacker to bypass the validation via dangerous inputs that only arise after the modification.",
+        "description": "The product validates input before applying protection mechanisms that modify the input.",
         "ChildOf": [
             "20",
             "696"
@@ -3050,7 +3164,7 @@
     },
     "180": {
         "name": "Incorrect Behavior Order: Validate Before Canonicalize",
-        "description": "The product validates input before it is canonicalized, which prevents the product from detecting data that becomes invalid after the canonicalization step.",
+        "description": "The product validates input before it is canonicalized.",
         "ChildOf": [
             "179"
         ],
@@ -3083,7 +3197,7 @@
         "name": "Collapse of Data into Unsafe Value",
         "description": "The product filters data in a way that causes it to be reduced or \"collapsed\" into an unsafe value that violates an expected security property.",
         "ChildOf": [
-            "707"
+            "790"
         ],
         "RelatedAttackPatterns": []
     },
@@ -3133,7 +3247,7 @@
     },
     "186": {
         "name": "Overly Restrictive Regular Expression",
-        "description": "A regular expression is overly restrictive, which prevents dangerous values from being detected.",
+        "description": "A regular expression is overly restrictive in a way that does not match all intended values.",
         "ChildOf": [
             "185"
         ],
@@ -3141,7 +3255,7 @@
     },
     "187": {
         "name": "Partial String Comparison",
-        "description": "The product performs a comparison that only examines a portion of a factor before determining whether there is a match, such as a substring, leading to resultant weaknesses.",
+        "description": "The product performs a string comparison that only examines a portion of the string before determining whether there is a match.",
         "ChildOf": [
             "1023"
         ],
@@ -3149,7 +3263,7 @@
     },
     "188": {
         "name": "Reliance on Data/Memory Layout",
-        "description": "The product makes invalid assumptions about how protocol data or memory is organized at a lower level, resulting in unintended program behavior.",
+        "description": "The product makes invalid assumptions about how protocol data or memory is organized at a lower level.",
         "ChildOf": [
             "1105",
             "435"
@@ -3196,7 +3310,7 @@
     },
     "194": {
         "name": "Unexpected Sign Extension",
-        "description": "The product performs an operation on a number that causes it to be sign extended when it is transformed into a larger data type. When the original number is negative, this can produce unexpected values that lead to resultant weaknesses.",
+        "description": "The product performs an operation on a number that causes it to be sign extended when it is transformed into a larger data type.",
         "ChildOf": [
             "681",
             "681",
@@ -3505,7 +3619,7 @@
     },
     "213": {
         "name": "Exposure of Sensitive Information Due to Incompatible Policies",
-        "description": "The product's intended functionality exposes information to certain actors in accordance with the developer's security policy, but this information is regarded as sensitive according to the intended security policies of other stakeholders such as the product's administrator, users, or others whose information is being processed.",
+        "description": "The product's intended functionality exposes\n         information to certain actors in accordance with the\n         developer's security policy, but this information is regarded\n         as sensitive according to the intended security policies of\n         other stakeholders such as the product's administrator,\n         users, or others whose information is being\n         processed.",
         "ChildOf": [
             "200"
         ],
@@ -3521,7 +3635,7 @@
     },
     "215": {
         "name": "Insertion of Sensitive Information Into Debugging Code",
-        "description": "The product inserts sensitive information into debugging code, which could expose this information if the debugging code is not disabled in production.",
+        "description": "The product inserts sensitive information into debugging code.",
         "ChildOf": [
             "200"
         ],
@@ -3554,7 +3668,7 @@
         "RelatedAttackPatterns": []
     },
     "22": {
-        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory",
         "description": "The product uses external input to construct a pathname that is intended to identify a file or directory that is located underneath a restricted parent directory, but the product does not properly neutralize special elements within the pathname that can cause the pathname to resolve to a location that is outside of the restricted directory.",
         "ChildOf": [
             "706",
@@ -3770,7 +3884,7 @@
     },
     "242": {
         "name": "Use of Inherently Dangerous Function",
-        "description": "The product calls a function that can never be guaranteed to work safely.",
+        "description": "The product calls a function that can never be guaranteed to work safely, regardless of how it is used.",
         "ChildOf": [
             "1177"
         ],
@@ -3778,7 +3892,7 @@
     },
     "243": {
         "name": "Creation of chroot Jail Without Changing Working Directory",
-        "description": "The product uses the chroot() system call to create a jail, but does not change the working directory afterward. This does not prevent access to files outside of the jail.",
+        "description": "The product uses the chroot() system call to create a jail, but it does not change the working directory afterward.",
         "ChildOf": [
             "573",
             "669"
@@ -3786,8 +3900,8 @@
         "RelatedAttackPatterns": []
     },
     "244": {
-        "name": "Improper Clearing of Heap Memory Before Release ('Heap Inspection')",
-        "description": "Using realloc() to resize buffers that store sensitive information can leave the sensitive information exposed to attack, because it is not removed from memory.",
+        "name": "Improper Clearing of Heap Memory Before Release",
+        "description": "The product uses realloc() to resize buffers that contain sensitive information.",
         "ChildOf": [
             "226"
         ],
@@ -3855,7 +3969,7 @@
     },
     "252": {
         "name": "Unchecked Return Value",
-        "description": "The product does not check the return value from a method or function, which can prevent it from detecting unexpected states and conditions.",
+        "description": "The product does not check the return value from a method or function.",
         "ChildOf": [
             "754",
             "754"
@@ -3900,7 +4014,7 @@
     },
     "259": {
         "name": "Use of Hard-coded Password",
-        "description": "The product contains a hard-coded password, which it uses for its own inbound authentication or for outbound communication to external components.",
+        "description": "The product contains a hard-coded password, which it uses for its own inbound authentication or for outbound authentication to external components.",
         "ChildOf": [
             "798",
             "798",
@@ -3926,7 +4040,7 @@
     },
     "261": {
         "name": "Weak Encoding for Password",
-        "description": "Obscuring a password with a trivial encoding does not protect the password.",
+        "description": "The product uses a weak or trivial encoding for a password.",
         "ChildOf": [
             "522"
         ],
@@ -3938,7 +4052,8 @@
         "name": "Not Using Password Aging",
         "description": "The product does not have a mechanism in place for managing password aging.",
         "ChildOf": [
-            "1390"
+            "1390",
+            "1472"
         ],
         "RelatedAttackPatterns": [
             "16",
@@ -3959,7 +4074,8 @@
         "name": "Password Aging with Long Expiration",
         "description": "The product supports password aging, but the expiration period is too long.",
         "ChildOf": [
-            "1390"
+            "1390",
+            "1472"
         ],
         "RelatedAttackPatterns": [
             "16",
@@ -4070,7 +4186,7 @@
     },
     "274": {
         "name": "Improper Handling of Insufficient Privileges",
-        "description": "The product does not handle or incorrectly handles when it has insufficient privileges to perform an operation, leading to resultant weaknesses.",
+        "description": "The product does not handle or incorrectly handles when it has insufficient privileges to perform an operation.",
         "ChildOf": [
             "755",
             "269"
@@ -4373,7 +4489,7 @@
     },
     "299": {
         "name": "Improper Check for Certificate Revocation",
-        "description": "The product does not check or incorrectly checks the revocation status of a certificate, which may cause it to use a certificate that has been compromised.",
+        "description": "The product does not check or incorrectly checks the revocation status of a certificate.",
         "ChildOf": [
             "295",
             "404"
@@ -4462,7 +4578,7 @@
         "RelatedAttackPatterns": []
     },
     "306": {
-        "name": "Missing Authentication for Critical Function",
+        "name": "Missing Authentication for Critical Functionality",
         "description": "The product does not perform any authentication for functionality that requires a provable user identity or consumes a significant amount of resources.",
         "ChildOf": [
             "287",
@@ -4692,7 +4808,7 @@
     },
     "324": {
         "name": "Use of a Key Past its Expiration Date",
-        "description": "The product uses a cryptographic key or password past its expiration date, which diminishes its safety significantly by increasing the timing window for cracking attacks against that key.",
+        "description": "The product uses a cryptographic key past its expiration date.",
         "ChildOf": [
             "672"
         ],
@@ -4825,7 +4941,7 @@
     },
     "336": {
         "name": "Same Seed in Pseudo-Random Number Generator (PRNG)",
-        "description": "A Pseudo-Random Number Generator (PRNG) uses the same seed each time the product is initialized.",
+        "description": "The product uses a Pseudo-Random Number Generator (PRNG) that uses the same seed each time the product is initialized.",
         "ChildOf": [
             "335"
         ],
@@ -5021,7 +5137,7 @@
         "RelatedAttackPatterns": []
     },
     "352": {
-        "name": "Cross-Site Request Forgery (CSRF)",
+        "name": "Cross-Site Request Forgery",
         "description": "The web application does not, or cannot, sufficiently verify whether a request was intentionally provided by the user who sent the request, which could have originated from an unauthorized actor. ",
         "ChildOf": [
             "345",
@@ -5052,7 +5168,7 @@
     },
     "354": {
         "name": "Improper Validation of Integrity Check Value",
-        "description": "The product does not validate or incorrectly validates the integrity check values or \"checksums\" of a message. This may prevent it from detecting if the data has been modified or corrupted in transmission.",
+        "description": "The product does not validate or incorrectly validates the integrity check values or \"checksums\" of a message.",
         "ChildOf": [
             "345",
             "345",
@@ -5065,10 +5181,10 @@
         ]
     },
     "356": {
-        "name": "Product UI does not Warn User of Unsafe Actions",
-        "description": "The product's user interface does not warn the user before undertaking an unsafe action on behalf of that user. This makes it easier for attackers to trick users into inflicting damage to their system.",
+        "name": "Missing User Interaction for Potentially Unsafe Action",
+        "description": "The product encounters a situation in which some\n         of its behavior is security-critical and should be authorized\n         by a human before progressing, but it does not properly\n         consult with the human user or its proxy (such as UI approval\n         dialogues or pre-set policies) to determine whether it is\n         allowed to perform the potentially dangerous\n         behavior.",
         "ChildOf": [
-            "221"
+            "285"
         ],
         "RelatedAttackPatterns": []
     },
@@ -5123,7 +5239,7 @@
         "RelatedAttackPatterns": []
     },
     "362": {
-        "name": "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
+        "name": "Concurrent Execution using Shared Resource with Improper Synchronization",
         "description": "The product contains a concurrent code sequence that requires temporary, exclusive access to a shared resource, but a timing window exists in which the shared resource can be modified by another code sequence operating concurrently.",
         "ChildOf": [
             "662"
@@ -5206,7 +5322,7 @@
     },
     "37": {
         "name": "Path Traversal: '/absolute/pathname/here'",
-        "description": "The product accepts input in the form of a slash absolute path ('/absolute/pathname/here') without appropriate validation, which can allow an attacker to traverse the file system to unintended locations or access arbitrary files.",
+        "description": "The product accepts input in the form of a slash absolute path ('/absolute/pathname/here') without appropriate neutralization.",
         "ChildOf": [
             "36",
             "160"
@@ -5251,18 +5367,16 @@
     },
     "375": {
         "name": "Returning a Mutable Object to an Untrusted Caller",
-        "description": "Sending non-cloned mutable data as a return value may result in that data being altered or deleted by the calling function.",
+        "description": "The code sends non-cloned mutable data as a return value may result in that data being altered or deleted by the calling function.",
         "ChildOf": [
             "668"
         ],
         "RelatedAttackPatterns": []
     },
     "377": {
-        "name": "Insecure Temporary File",
-        "description": "Creating and using insecure temporary files can leave application and system data vulnerable to attack.",
-        "ChildOf": [
-            "668"
-        ],
+        "name": "DEPRECATED: Insecure Temporary File",
+        "description": "This entry has been deprecated. It was focused\n         only on the affected resource (temporary file) and not the\n         behavior or mistake that produced the insecure temporary\n         file, which caused confusion and incorrect\n         mappings.",
+        "ChildOf": [],
         "RelatedAttackPatterns": [
             "149",
             "155"
@@ -5286,7 +5400,7 @@
     },
     "38": {
         "name": "Path Traversal: '\\absolute\\pathname\\here'",
-        "description": "The product accepts input in the form of a backslash absolute path ('\\absolute\\pathname\\here') without appropriate validation, which can allow an attacker to traverse the file system to unintended locations or access arbitrary files.",
+        "description": "The product accepts input in the form of a backslash absolute path ('\\absolute\\pathname\\here') without appropriate neutralization.",
         "ChildOf": [
             "36"
         ],
@@ -5294,7 +5408,7 @@
     },
     "382": {
         "name": "J2EE Bad Practices: Use of System.exit()",
-        "description": "A J2EE application uses System.exit(), which also shuts down its container.",
+        "description": "A J2EE application uses System.exit().",
         "ChildOf": [
             "705"
         ],
@@ -5312,6 +5426,7 @@
         "name": "Session Fixation",
         "description": "Authenticating a user, or otherwise establishing a new user session, without invalidating any existing session identifier gives an attacker the opportunity to steal authenticated sessions.",
         "ChildOf": [
+            "1462",
             "610",
             "610"
         ],
@@ -5360,13 +5475,9 @@
         "RelatedAttackPatterns": []
     },
     "391": {
-        "name": "Unchecked Error Condition",
-        "description": "[PLANNED FOR DEPRECATION. SEE MAINTENANCE NOTES AND CONSIDER CWE-252, CWE-248, OR CWE-1069.] Ignoring exceptions and other error conditions may allow an attacker to induce unexpected behavior unnoticed.",
-        "ChildOf": [
-            "754",
-            "703",
-            "703"
-        ],
+        "name": "DEPRECATED: Unchecked Error Condition",
+        "description": "This entry has been deprecated because it used\n         ambiguous terminology and incorporated and confused multiple\n         weaknesses. See Mapping Notes for other recommendations, and\n         see Maintenance Notes for more detailed\n         explanations.",
+        "ChildOf": [],
         "RelatedAttackPatterns": []
     },
     "392": {
@@ -5418,7 +5529,7 @@
     },
     "397": {
         "name": "Declaration of Throws for Generic Exception",
-        "description": "The product throws or raises an overly broad exceptions that can hide important details and produce inappropriate responses to certain conditions.",
+        "description": "The product throws or raises an overly broad exception that can hide important details and produce inappropriate responses to certain conditions.",
         "ChildOf": [
             "705",
             "221",
@@ -5457,7 +5568,7 @@
         "RelatedAttackPatterns": []
     },
     "402": {
-        "name": "Transmission of Private Resources into a New Sphere ('Resource Leak')",
+        "name": "Transmission of Private Resources into a New Sphere",
         "description": "The product makes resources available to untrusted parties when those resources are only intended to be accessed by the product.",
         "ChildOf": [
             "668"
@@ -5465,7 +5576,7 @@
         "RelatedAttackPatterns": []
     },
     "403": {
-        "name": "Exposure of File Descriptor to Unintended Control Sphere ('File Descriptor Leak')",
+        "name": "Exposure of File Descriptor to Unintended Control Sphere",
         "description": "A process does not close sensitive file descriptors before invoking a child process, which allows the child to perform unauthorized I/O operations using those descriptors.",
         "ChildOf": [
             "402"
@@ -5523,7 +5634,7 @@
     },
     "409": {
         "name": "Improper Handling of Highly Compressed Data (Data Amplification)",
-        "description": "The product does not handle or incorrectly handles a compressed input with a very high compression ratio that produces a large output.",
+        "description": "The product does not handle or incorrectly\n         handles a compressed input with a very high compression ratio\n         that produces a large output.",
         "ChildOf": [
             "405"
         ],
@@ -5533,9 +5644,7 @@
         "name": "Improper Resolution of Path Equivalence",
         "description": "The product is vulnerable to file system contents disclosure through path equivalence. Path equivalence involves the use of special characters in file and directory names. The associated manipulations are intended to generate multiple names for the same object.",
         "ChildOf": [
-            "706",
-            "863",
-            "1390"
+            "706"
         ],
         "RelatedAttackPatterns": [
             "3"
@@ -5543,7 +5652,7 @@
     },
     "410": {
         "name": "Insufficient Resource Pool",
-        "description": "The product's resource pool is not large enough to handle peak demand, which allows an attacker to prevent others from accessing the resource by using a (relatively) large number of requests for resources.",
+        "description": "The product's resource pool is not large enough to handle peak demand.",
         "ChildOf": [
             "664"
         ],
@@ -5561,7 +5670,7 @@
     },
     "413": {
         "name": "Improper Resource Locking",
-        "description": "The product does not lock or does not correctly lock a resource when the product must have exclusive access to the resource.",
+        "description": "The product must have exclusive access to a resource, but it does not lock or does not correctly lock that resource.",
         "ChildOf": [
             "667"
         ],
@@ -5636,7 +5745,7 @@
         "RelatedAttackPatterns": []
     },
     "422": {
-        "name": "Unprotected Windows Messaging Channel ('Shatter')",
+        "name": "Unprotected Windows Messaging Channel",
         "description": "The product does not properly verify the source of a message in the Windows Messaging System while running at elevated privileges, creating an alternate channel through which an attacker can directly send a message to the product.",
         "ChildOf": [
             "420",
@@ -5663,7 +5772,7 @@
         ]
     },
     "425": {
-        "name": "Direct Request ('Forced Browsing')",
+        "name": "Direct Request",
         "description": "The web application does not adequately enforce appropriate authorization on all restricted URLs, scripts, or files.",
         "ChildOf": [
             "862",
@@ -5723,7 +5832,7 @@
     },
     "430": {
         "name": "Deployment of Wrong Handler",
-        "description": "The wrong \"handler\" is assigned to process an object.",
+        "description": "The wrong \"handler\" is assigned to process an object or request.",
         "ChildOf": [
             "691"
         ],
@@ -5817,8 +5926,8 @@
         "RelatedAttackPatterns": []
     },
     "441": {
-        "name": "Unintended Proxy or Intermediary ('Confused Deputy')",
-        "description": "The product receives a request, message, or directive from an upstream component, but the product does not sufficiently preserve the original source of the request before forwarding the request to an external actor that is outside of the product's control sphere. This causes the product to appear to be the source of the request, leading it to act as a proxy or other intermediary between the upstream component and the external actor.",
+        "name": "Unintended Proxy or Intermediary",
+        "description": "The product receives a request, message, or directive from an upstream component, but the product does not sufficiently preserve the original source of the request before forwarding the request to an external actor that is outside of the product's control sphere.",
         "ChildOf": [
             "610"
         ],
@@ -5834,7 +5943,7 @@
         "RelatedAttackPatterns": []
     },
     "444": {
-        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')",
+        "name": "Inconsistent Interpretation of HTTP Requests",
         "description": "The product acts as an intermediary HTTP agent\n         (such as a proxy or firewall) in the data flow between two\n         entities such as a client and server, but it does not\n         interpret malformed HTTP requests or responses in ways that\n         are consistent with how the messages will be processed by\n         those entities that are at the ultimate destination.",
         "ChildOf": [
             "436",
@@ -5938,7 +6047,7 @@
     },
     "456": {
         "name": "Missing Initialization of a Variable",
-        "description": "The product does not initialize critical variables, which causes the execution environment to use unexpected values.",
+        "description": "The product does not initialize critical variables.",
         "ChildOf": [
             "909",
             "665",
@@ -5984,7 +6093,7 @@
     },
     "460": {
         "name": "Improper Cleanup on Thrown Exception",
-        "description": "The product does not clean up its state or incorrectly cleans up its state when an exception is thrown, leading to unexpected state or control flow.",
+        "description": "The product does not clean up its state or incorrectly cleans up its state when an exception is thrown.",
         "ChildOf": [
             "459",
             "755"
@@ -6026,7 +6135,7 @@
     },
     "467": {
         "name": "Use of sizeof() on a Pointer Type",
-        "description": "The code calls sizeof() on a pointer type, which can be an incorrect calculation if the programmer intended to determine the size of the data that is being pointed to.",
+        "description": "The code calls sizeof() on a pointer type, when the programmer intended to determine the size of the data that is being pointed to.",
         "ChildOf": [
             "131"
         ],
@@ -6057,7 +6166,7 @@
         "RelatedAttackPatterns": []
     },
     "470": {
-        "name": "Use of Externally-Controlled Input to Select Classes or Code ('Unsafe Reflection')",
+        "name": "Use of Externally-Controlled Input to Select Classes or Code",
         "description": "The product uses external input with reflection to select which classes or code to use, but it does not sufficiently prevent the input from selecting improper classes or code.",
         "ChildOf": [
             "913",
@@ -6192,7 +6301,7 @@
     },
     "483": {
         "name": "Incorrect Block Delimitation",
-        "description": "The code does not explicitly delimit a block that is intended to contain 2 or more statements, creating a logic error.",
+        "description": "The code does not explicitly delimit a block that is intended to contain 2 or more statements.",
         "ChildOf": [
             "670"
         ],
@@ -6209,7 +6318,7 @@
     },
     "486": {
         "name": "Comparison of Classes by Name",
-        "description": "The product compares classes by name, which can cause it to use the wrong class when multiple classes can have the same name.",
+        "description": "The product compares classes by name.",
         "ChildOf": [
             "1025"
         ],
@@ -6255,7 +6364,7 @@
         "RelatedAttackPatterns": []
     },
     "491": {
-        "name": "Public cloneable() Method Without Final ('Object Hijack')",
+        "name": "Public cloneable() Method Without Final",
         "description": "A class has a cloneable() method that is not declared final, which allows an object to be created without calling the constructor. This can cause the object to be in an unexpected state.",
         "ChildOf": [
             "668"
@@ -6272,9 +6381,9 @@
     },
     "493": {
         "name": "Critical Public Variable Without Final Modifier",
-        "description": "The product has a critical public variable that is not final, which allows the variable to be modified to contain unexpected values.",
+        "description": "The product has a critical public variable that is not final.",
         "ChildOf": [
-            "668"
+            "732"
         ],
         "RelatedAttackPatterns": []
     },
@@ -6305,7 +6414,7 @@
         "name": "Private Data Structure Returned From A Public Method",
         "description": "The product has a method that is declared public, but returns a reference to a private data structure, which could then be modified in unexpected ways.",
         "ChildOf": [
-            "664"
+            "668"
         ],
         "RelatedAttackPatterns": []
     },
@@ -6313,7 +6422,7 @@
         "name": "Public Data Assigned to Private Array-Typed Field",
         "description": "Assigning public data to a private array is equivalent to giving public access to the array.",
         "ChildOf": [
-            "664"
+            "668"
         ],
         "RelatedAttackPatterns": []
     },
@@ -6338,7 +6447,7 @@
     },
     "499": {
         "name": "Serializable Class Containing Sensitive Data",
-        "description": "The code contains a class with sensitive data, but the class does not explicitly deny serialization. The data can be accessed by serializing the class through another class.",
+        "description": "The code contains a class with sensitive data, but the class does not explicitly deny serialization.",
         "ChildOf": [
             "668"
         ],
@@ -6346,7 +6455,7 @@
     },
     "5": {
         "name": "J2EE Misconfiguration: Data Transmission Without Encryption",
-        "description": "Information sent over a network can be compromised while in transit. An attacker may be able to read or modify the contents if the data are sent in plaintext or are weakly encrypted.",
+        "description": "The product uses J2EE with a configuration that transmits data without encryption.",
         "ChildOf": [
             "319"
         ],
@@ -6363,7 +6472,7 @@
     },
     "500": {
         "name": "Public Static Field Not Marked Final",
-        "description": "An object contains a public static field that is not marked final, which might allow it to be modified in unexpected ways.",
+        "description": "An object contains a public static field that is not marked final.",
         "ChildOf": [
             "493"
         ],
@@ -6582,7 +6691,7 @@
     },
     "527": {
         "name": "Exposure of Version-Control Repository to an Unauthorized Control Sphere",
-        "description": "The product stores a CVS, git, or other repository in a directory, archive, or other resource that is stored, transferred, or otherwise made accessible to unauthorized actors.",
+        "description": "The product stores a CVS, git, or other source-control repository in a directory, archive, or other resource that is stored, transferred, or otherwise made accessible to unauthorized actors.",
         "ChildOf": [
             "552"
         ],
@@ -6711,7 +6820,7 @@
     },
     "540": {
         "name": "Inclusion of Sensitive Information in Source Code",
-        "description": "Source code on a web server or repository often contains sensitive information and should generally not be accessible to users.",
+        "description": "The product (such as a web server or repository) provides access to source code is not intended to be accessible to users but contains sensitive information.",
         "ChildOf": [
             "538"
         ],
@@ -6743,7 +6852,7 @@
     },
     "544": {
         "name": "Missing Standardized Error Handling Mechanism",
-        "description": "The product does not use a standardized method for handling errors throughout the code, which might introduce inconsistent error handling and resultant weaknesses.",
+        "description": "The product does not use a standardized method for handling errors throughout the code.",
         "ChildOf": [
             "755"
         ],
@@ -6894,7 +7003,7 @@
     },
     "562": {
         "name": "Return of Stack Variable Address",
-        "description": "A function returns the address of a stack variable, which will cause unintended program behavior, typically in the form of a crash.",
+        "description": "A function returns the address of a stack variable.",
         "ChildOf": [
             "758"
         ],
@@ -6902,15 +7011,15 @@
     },
     "563": {
         "name": "Assignment to Variable without Use",
-        "description": "The variable's value is assigned but never used, making it a dead store.",
+        "description": "The variable's value is assigned but never used, i.e., is a dead store. That is, after the assignment, the variable is either assigned another value or goes out of scope.",
         "ChildOf": [
             "1164"
         ],
         "RelatedAttackPatterns": []
     },
     "564": {
-        "name": "SQL Injection: Hibernate",
-        "description": "Using Hibernate to execute a dynamic SQL statement built with user-controlled input can allow an attacker to modify the statement's meaning or to execute arbitrary SQL commands.",
+        "name": "Use of Hibernate with HQL/SQL Query String Containing External Input",
+        "description": "The product uses Hibernate to execute a dynamic HQL or SQL statement, but the statement is built with user-controlled input.",
         "ChildOf": [
             "89",
             "89",
@@ -6989,7 +7098,7 @@
     },
     "572": {
         "name": "Call to Thread run() instead of start()",
-        "description": "The product calls a thread's run() method instead of calling start(), which causes the code to run in the thread of the caller instead of the callee.",
+        "description": "The product calls a thread's run() method instead of calling start().",
         "ChildOf": [
             "821"
         ],
@@ -7032,7 +7141,7 @@
         "name": "EJB Bad Practices: Use of Sockets",
         "description": "The product violates the Enterprise JavaBeans (EJB) specification by using sockets.",
         "ChildOf": [
-            "573"
+            "695"
         ],
         "RelatedAttackPatterns": []
     },
@@ -7040,13 +7149,13 @@
         "name": "EJB Bad Practices: Use of Class Loader",
         "description": "The product violates the Enterprise JavaBeans (EJB) specification by using the class loader.",
         "ChildOf": [
-            "573"
+            "695"
         ],
         "RelatedAttackPatterns": []
     },
     "579": {
         "name": "J2EE Bad Practices: Non-serializable Object Stored in Session",
-        "description": "The product stores a non-serializable object as an HttpSession attribute, which can hurt reliability.",
+        "description": "The product stores a non-serializable object as an HttpSession attribute.",
         "ChildOf": [
             "573"
         ],
@@ -7082,7 +7191,7 @@
         "name": "Array Declared Public, Final, and Static",
         "description": "The product declares an array public, final, and static, which is not sufficient to prevent the array's contents from being modified.",
         "ChildOf": [
-            "668"
+            "732"
         ],
         "RelatedAttackPatterns": []
     },
@@ -7090,13 +7199,13 @@
         "name": "finalize() Method Declared Public",
         "description": "The product violates secure coding principles for mobile code by declaring a finalize() method public.",
         "ChildOf": [
-            "668"
+            "732"
         ],
         "RelatedAttackPatterns": []
     },
     "584": {
         "name": "Return Inside Finally Block",
-        "description": "The code has a return statement inside a finally block, which will cause any thrown exception in the try block to be discarded.",
+        "description": "The code has a return statement inside a finally block.",
         "ChildOf": [
             "705"
         ],
@@ -7129,7 +7238,7 @@
     },
     "588": {
         "name": "Attempt to Access Child of a Non-structure Pointer",
-        "description": "Casting a non-structure type to a structure type and accessing a field can lead to memory access errors or data corruption.",
+        "description": "The product casts a non-structure type to a structure type, then accesses a field within the structure.",
         "ChildOf": [
             "704",
             "758"
@@ -7138,7 +7247,7 @@
     },
     "589": {
         "name": "Call to Non-ubiquitous API",
-        "description": "The product uses an API function that does not exist on all versions of the target platform. This could cause portability problems or inconsistencies that allow denial of service or other consequences.",
+        "description": "The product uses an API function that does not exist on all versions of the target platform.",
         "ChildOf": [
             "474"
         ],
@@ -7147,7 +7256,7 @@
         ]
     },
     "59": {
-        "name": "Improper Link Resolution Before File Access ('Link Following')",
+        "name": "Improper Link Resolution Before File Access",
         "description": "The product attempts to access a file based on the filename, but it does not properly prevent that filename from identifying a link or shortcut that resolves to an unintended resource.",
         "ChildOf": [
             "706",
@@ -7170,7 +7279,7 @@
     },
     "591": {
         "name": "Sensitive Data Storage in Improperly Locked Memory",
-        "description": "The product stores sensitive data in memory that is not locked, or that has been incorrectly locked, which might cause the memory to be written to swap files on disk by the virtual memory manager. This can make the data more accessible to external actors.",
+        "description": "The product stores sensitive data in memory that is not locked, or that has been incorrectly locked.",
         "ChildOf": [
             "413"
         ],
@@ -7195,7 +7304,7 @@
     },
     "594": {
         "name": "J2EE Framework: Saving Unserializable Objects to Disk",
-        "description": "When the J2EE container attempts to write unserializable objects to disk there is no guarantee that the process will complete successfully.",
+        "description": "The J2EE container attempts to write unserializable objects to disk.",
         "ChildOf": [
             "1076"
         ],
@@ -7254,14 +7363,14 @@
     },
     "600": {
         "name": "Uncaught Exception in Servlet",
-        "description": "The Servlet does not catch all exceptions, which may reveal sensitive debugging information.",
+        "description": "The Servlet does not catch all exceptions.",
         "ChildOf": [
             "248"
         ],
         "RelatedAttackPatterns": []
     },
     "601": {
-        "name": "URL Redirection to Untrusted Site ('Open Redirect')",
+        "name": "URL Redirection to Untrusted Site",
         "description": "The web application accepts a user-controlled input that specifies a link to an external site, and uses that link in a redirect.",
         "ChildOf": [
             "610",
@@ -7273,7 +7382,7 @@
     },
     "602": {
         "name": "Client-Side Enforcement of Server-Side Security",
-        "description": "The product is composed of a server that relies on the client to implement a mechanism that is intended to protect the server.",
+        "description": "The product includes a server that relies on the client to implement a protection mechanism that is intended to protect the server.",
         "ChildOf": [
             "693"
         ],
@@ -7328,9 +7437,9 @@
     },
     "608": {
         "name": "Struts: Non-private Field in ActionForm Class",
-        "description": "An ActionForm class contains a field that has not been declared private, which can be accessed without using a setter or getter.",
+        "description": "The product uses an ActionForm class that\n         contains a field that has not been declared\n         private.",
         "ChildOf": [
-            "668"
+            "732"
         ],
         "RelatedAttackPatterns": []
     },
@@ -7382,10 +7491,9 @@
         "RelatedAttackPatterns": []
     },
     "613": {
-        "name": "Insufficient Session Expiration",
-        "description": "According to WASC, \"Insufficient Session Expiration is when a web site permits an attacker to reuse old session credentials or session IDs for authorization.\"",
+        "name": "DEPRECATED: Insufficient Session Expiration",
+        "description": "This entry has been deprecated because it was insufficiently clear. Consider CWE-1462 and its descendants.",
         "ChildOf": [
-            "672",
             "672"
         ],
         "RelatedAttackPatterns": []
@@ -7402,7 +7510,7 @@
     },
     "615": {
         "name": "Inclusion of Sensitive Information in Source Code Comments",
-        "description": "While adding general comments is very useful, some programmers tend to leave important data, such as: filenames related to the web application, old links or links which were not meant to be browsed by users, old code fragments, etc.",
+        "description": "The product's source code includes comments that contain sensitive information, such as filenames related to the application, old links or links that were not meant to be browsed by users, old code fragments, etc.",
         "ChildOf": [
             "540"
         ],
@@ -7410,7 +7518,7 @@
     },
     "616": {
         "name": "Incomplete Identification of Uploaded File Variables (PHP)",
-        "description": "The PHP application uses an old method for processing uploaded files by referencing the four global variables that are set for each file (e.g. $varname, $varname_size, $varname_name, $varname_type). These variables could be overwritten by attackers, causing the application to process unauthorized files.",
+        "description": "The PHP application uses an old method for processing uploaded files by referencing the four global variables that are set for each file (e.g. $varname, $varname_size, $varname_name, $varname_type).",
         "ChildOf": [
             "345"
         ],
@@ -7434,8 +7542,8 @@
         "RelatedAttackPatterns": []
     },
     "619": {
-        "name": "Dangling Database Cursor ('Cursor Injection')",
-        "description": "If a database cursor is not closed properly, then it could become accessible to other users while retaining the same privileges that were originally assigned, leaving the cursor \"dangling.\"",
+        "name": "Dangling Database Cursor",
+        "description": "The product does not close a database cursor properly, leaving the cursor \"dangling.\"",
         "ChildOf": [
             "402"
         ],
@@ -7459,7 +7567,7 @@
     },
     "621": {
         "name": "Variable Extraction Error",
-        "description": "The product uses external input to determine the names of variables into which information is extracted, without verifying that the names of the specified variables are valid. This could cause the program to overwrite unintended variables.",
+        "description": "The product uses external input to determine the names of variables into which information is extracted, without verifying that the names of the specified variables are valid.",
         "ChildOf": [
             "914"
         ],
@@ -7467,7 +7575,7 @@
     },
     "622": {
         "name": "Improper Validation of Function Hook Arguments",
-        "description": "The product adds hooks to user-accessible API functions, but it does not properly validate the arguments. This could lead to resultant vulnerabilities.",
+        "description": "The product adds hooks to user-accessible API functions, but it does not properly validate the arguments.",
         "ChildOf": [
             "20"
         ],
@@ -7475,7 +7583,7 @@
     },
     "623": {
         "name": "Unsafe ActiveX Control Marked Safe For Scripting",
-        "description": "An ActiveX control is intended for restricted use, but it has been marked as safe-for-scripting.",
+        "description": "The product includes an ActiveX control that is intended for restricted use, but the control has been marked as safe-for-scripting.",
         "ChildOf": [
             "267"
         ],
@@ -7518,14 +7626,14 @@
     },
     "628": {
         "name": "Function Call with Incorrectly Specified Arguments",
-        "description": "The product calls a function, procedure, or routine with arguments that are not correctly specified, leading to always-incorrect behavior and resultant weaknesses.",
+        "description": "The product calls a function, procedure, or routine with arguments that are not correctly specified.",
         "ChildOf": [
             "573"
         ],
         "RelatedAttackPatterns": []
     },
     "636": {
-        "name": "Not Failing Securely ('Failing Open')",
+        "name": "Not Failing Securely",
         "description": "When the product encounters an error condition or failure, its design requires it to fall back to a state that is less secure than other options that are available, such as selecting the weakest encryption algorithm or using the most permissive access control restrictions.",
         "ChildOf": [
             "657",
@@ -7601,8 +7709,8 @@
         ]
     },
     "643": {
-        "name": "Improper Neutralization of Data within XPath Expressions ('XPath Injection')",
-        "description": "The product uses external input to dynamically construct an XPath expression used to retrieve data from an XML database, but it does not neutralize or incorrectly neutralizes that input. This allows an attacker to control the structure of the query.",
+        "name": "Improper Neutralization of Data within XPath Expressions",
+        "description": "The product uses external input to dynamically construct an XPath expression used to retrieve data from an XML database, but it does not neutralize or incorrectly neutralizes that input.",
         "ChildOf": [
             "943",
             "91"
@@ -7629,7 +7737,7 @@
     },
     "646": {
         "name": "Reliance on File Name or Extension of Externally-Supplied File",
-        "description": "The product allows a file to be uploaded, but it relies on the file name or extension of the file to determine the appropriate behaviors. This could be used by attackers to cause the file to be misclassified and processed in a dangerous fashion.",
+        "description": "The product allows a file to be uploaded, but it relies on the file name or extension of the file to determine the appropriate behaviors.",
         "ChildOf": [
             "345"
         ],
@@ -7639,7 +7747,7 @@
     },
     "647": {
         "name": "Use of Non-Canonical URL Paths for Authorization Decisions",
-        "description": "The product defines policy namespaces and makes authorization decisions based on the assumption that a URL is canonical. This can allow a non-canonical URL to bypass the authorization.",
+        "description": "The product defines policy namespaces and makes authorization decisions based on the assumption that a URL is canonical.",
         "ChildOf": [
             "863",
             "180"
@@ -7677,7 +7785,7 @@
     },
     "650": {
         "name": "Trusting HTTP Permission Methods on the Server Side",
-        "description": "The server contains a protection mechanism that assumes that any URI that is accessed using HTTP GET will not cause a state change to the associated resource. This might allow attackers to bypass intended access restrictions and conduct resource modification and deletion attacks, since some applications allow GET to modify state.",
+        "description": "The server contains a protection mechanism that assumes that any URI that is accessed using HTTP GET will not cause a state change to the associated resource.",
         "ChildOf": [
             "436"
         ],
@@ -7692,8 +7800,8 @@
         "RelatedAttackPatterns": []
     },
     "652": {
-        "name": "Improper Neutralization of Data within XQuery Expressions ('XQuery Injection')",
-        "description": "The product uses external input to dynamically construct an XQuery expression used to retrieve data from an XML database, but it does not neutralize or incorrectly neutralizes that input. This allows an attacker to control the structure of the query.",
+        "name": "Improper Neutralization of Data within XQuery Expressions",
+        "description": "The product uses external input to dynamically construct an XQuery expression used to retrieve data from an XML database, but it does not neutralize or incorrectly neutralizes that input.",
         "ChildOf": [
             "943",
             "91"
@@ -7757,7 +7865,7 @@
     },
     "66": {
         "name": "Improper Handling of File Names that Identify Virtual Resources",
-        "description": "The product does not handle or incorrectly handles a file name that identifies a \"virtual\" resource that is not directly specified within the directory that is associated with the file name, causing the product to perform file-based operations on a resource that is not a file.",
+        "description": "The product does not handle or incorrectly handles a file name that identifies a \"virtual\" resource that is not directly specified within the directory that is associated with the file name.",
         "ChildOf": [
             "706"
         ],
@@ -7801,7 +7909,7 @@
     },
     "665": {
         "name": "Improper Initialization",
-        "description": "The product does not initialize or incorrectly initializes a resource, which might leave the resource in an unexpected state when it is accessed or used.",
+        "description": "The product does not initialize or incorrectly initializes a resource.",
         "ChildOf": [
             "664"
         ],
@@ -7867,7 +7975,7 @@
     },
     "671": {
         "name": "Lack of Administrator Control over Security",
-        "description": "The product uses security features in a way that prevents the product's administrator from tailoring security settings to reflect the environment in which the product is being used. This introduces resultant weaknesses or prevents it from operating at a level of security that is desired by the administrator.",
+        "description": "The product uses security features in a way that prevents the product's administrator from tailoring security settings to reflect the environment in which the product is being used.",
         "ChildOf": [
             "657"
         ],
@@ -7956,7 +8064,7 @@
     },
     "683": {
         "name": "Function Call With Incorrect Order of Arguments",
-        "description": "The product calls a function, procedure, or routine, but the caller specifies the arguments in an incorrect order, leading to resultant weaknesses.",
+        "description": "The product calls a function, procedure, or routine, but the caller specifies the arguments in an incorrect order.",
         "ChildOf": [
             "628"
         ],
@@ -8041,7 +8149,7 @@
     },
     "692": {
         "name": "Incomplete Denylist to Cross-Site Scripting",
-        "description": "The product uses a denylist-based protection mechanism to defend against XSS attacks, but the denylist is incomplete, allowing XSS variants to succeed.",
+        "description": "The product uses a denylist-based protection mechanism to defend against XSS attacks, but the denylist is incomplete.",
         "ChildOf": [
             "184"
         ],
@@ -8153,7 +8261,7 @@
     },
     "7": {
         "name": "J2EE Misconfiguration: Missing Custom Error Page",
-        "description": "The default error page of a web application should not display sensitive information about the product.",
+        "description": "The product has a J2EE component that does not have a custom error page.",
         "ChildOf": [
             "756"
         ],
@@ -8169,7 +8277,7 @@
         "name": "Incorrect Type Conversion or Cast",
         "description": "The product does not correctly convert an object, resource, or structure from one type to a different type.",
         "ChildOf": [
-            "664"
+            "1474"
         ],
         "RelatedAttackPatterns": []
     },
@@ -8196,7 +8304,7 @@
     },
     "707": {
         "name": "Improper Neutralization",
-        "description": "The product does not ensure or incorrectly ensures that structured messages or data are well-formed and that certain security properties are met before being read from an upstream component or sent to a downstream component.",
+        "description": "The product does not ensure or incorrectly ensures that structured messages or data are well-formed and that certain security properties are met before being used when received from an upstream component, or before being sent to a downstream component.",
         "ChildOf": [],
         "RelatedAttackPatterns": [
             "250",
@@ -8233,7 +8341,7 @@
     },
     "710": {
         "name": "Improper Adherence to Coding Standards",
-        "description": "The product does not follow certain coding rules for development, which can lead to resultant weaknesses or increase the severity of the associated vulnerabilities.",
+        "description": "The product does not follow certain coding rules for development.",
         "ChildOf": [],
         "RelatedAttackPatterns": []
     },
@@ -8300,7 +8408,7 @@
         ]
     },
     "74": {
-        "name": "Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')",
+        "name": "Improper Neutralization of Special Elements in Output Used by a Downstream Component",
         "description": "The product constructs all or part of a command, data structure, or record using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify how it is parsed or interpreted when it is sent to a downstream component.",
         "ChildOf": [
             "707"
@@ -8356,7 +8464,7 @@
         ]
     },
     "75": {
-        "name": "Failure to Sanitize Special Elements into a Different Plane (Special Element Injection)",
+        "name": "Failure to Sanitize Special Elements into a Different Plane",
         "description": "The product does not adequately filter user-controlled input for special elements with control implications.",
         "ChildOf": [
             "74"
@@ -8391,8 +8499,8 @@
         "RelatedAttackPatterns": []
     },
     "757": {
-        "name": "Selection of Less-Secure Algorithm During Negotiation ('Algorithm Downgrade')",
-        "description": "A protocol or its implementation supports interaction between multiple actors and allows those actors to negotiate which algorithm should be used as a protection mechanism such as encryption or authentication, but it does not select the strongest algorithm that is available to both parties.",
+        "name": "Selection of Less-Secure Algorithm During Negotiation",
+        "description": "A protocol or its implementation supports interaction between multiple actors and allows those actors to negotiate which algorithm should be used in a protection mechanism such as encryption or authentication, but it does not select the strongest algorithm that is available to both parties.",
         "ChildOf": [
             "693"
         ],
@@ -8501,9 +8609,9 @@
     },
     "768": {
         "name": "Incorrect Short Circuit Evaluation",
-        "description": "The product contains a conditional statement with multiple logical expressions in which one of the non-leading expressions may produce side effects. This may lead to an unexpected state in the program after the execution of the conditional, because short-circuiting logic may prevent the side effects from occurring.",
+        "description": "The product contains a conditional statement with multiple logical expressions in which one of the non-leading expressions may produce side effects. ",
         "ChildOf": [
-            "691"
+            "705"
         ],
         "RelatedAttackPatterns": []
     },
@@ -8514,7 +8622,7 @@
         "RelatedAttackPatterns": []
     },
     "77": {
-        "name": "Improper Neutralization of Special Elements used in a Command ('Command Injection')",
+        "name": "Improper Neutralization of Special Elements used in a Command",
         "description": "The product constructs all or part of a command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended command when it is sent to a downstream component.",
         "ChildOf": [
             "74",
@@ -8610,7 +8718,7 @@
         "RelatedAttackPatterns": []
     },
     "776": {
-        "name": "Improper Restriction of Recursive Entity References in DTDs ('XML Entity Expansion')",
+        "name": "Improper Restriction of Recursive Entity References in DTDs",
         "description": "The product uses XML documents and allows their structure to be defined with a Document Type Definition (DTD), but it does not properly control the number of recursive definitions of entities.",
         "ChildOf": [
             "674",
@@ -8623,7 +8731,7 @@
     },
     "777": {
         "name": "Regular Expression without Anchors",
-        "description": "The product uses a regular expression to perform neutralization, but the regular expression is not anchored and may allow malicious or malformed data to slip through.",
+        "description": "The product uses a regular expression to perform neutralization, but the regular expression omits one or more anchors that may allow malicious or malformed data to slip through.",
         "ChildOf": [
             "625"
         ],
@@ -8646,8 +8754,8 @@
         "RelatedAttackPatterns": []
     },
     "78": {
-        "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
-        "description": "The product constructs all or part of an OS command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended OS command when it is sent to a downstream component.",
+        "name": "Improper Neutralization of Special Elements used in an OS Command",
+        "description": "The product constructs all or part of an OS command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended OS command before it is sent to a downstream component.",
         "ChildOf": [
             "77",
             "74",
@@ -8664,7 +8772,7 @@
     },
     "780": {
         "name": "Use of RSA Algorithm without OAEP",
-        "description": "The product uses the RSA algorithm but does not incorporate Optimal Asymmetric Encryption Padding (OAEP), which might weaken the encryption.",
+        "description": "The product uses the RSA algorithm but does not incorporate Optimal Asymmetric Encryption Padding (OAEP).",
         "ChildOf": [
             "327"
         ],
@@ -8708,7 +8816,7 @@
         "description": "The product invokes a function for normalizing paths or file names, but it provides an output buffer that is smaller than the maximum possible size, such as PATH_MAX.",
         "ChildOf": [
             "676",
-            "120",
+            "787",
             "20"
         ],
         "RelatedAttackPatterns": []
@@ -8753,7 +8861,7 @@
         "RelatedAttackPatterns": []
     },
     "79": {
-        "name": "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+        "name": "Improper Neutralization of Input During Web Page Generation",
         "description": "The product does not neutralize or incorrectly neutralizes user-controllable input before it is placed in output that is used as a web page that is served to other users.",
         "ChildOf": [
             "74",
@@ -8770,7 +8878,7 @@
     },
     "790": {
         "name": "Improper Filtering of Special Elements",
-        "description": "The product receives data from an upstream component, but does not filter or incorrectly filters special elements before sending it to a downstream component.",
+        "description": "The product receives data from an upstream component, but it does not filter or incorrectly filters special elements before sending it to a downstream component.",
         "ChildOf": [
             "138"
         ],
@@ -8778,7 +8886,7 @@
     },
     "791": {
         "name": "Incomplete Filtering of Special Elements",
-        "description": "The product receives data from an upstream component, but does not completely filter special elements before sending it to a downstream component.",
+        "description": "The product receives data from an upstream component, but it does not completely filter special elements before sending it to a downstream component.",
         "ChildOf": [
             "790"
         ],
@@ -8802,7 +8910,7 @@
     },
     "794": {
         "name": "Incomplete Filtering of Multiple Instances of Special Elements",
-        "description": "The product receives data from an upstream component, but does not filter all instances of a special element before sending it to a downstream component.",
+        "description": "The product receives data from an upstream component, but it does not filter all instances of a special element before sending it to a downstream component.",
         "ChildOf": [
             "792"
         ],
@@ -8856,14 +8964,14 @@
     },
     "8": {
         "name": "J2EE Misconfiguration: Entity Bean Declared Remote",
-        "description": "When an application exposes a remote interface for an entity bean, it might also expose methods that get or set the bean's data. These methods could be leveraged to read sensitive information, or to change data in ways that violate the application's expectations, potentially leading to other vulnerabilities.",
+        "description": "The J2EE application exposes a remote interface for an entity bean, but it also exposes methods that get or set the bean's data.",
         "ChildOf": [
             "668"
         ],
         "RelatedAttackPatterns": []
     },
     "80": {
-        "name": "Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)",
+        "name": "Improper Neutralization of Script-Related HTML Tags in a Web Page",
         "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes special characters such as \"<\", \">\", and \"&\" that could be interpreted as web-scripting elements when they are sent to a downstream component that processes web pages.",
         "ChildOf": [
             "79"
@@ -9059,7 +9167,7 @@
     },
     "830": {
         "name": "Inclusion of Web Functionality from an Untrusted Source",
-        "description": "The product includes web functionality (such as a web widget) from another domain, which causes it to operate within the domain of the product, potentially granting total access and control of the product to the untrusted source.",
+        "description": "The product includes web functionality (such as a web widget) from another domain in a way that causes the functionality to operate within the domain of the product, potentially granting total access and control of the product to the untrusted source.",
         "ChildOf": [
             "829"
         ],
@@ -9101,7 +9209,7 @@
         "RelatedAttackPatterns": []
     },
     "835": {
-        "name": "Loop with Unreachable Exit Condition ('Infinite Loop')",
+        "name": "Loop with Unreachable Exit Condition",
         "description": "The product contains an iteration or loop with an exit condition that cannot be reached, i.e., an infinite loop.",
         "ChildOf": [
             "834",
@@ -9111,7 +9219,7 @@
     },
     "836": {
         "name": "Use of Password Hash Instead of Password for Authentication",
-        "description": "The product records password hashes in a data store, receives a hash of a password from a client, and compares the supplied hash to the hash obtained from the data store.",
+        "description": "The product includes a client that computes a hash of a password and sends the hash to another component, which compares the supplied hash to the hash obtained from a data store of password hashes.",
         "ChildOf": [
             "1390"
         ],
@@ -9122,7 +9230,7 @@
     },
     "837": {
         "name": "Improper Enforcement of a Single, Unique Action",
-        "description": "The product requires that an actor should only be able to perform an action once, or to have only one unique action, but the product does not enforce or improperly enforces this restriction.",
+        "description": "The product requires that an actor should only be able to perform an action once, or to have only one unique action, but the product does not enforce or incorrectly enforces this restriction.",
         "ChildOf": [
             "799"
         ],
@@ -9143,7 +9251,8 @@
         "name": "Numeric Range Comparison Without Minimum Check",
         "description": "The product checks a value to ensure that it is less than or equal to a maximum, but it does not also verify that the value is greater than or equal to the minimum.",
         "ChildOf": [
-            "1023"
+            "1023",
+            "1284"
         ],
         "RelatedAttackPatterns": []
     },
@@ -9157,7 +9266,7 @@
     },
     "841": {
         "name": "Improper Enforcement of Behavioral Workflow",
-        "description": "The product supports a session in which more than one behavior must be performed by an actor, but it does not properly ensure that the actor performs the behaviors in the required sequence.",
+        "description": "The product supports a session in which more than one behavior must be performed by an actor, but it does not properly ensure that the actor performs the behaviors in the required sequence or timeframe.",
         "ChildOf": [
             "691"
         ],
@@ -9172,7 +9281,7 @@
         "RelatedAttackPatterns": []
     },
     "843": {
-        "name": "Access of Resource Using Incompatible Type ('Type Confusion')",
+        "name": "Access of Resource Using Incompatible Type",
         "description": "The product allocates or initializes a resource such as a pointer, object, or variable using one type, but it later accesses that resource using a type that is incompatible with the original type.",
         "ChildOf": [
             "704",
@@ -9234,7 +9343,7 @@
         ]
     },
     "88": {
-        "name": "Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')",
+        "name": "Improper Neutralization of Argument Delimiters in a Command",
         "description": "The product constructs a string for a command to be executed by a separate component\nin another control sphere, but it does not properly delimit the\nintended arguments, options, or switches within that command string.",
         "ChildOf": [
             "77",
@@ -9251,7 +9360,7 @@
         ]
     },
     "89": {
-        "name": "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+        "name": "Improper Neutralization of Special Elements used in an SQL Command",
         "description": "The product constructs all or part of an SQL command using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended SQL command when it is sent to a downstream component. Without sufficient removal or quoting of SQL syntax in user-controllable inputs, the generated SQL query can cause those inputs to be interpreted as SQL instead of ordinary user data.",
         "ChildOf": [
             "943",
@@ -9275,7 +9384,7 @@
         "RelatedAttackPatterns": []
     },
     "90": {
-        "name": "Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')",
+        "name": "Improper Neutralization of Special Elements used in an LDAP Query",
         "description": "The product constructs all or part of an LDAP query using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended LDAP query when it is sent to a downstream component.",
         "ChildOf": [
             "943"
@@ -9303,7 +9412,7 @@
         "RelatedAttackPatterns": []
     },
     "91": {
-        "name": "XML Injection (aka Blind XPath Injection)",
+        "name": "XML Injection",
         "description": "The product does not properly neutralize special elements that are used in XML, allowing attackers to modify the syntax, content, or commands of the XML before it is processed by an end system.",
         "ChildOf": [
             "74",
@@ -9378,7 +9487,7 @@
         ]
     },
     "917": {
-        "name": "Improper Neutralization of Special Elements used in an Expression Language Statement ('Expression Language Injection')",
+        "name": "Improper Neutralization of Special Elements used in an Expression Language Statement",
         "description": "The product constructs all or part of an expression language (EL) statement in a framework such as a Java Server Page (JSP) using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the intended EL statement before it is executed.",
         "ChildOf": [
             "77",
@@ -9389,7 +9498,7 @@
         "RelatedAttackPatterns": []
     },
     "918": {
-        "name": "Server-Side Request Forgery (SSRF)",
+        "name": "Server-Side Request Forgery",
         "description": "The web server receives a URL or similar request from an upstream component and retrieves the contents of this URL, but it does not sufficiently ensure that the request is being sent to the expected destination.",
         "ChildOf": [
             "441",
@@ -9407,7 +9516,7 @@
     },
     "920": {
         "name": "Improper Restriction of Power Consumption",
-        "description": "The product operates in an environment in which power is a limited resource that cannot be automatically replenished, but the product does not properly restrict the amount of power that its operation consumes.",
+        "description": "The product operates in an environment in which power is a limited resource that cannot be automatically replenished - or has financial restrictions - but the product does not properly restrict the amount of power that its operation consumes.",
         "ChildOf": [
             "400",
             "400"
@@ -9475,12 +9584,12 @@
         "description": "The Android application uses an implicit intent for transmitting sensitive data to other applications.",
         "ChildOf": [
             "285",
-            "668"
+            "923"
         ],
         "RelatedAttackPatterns": []
     },
     "93": {
-        "name": "Improper Neutralization of CRLF Sequences ('CRLF Injection')",
+        "name": "Improper Neutralization of CRLF Sequences",
         "description": "The product uses CRLF (carriage return line feeds) as a special element, e.g. to separate lines or records, but it does not neutralize or incorrectly neutralizes CRLF sequences from inputs.",
         "ChildOf": [
             "74"
@@ -9500,7 +9609,7 @@
         "RelatedAttackPatterns": []
     },
     "94": {
-        "name": "Improper Control of Generation of Code ('Code Injection')",
+        "name": "Improper Control of Generation of Code",
         "description": "The product constructs all or part of a code segment using externally-influenced input from an upstream component, but it does not neutralize or incorrectly neutralizes special elements that could modify the syntax or behavior of the intended code segment.",
         "ChildOf": [
             "74",
@@ -9556,7 +9665,7 @@
         ]
     },
     "95": {
-        "name": "Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')",
+        "name": "Improper Neutralization of Directives in Dynamically Evaluated Code",
         "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes code syntax before using the input in a dynamic evaluation call (e.g. \"eval\").",
         "ChildOf": [
             "94"
@@ -9566,7 +9675,7 @@
         ]
     },
     "96": {
-        "name": "Improper Neutralization of Directives in Statically Saved Code ('Static Code Injection')",
+        "name": "Improper Neutralization of Directives in Statically Saved Code",
         "description": "The product receives input from an upstream component, but it does not neutralize or incorrectly neutralizes code syntax before inserting the input into an executable resource, such as a library, configuration file, or template.",
         "ChildOf": [
             "94"
@@ -9591,7 +9700,7 @@
         ]
     },
     "98": {
-        "name": "Improper Control of Filename for Include/Require Statement in PHP Program ('PHP Remote File Inclusion')",
+        "name": "Improper Control of Filename for Include/Require Statement in PHP Program",
         "description": "The PHP application receives input from an upstream component, but it does not restrict or incorrectly restricts the input before its usage in \"require,\" \"include,\" or similar functions.",
         "ChildOf": [
             "706",
@@ -9602,8 +9711,8 @@
         ]
     },
     "99": {
-        "name": "Improper Control of Resource Identifiers ('Resource Injection')",
-        "description": "The product receives input from an upstream component, but it does not restrict or incorrectly restricts the input before it is used as an identifier for a resource that may be outside the intended sphere of control.",
+        "name": "Improper Control of Resource Identifiers",
+        "description": "The product receives input from an upstream component, but it does not restrict or incorrectly restricts the input before it is used as an identifier for a resource that may be outside the intended control sphere.",
         "ChildOf": [
             "74"
         ],
