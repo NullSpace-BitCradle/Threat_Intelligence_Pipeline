@@ -514,6 +514,13 @@
     border-color: var(--accent);
 }
 
+.overview-entity-unlinked,
+.overview-entity-unlinked:hover {
+    cursor: default;
+    color: var(--text-secondary);
+    border-color: var(--border);
+}
+
 /* ===== ENTITY CARDS (tab content) ===== */
 .entity-card-list {
     display: flex;
@@ -536,6 +543,17 @@
 .entity-card:hover {
     border-color: var(--accent);
     background: var(--bg-secondary);
+}
+
+.entity-card-unlinked,
+.entity-card-unlinked:hover {
+    cursor: default;
+    border-color: var(--border);
+    background: var(--bg-card);
+}
+
+.entity-card-unlinked .entity-card-id {
+    color: var(--text-secondary);
 }
 
 .entity-card-id {

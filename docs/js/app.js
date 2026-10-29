@@ -165,33 +165,17 @@ function setupSearch(inputId, dropdownId) {
 }
 
 function navigateToEntity(query) {
-    // Try exact ID match first
-    var entity = getEntity(query);
+    // An exact ID, an exact id or name among search hits, or the only hit.
+    var entity = resolveEntity(query);
     if (entity) {
         window.location.hash = '#/' + entity.type + '/' + entity.id;
         return;
     }
 
-    // Try search
     var grouped = searchEntities(query);
     var allResults = [];
     for (var type in grouped) {
         allResults = allResults.concat(grouped[type]);
-    }
-
-    // Check for exact name match (case-insensitive): prefer that over multi-result page
-    var q = query.toLowerCase();
-    for (var i = 0; i < allResults.length; i++) {
-        if (allResults[i].id.toLowerCase() === q ||
-            (allResults[i].name && allResults[i].name.toLowerCase() === q)) {
-            window.location.hash = '#/' + allResults[i].type + '/' + allResults[i].id;
-            return;
-        }
-    }
-
-    if (allResults.length === 1) {
-        window.location.hash = '#/' + allResults[0].type + '/' + allResults[0].id;
-        return;
     }
 
     if (allResults.length > 1) {
