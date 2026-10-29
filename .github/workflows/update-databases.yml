@@ -110,7 +110,10 @@ jobs:
         env:
           PATCH: ${{ runner.temp }}/data-patch/data.patch
         run: |
-          if grep -Eq '^(rename|copy) (from|to|old|new) ' "$PATCH" || grep -E '^(new file |new )?mode ' "$PATCH" | grep -qv 'mode 100644$'; then
+          # Collected, not grep -q: an early exit in a pipe is SIGPIPE under
+          # pipefail, which would read as "no match" on a large patch.
+          bad=$(grep -E '^(new file |new )?mode ' "$PATCH" | grep -v 'mode 100644$' || true)
+          if grep -Eq '^(rename|copy) (from|to|old|new) ' "$PATCH" || [ -n "$bad" ]; then
             echo "Refusing to publish: the data patch has a rename or a mode other than 100644." >&2
             exit 1
           fi
@@ -120,6 +123,11 @@ jobs:
           outside=$(git diff --cached --no-renames --name-only | grep -vE '^docs/(data|database)/[^./][^/]*$|^lastUpdate\.txt$' || true)
           if [ -n "$outside" ]; then
             echo "Refusing to publish: the data patch touches $outside" >&2
+            exit 1
+          fi
+          modes=$(git diff --cached --no-renames --raw | grep -vE '^:(000000|100644) (000000|100644) ' || true)
+          if [ -n "$modes" ]; then
+            echo "Refusing to publish: the data patch stages a mode other than 100644: $modes" >&2
             exit 1
           fi
 

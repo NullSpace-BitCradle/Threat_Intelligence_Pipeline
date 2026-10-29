@@ -277,7 +277,9 @@ def test_pipeline_code_never_holds_a_write_token(name):
         assert code not in publish, code
     assert "--include='docs/data/*' --include='docs/database/*' --include=lastUpdate.txt" in publish
     apply = _step(publish, "Apply data changes")
-    assert apply.index("grep -qv 'mode 100644$'") < apply.index("git apply")
+    assert apply.index("grep -v 'mode 100644$' || true") < apply.index("git apply")
+    assert "grep -qv" not in apply  # SIGPIPE under pipefail reads as no match
+    assert apply.index("git apply") < apply.index("git diff --cached --no-renames --raw")
     assert apply.index("^(rename|copy) (from|to|old|new) ") < apply.index("git apply")
     assert "^docs/(data|database)/[^./][^/]*$" in apply
     # --include matches a rename's new name only: what got staged is checked too.
