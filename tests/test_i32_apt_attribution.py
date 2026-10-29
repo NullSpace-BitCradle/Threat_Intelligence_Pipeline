@@ -238,14 +238,15 @@ def test_bootstrap_without_existing_attributions_writes(tmp_path):
     assert json.loads(path.read_text())["attributions"] == EXPECTED
 
 
-def test_apt_processor_update_refuses_collapse(tmp_path, monkeypatch):
+def test_groups_step_refuses_collapse(tmp_path, monkeypatch):
+    import tip.core.database_manager as dm_mod
     path = tmp_path / "groups_db.json"
     existing = dict(_groups_db(), attributions=_pairs(20))  # BUNDLE gives 7
     path.write_text(json.dumps(existing))
-    proc = APTProcessor()
-    proc.db_path = str(path)
-    monkeypatch.setattr(proc, "download", lambda: BUNDLE)
-    assert proc.update() is False
+    monkeypatch.setattr(APTProcessor, "download", lambda self: BUNDLE)
+    manager = dm_mod.DatabaseManager()
+    manager.databases["groups"]["file"] = str(path)
+    assert manager.update_database("groups") is False
     assert json.loads(path.read_text()) == existing
 
 

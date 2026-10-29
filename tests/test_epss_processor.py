@@ -149,6 +149,11 @@ def test_fetch_http_error_raises(monkeypatch):
 
 # ISC-4 ---------------------------------------------------------------------
 
+def _update() -> bool:
+    from tip.core.database_manager import DatabaseManager
+    return DatabaseManager().update_database("epss")
+
+
 def test_build_curated_only_curated_tier(scratch, monkeypatch):
     _serve(monkeypatch, make_csv())
     proc = ep.EPSSProcessor()
@@ -168,8 +173,7 @@ def test_build_curated_only_curated_tier(scratch, monkeypatch):
 
 def test_update_writes_curated_file(scratch, monkeypatch):
     _serve(monkeypatch, make_csv())
-    proc = ep.EPSSProcessor()
-    assert proc.update() is True
+    assert _update() is True
     out = json.loads((scratch / "epss_curated.json").read_text())
     assert out["meta"]["total_count"] == 3
     assert set(out["scores"]) == {"CVE-2023-44487", "CVE-2024-1234"}
@@ -182,7 +186,7 @@ def test_update_without_entity_index_skips_curated_file(scratch, monkeypatch, ca
     (scratch / "entity_index.json").unlink()
     _serve(monkeypatch, make_csv())
     with caplog.at_level("WARNING"):
-        assert ep.EPSSProcessor().update() is True
+        assert _update() is True
     assert not (scratch / "epss_curated.json").exists()
     assert "skipping epss_curated.json" in caplog.text
 
@@ -190,7 +194,7 @@ def test_update_without_entity_index_skips_curated_file(scratch, monkeypatch, ca
 def test_update_without_entity_index_still_fails_on_bad_download(scratch, monkeypatch):
     (scratch / "entity_index.json").unlink()
     _serve(monkeypatch, make_csv(header="#nope\n"))
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
 
 
 def _index(scratch, cves):
@@ -205,7 +209,7 @@ def test_empty_index_does_not_replace_nonempty_curated_file(scratch, monkeypatch
     before = _seed_good(scratch, monkeypatch)
     _index(scratch, [])
     _serve(monkeypatch, make_csv())
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert (scratch / "epss_curated.json").read_bytes() == before
 
 
@@ -215,16 +219,16 @@ def test_curated_count_under_half_of_prior_is_refused(scratch, monkeypatch):
     before = _seed_good(scratch, monkeypatch, rows=rows)  # 13 curated
     _index(scratch, [r[0] for r in rows[:6]])               # 6 < 50% of 13
     _serve(monkeypatch, make_csv(rows=rows))
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert (scratch / "epss_curated.json").read_bytes() == before
     _index(scratch, [r[0] for r in rows[:7]])               # 7 >= 50% of 13
-    assert ep.EPSSProcessor().update() is True
+    assert _update() is True
 
 
 def test_empty_index_without_prior_file_is_refused(scratch, monkeypatch):
     _index(scratch, [])
     _serve(monkeypatch, make_csv())
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert not (scratch / "epss_curated.json").exists()
 
 
@@ -276,7 +280,7 @@ def test_format_error_is_not_retried(monkeypatch, no_sleep):
 
 def _seed_good(scratch, monkeypatch, rows=ROWS) -> bytes:
     _serve(monkeypatch, make_csv(rows=rows))
-    assert ep.EPSSProcessor().update() is True
+    assert _update() is True
     return (scratch / "epss_curated.json").read_bytes()
 
 
@@ -287,14 +291,14 @@ def test_download_error_leaves_prior_output_identical(scratch, monkeypatch):
         raise requests.exceptions.Timeout("slow")
 
     monkeypatch.setattr(ep.requests, "get", boom)
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert (scratch / "epss_curated.json").read_bytes() == before
 
 
 def test_malformed_header_leaves_prior_output_identical(scratch, monkeypatch):
     before = _seed_good(scratch, monkeypatch)
     _serve(monkeypatch, make_csv(header="#garbage\n"))
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert (scratch / "epss_curated.json").read_bytes() == before
 
 
@@ -307,7 +311,7 @@ def test_row_count_under_half_of_last_good_is_refused(scratch, monkeypatch):
     proc = ep.EPSSProcessor()
     with pytest.raises(DataFloorError):
         proc.write_curated(proc.fetch())
-    assert ep.EPSSProcessor().update() is False
+    assert _update() is False
     assert (scratch / "epss_curated.json").read_bytes() == before
 
 
@@ -316,7 +320,7 @@ def test_row_count_at_half_is_accepted(scratch, monkeypatch):
     _seed_good(scratch, monkeypatch, rows=big)
     half = ROWS + [(f"CVE-2020-{i:05d}", "0.1", "0.2") for i in range(497)]  # 500 rows
     _serve(monkeypatch, make_csv(rows=half))
-    assert ep.EPSSProcessor().update() is True
+    assert _update() is True
 
 
 # ISC-3 ---------------------------------------------------------------------

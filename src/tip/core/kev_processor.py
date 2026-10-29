@@ -13,7 +13,6 @@ import requests
 from tip.utils.config import get_config
 from tip.utils.error_handler import get_logger, NetworkError, create_api_context
 from tip.utils.performance_optimizer import performance_timer
-from tip.utils.atomic_io import write_reference_db
 from tip.utils.http import download_timeout, get_with_retry
 
 config = get_config()
@@ -68,17 +67,6 @@ class KEVProcessor:
         self.logger.info(f"Indexed {len(indexed)} KEV entries by CVE ID")
         return indexed
 
-    def update(self) -> bool:
-        """Download, process, and save KEV database"""
-        try:
-            raw_data = self.download()
-            self.kev_db = self._process_kev_data(raw_data)
-            self._save(self.kev_db)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to update KEV database: {e}")
-            return False
-
     def load(self) -> bool:
         """Load KEV database from disk"""
         try:
@@ -91,11 +79,6 @@ class KEVProcessor:
         except Exception as e:
             self.logger.error(f"Failed to load KEV database: {e}")
             return False
-
-    def _save(self, data: Dict[str, Any]) -> None:
-        """Floor-check and atomically save the KEV database"""
-        write_reference_db(self.db_path, data, indent=2)
-        self.logger.info(f"Saved {len(data)} KEV entries to {self.db_path}")
 
     def lookup(self, cve_id: str) -> Optional[Dict[str, Any]]:
         """Look up a CVE in the KEV catalog. Returns entry dict or None."""

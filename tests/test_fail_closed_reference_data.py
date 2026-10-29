@@ -197,24 +197,8 @@ def _write_via_manager(name, suffix=".json"):
     return write, suffix
 
 
-def _write_kev(path, data):
-    from tip.core.kev_processor import KEVProcessor
-    proc = KEVProcessor()
-    proc.db_path = str(path)
-    proc._save(data)
-    return True
-
-
 def _write_vulnrichment(path, data):
     proc = VulnrichmentProcessor()
-    proc.db_path = str(path)
-    proc._save(data)
-    return True
-
-
-def _write_groups_apt(path, data):
-    from tip.core.apt_processor import APTProcessor
-    proc = APTProcessor()
     proc.db_path = str(path)
     proc._save(data)
     return True
@@ -251,9 +235,7 @@ WRITERS = {
     "kev_manager": (*_write_via_manager("kev"), _big),
     "vulnrichment_manager": (*_write_via_manager("vulnrichment"), _big),
     "groups_manager": (*_write_via_manager("groups"), _groups),
-    "kev": (_write_kev, ".json", _big),
     "vulnrichment": (_write_vulnrichment, ".json", _big),
-    "groups": (_write_groups_apt, ".json", _groups),
     "campaigns": (_write_campaigns, ".json", _campaigns),
     "owasp": (_write_owasp, ".json", _owasp),
 }
