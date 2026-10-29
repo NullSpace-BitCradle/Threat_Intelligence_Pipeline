@@ -309,8 +309,7 @@ def test_cwe_url_is_https():
     assert default["database"]["cwe"]["url"].startswith("https://")
 
 
-def _cwe_zip(path):
-    ns = "http://cwe.mitre.org/cwe-7"
+def _cwe_zip(path, ns):
     xml = (
         f'<Weakness_Catalog xmlns="{ns}"><Weaknesses>'
         '<Weakness ID="79" Name="XSS"><Description>d</Description>'
@@ -323,11 +322,13 @@ def _cwe_zip(path):
         z.writestr("../evil.xml", "<x/>")
 
 
-def test_cwe_zip_is_read_in_memory_not_extracted(tmp_path, monkeypatch):
+# cwe-8 is the CWE 5.0 schema; the hardcoded cwe-7 parser read it as 0 records.
+@pytest.mark.parametrize("ns", ["http://cwe.mitre.org/cwe-7", "http://cwe.mitre.org/cwe-8"])
+def test_cwe_zip_is_read_in_memory_not_extracted(tmp_path, monkeypatch, ns):
     monkeypatch.chdir(tmp_path)
     zip_path = tmp_path / "dl" / "cwe.zip"
     zip_path.parent.mkdir()
-    _cwe_zip(zip_path)
+    _cwe_zip(zip_path, ns)
     from tip.core.database_manager import DatabaseManager
     data = DatabaseManager()._process_cwe_data(str(zip_path))
     assert data == {"79": {"name": "XSS", "description": "d", "ChildOf": ["74"],
@@ -357,7 +358,7 @@ def test_update_database_downloads_into_a_temp_dir(tmp_path, monkeypatch):
 
     def fake_download(url, filename):
         seen["path"] = Path(filename)
-        _cwe_zip(filename)
+        _cwe_zip(filename, "http://cwe.mitre.org/cwe-8")
         return True
 
     manager._download_file = fake_download  # type: ignore[method-assign]
