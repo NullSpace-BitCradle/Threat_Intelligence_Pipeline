@@ -336,6 +336,10 @@ def _apply_kev_db(loader: IndexLoader, record: dict, meta: dict) -> None:
     else:
         record.pop("kev_detail", None)
     meta["kev_source"] = "kev_db.json"
+    if record["id"].upper() in loader.kev_malformed:
+        meta.setdefault("warnings", []).append(
+            f"kev_db.json entry for {record['id'].upper()} is not an object; treated as listed with no details."
+        )
 
 
 def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
@@ -386,8 +390,6 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
         record["rels"] = rels_out
 
         meta: dict = {"source": "entity_index.json", "rel_count": len(rels_out)}
-        if record.get("type") == "cve":
-            _apply_kev_db(loader, record, meta)
         indexed_epss = "epss" in record
         # The shard adds what the index does not carry: D3FEND relationship
         # semantics on defend rels, and intel blocks for indexes generated
@@ -401,6 +403,8 @@ def lookup_entity_impl(loader: IndexLoader, entity_id: str) -> dict:
             if shard_hit is not None:
                 cve_blocks.enrich(record, shard_hit[0])
                 meta["enriched_from_shard"] = True
+            # After enrich, which would refill kev_detail from a stale shard.
+            _apply_kev_db(loader, record, meta)
             # Additive: every CVE record carries epss, null when unknown.
             record["epss"], meta["epss_source"] = _resolve_epss(
                 loader, record["id"], record.get("epss"),

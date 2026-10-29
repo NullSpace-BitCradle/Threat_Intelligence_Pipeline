@@ -27,7 +27,11 @@ def _kev_graph(tmp_path):
         "CVE-2026-0001": {"type": "cve", "kev": False},
         "CVE-2026-0002": {"type": "cve", "kev": True, "kev_detail": {"dateAdded": "2020-01-01"}},
     }
-    shard = {"CVE-2026-0003": {"DESCRIPTION": "x", "KEV": {"inKEV": False}}}
+    shard = {
+        "CVE-2026-0003": {"DESCRIPTION": "x", "KEV": {"inKEV": False}},
+        # The weekly shard still carries the dropped CVE's old KEV block.
+        "CVE-2026-0002": {"DESCRIPTION": "y", "KEV": {"inKEV": True, "dateAdded": "2020-01-01"}},
+    }
     catalog = {**CATALOG, "CVE-2026-0003": {"inKEV": True, "dateAdded": "2026-10-27"}}
     return _graph(tmp_path, ents, kev_db=catalog, shard=shard)
 
@@ -79,3 +83,10 @@ def test_search_splits_punctuation_like_the_index(tmp_path):
         assert search_threat_intel_impl(ld, query)["data"], query
     # A word the index holds whole is not split into weaker pieces.
     assert search_threat_intel_impl(ld, "T1059.001")["meta"]["query_tokens"] == ["t1059.001"]
+
+
+def test_lookup_warns_on_a_malformed_catalog_entry_like_kev_status(tmp_path):
+    ld = _graph(tmp_path, {"CVE-2026-0009": {"type": "cve", "kev": False}}, kev_db={"CVE-2026-0009": "listed"})
+    resp = lookup_entity_impl(ld, "CVE-2026-0009")
+    assert resp["data"]["kev"] is True
+    assert resp["meta"]["warnings"] == kev_status_impl(ld, "CVE-2026-0009")["meta"]["warnings"]
