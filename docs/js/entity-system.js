@@ -21,9 +21,14 @@ let epssCurated = null;
 let epssLoading = null;
 let epssFailed = false;
 
-// Layer 3: per-year shard cache (parsed Map<cve_id, payload>)
+// Layer 3: per-year CVE shards. A shard unzips to hundreds of MB (CVE-2026
+// was 398 MB on 2026-10-29), so it is streamed and only the CVEs asked for
+// are kept: year -> Map<cve_id, payload or null when not in the shard>.
 const shardCache = new Map();
-const shardLoading = new Map();  // year -> in-flight promise
+const shardBatches = new Map();  // year -> ids asked for this tick, one scan
+const SHARD_SCAN_LIMIT = 2;      // a 25-row worklist spans up to 25 years
+let shardScansRunning = 0;
+const shardScanQueue = [];
 
 const TYPE_CONFIG = {
     cve:       { color: '#ff6b6b', label: 'CVE',       relLabel: 'Vulnerabilities' },
@@ -300,84 +305,128 @@ class ShardLoadError extends Error {
     }
 }
 
-// Fetch and parse the per-year CVE shard. Caches the parsed Map for reuse.
-// Uses native DecompressionStream (Chrome 80+, Firefox 113+, Safari 16.4+).
-// Returns Map<cve_id, payload>, or null when the year has no shard (HTTP 404).
-// Throws ShardLoadError for every other failure; failures are not cached.
-async function fetchShardForYear(year) {
-    if (shardCache.has(year)) return shardCache.get(year);
-    if (shardLoading.has(year)) return shardLoading.get(year);
+// Run fn with one of SHARD_SCAN_LIMIT scan slots; a finished scan hands its
+// slot straight to the next waiter.
+async function withShardSlot(fn) {
+    if (shardScansRunning >= SHARD_SCAN_LIMIT) await new Promise(r => shardScanQueue.push(r));
+    else shardScansRunning++;
+    try {
+        return await fn();
+    } finally {
+        const next = shardScanQueue.shift();
+        if (next) next(); else shardScansRunning--;
+    }
+}
 
+// Stream one year's shard and keep the lines for `ids`, stopping once all are
+// found. Uses native DecompressionStream (Chrome 80+, Firefox 113+, Safari
+// 16.4+). Returns false when the year has no shard (HTTP 404), true after a
+// scan, with every id recorded in shardCache (null when absent). Throws
+// ShardLoadError for every other failure; failures are not cached.
+async function scanShard(year, ids) {
     if (typeof DecompressionStream === 'undefined') {
         throw new ShardLoadError('This browser cannot decompress CVE shards (no DecompressionStream support).');
     }
-
-    const promise = (async function() {
+    try {
+        const url = 'database/CVE-' + year + '.jsonl.gz';
+        let response;
         try {
-            const url = 'database/CVE-' + year + '.jsonl.gz';
-            let response;
-            try {
-                response = await fetch(url);
-            } catch (netErr) {
-                throw new ShardLoadError('Network error loading the ' + year + ' CVE shard.');
-            }
-            if (response.status === 404) {
-                console.warn('Shard not found:', url);
-                return null;
-            }
-            if (!response.ok) {
-                throw new ShardLoadError('The ' + year + ' CVE shard returned HTTP ' + response.status + '.');
-            }
-            const ds = new DecompressionStream('gzip');
-            const decompressed = response.body.pipeThrough(ds);
-            const text = await new Response(decompressed).text();
-
-            const cves = new Map();
-            const lines = text.split('\n');
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                try {
-                    const obj = JSON.parse(trimmed);
-                    for (const key in obj) {
-                        cves.set(key.toUpperCase(), obj[key]);
-                    }
-                } catch (parseErr) {
-                    // Skip malformed lines; do not abort the whole shard.
-                }
-            }
-            shardCache.set(year, cves);
-            return cves;
-        } catch (err) {
-            console.error('Shard fetch failed for year', year, err);
-            if (err instanceof ShardLoadError) throw err;
-            throw new ShardLoadError('Could not read the ' + year + ' CVE shard.');
-        } finally {
-            shardLoading.delete(year);
+            response = await fetch(url);
+        } catch (netErr) {
+            throw new ShardLoadError('Network error loading the ' + year + ' CVE shard.');
         }
-    })();
-    shardLoading.set(year, promise);
-    return promise;
+        if (response.status === 404) {
+            console.warn('Shard not found:', url);
+            return false;
+        }
+        if (!response.ok) {
+            throw new ShardLoadError('The ' + year + ' CVE shard returned HTTP ' + response.status + '.');
+        }
+        const reader = response.body
+            .pipeThrough(new DecompressionStream('gzip'))
+            .pipeThrough(new TextDecoderStream())
+            .getReader();
+        const want = new Set(ids);
+        const found = new Map();
+        let rest = '';
+        try {
+            while (want.size) {
+                const { done, value } = await reader.read();
+                if (value) rest += value;
+                const lines = rest.split('\n');
+                rest = done ? '' : lines.pop();
+                for (const line of lines) {
+                    // One CVE per line, {"CVE-YYYY-N": {...}}: read the key
+                    // and parse only the lines asked for.
+                    const m = line.match(/^\s*\{\s*"([^"]+)"/);
+                    if (!m || !want.has(m[1].toUpperCase())) continue;
+                    try {
+                        found.set(m[1].toUpperCase(), JSON.parse(line)[m[1]]);
+                        want.delete(m[1].toUpperCase());
+                    } catch (parseErr) {
+                        // Skip a malformed line; do not abort the whole shard.
+                    }
+                }
+                if (done) break;
+            }
+        } finally {
+            reader.cancel().catch(() => {});
+        }
+        if (!shardCache.has(year)) shardCache.set(year, new Map());
+        const cache = shardCache.get(year);
+        for (const id of ids) cache.set(id, found.get(id) || null);
+        return true;
+    } catch (err) {
+        console.error('Shard fetch failed for year', year, err);
+        if (err instanceof ShardLoadError) throw err;
+        throw new ShardLoadError('Could not read the ' + year + ' CVE shard.');
+    }
 }
 
 // Look up a single CVE in the shard for its year. Returns the payload dict
 // (DESCRIPTION, CWE, CAPEC, TECHNIQUES, OWASP, CVSS, ...) or null when the
 // CVE is not in any shard. Throws ShardLoadError when the shard failed to load.
+// Lookups for one year made in the same tick (a worklist) share one scan.
 async function fetchCveFromShard(cveId) {
     if (!cveId) return null;
     const m = cveId.match(_CVE_FULL_RE);
     if (!m) return null;
     const year = m[1];
-    const cves = await fetchShardForYear(year);
-    if (!cves) return null;
-    return cves.get(cveId.toUpperCase()) || null;
+    const id = cveId.toUpperCase();
+    const cached = shardCache.get(year);
+    if (cached && cached.has(id)) return cached.get(id);
+    let batch = shardBatches.get(year);
+    if (!batch) {
+        batch = { ids: new Set() };
+        batch.scan = Promise.resolve().then(() => {
+            shardBatches.delete(year);
+            return withShardSlot(() => scanShard(year, [...batch.ids]));
+        });
+        shardBatches.set(year, batch);
+    }
+    batch.ids.add(id);
+    if (!(await batch.scan)) return null;
+    return shardCache.get(year).get(id) || null;
 }
 
 // ── Entity Helpers ──────────────────────────────────────────────
 
 function getEntity(entityId) {
-    if (!entityIndex || !entityIndex.entities[entityId]) return null;
+    if (!entityIndex || !Object.hasOwn(entityIndex.entities, entityId)) return null;
     return { id: entityId, ...entityIndex.entities[entityId] };
+}
+
+// Resolve what a person typed ("APT29", "t1059") to one entity: an exact key,
+// else a search hit whose id or name equals the query, else the only hit.
+// Null when nothing matches or the query is ambiguous.
+function resolveEntity(query) {
+    const entity = getEntity(query);
+    if (entity) return entity;
+    const hits = [].concat(...Object.values(searchEntities(query)));
+    const q = query.toLowerCase().trim();
+    const exact = hits.find(h => h.id.toLowerCase() === q || (h.name && h.name.toLowerCase() === q));
+    if (exact) return exact;
+    return hits.length === 1 ? hits[0] : null;
 }
 
 // Some curated entity_index rels carry a bare numeric id (e.g. a CWE stored
