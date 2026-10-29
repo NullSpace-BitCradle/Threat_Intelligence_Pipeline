@@ -111,7 +111,7 @@ jobs:
         env:
           PATCH: ${{ runner.temp }}/data-patch/data.patch
         run: |
-          if grep -Eq '^(rename|copy) (from|to) ' "$PATCH" || grep -E '^(new file |new )?mode ' "$PATCH" | grep -qv 'mode 100644$'; then
+          if grep -Eq '^(rename|copy) (from|to|old|new) ' "$PATCH" || grep -E '^(new file |new )?mode ' "$PATCH" | grep -qv 'mode 100644$'; then
             echo "Refusing to publish: the data patch has a rename or a mode other than 100644." >&2
             exit 1
           fi
