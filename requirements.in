@@ -2,4 +2,4 @@
 #   uv pip compile requirements.in -o requirements.txt --generate-hashes -p 3.13 --exclude-newer <7 days ago>
 requests
 # Security floor for GHSA-6q48-6c7w-9gw2 (emSign CA keys): a compile must never resolve below this.
-certifi>=2026.10.19
+certifi>=2026.10.23
