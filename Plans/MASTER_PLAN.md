@@ -191,6 +191,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 | (no ID) | pytest-playwright 0.10.0, with the smoke workflow now installing the runtime lock and running on dependency changes (0.10.0 dropped `requests` from the dev lock, which broke every smoke test while `tests.yml` stayed green) | 2026-10-17 | PR #38, #39 |
 | (no ID) | Cross-vendor audit of the workflow hardening (#29 to #31) on `34d4d6d`: five codex findings replayed; three fixed red-first (unlistable clone directory aborts the Vulnrichment resync, GitHub token stripped before it can reach a logged InvalidHeader, a STIX body without `objects` is never cached), two rebutted (detail in `Plans/workflow-hardening.isa.md`) | 2026-10-20 | PR #40 |
 | (no ID) | NVD API key stripped before it reaches a request header (`Config.get_api_key`, `scripts/backfill_cvss.py`), the last credential-in-header site found by a sweep over header construction and env reads; a key pasted with a newline was quoted in the logged or printed InvalidHeader (review finding on PR #40) | 2026-10-20 | PR #41 |
+| (no ID) | Dependabot: `actions/setup-python` 7.1.0, playwright 1.64.1, certifi 2026.10.23 (security floor raised to match); all three lockfiles then recompiled in place at `--exclude-newer 2026-10-27` so each header names the command that reproduces it (Dependabot edits pins but leaves the old cutoff in the header); no pin changed | 2026-11-03 | PR #57, #58, #59, #60 |
 
 ## 6. Dropped
 
