@@ -3,7 +3,7 @@ slug: tip-master-plan
 status: active
 version: 2.0
 authored: 2026-05-08
-updated: 2026-10-20
+updated: 2026-11-03
 authored_by: maintainer (PAI Algorithm v6.3.0, E3)
 supersedes: Plans/ROADMAP.md (removed 2026-06-20; git history retains it)
 review_cadence: monthly + after each phase ships
@@ -112,6 +112,7 @@ Format: `ID · title · status · why · effort`. Phase labels P13 (UI and expor
 - **I3** · CWE Top 25 beside OWASP Top 10 (P15) · LATER · the more cited industry list; small dataset · ~2 to 4 hours
 - **I4** · Sigma rules pivot from CVE or technique (P15) · LATER · detection content per CVE is a differentiator · ~1 to 2 days
 - **I14** · Annotation and private notes layer (P15) · LATER · per-CVE local notes with JSON export and import · ~1 day
+- **I14b** · Decisions on notes (P15) · LATER · a note may carry a verdict (patch now, defer to a date, accept, not affected, mitigated) and the machine-checkable assumptions it rests on (KEV absent, EPSS below a set value, SSVC exploitation none); the SPA marks the verdict stale, with the reason, when an I8 change event contradicts an assumption; client-side in localStorage beside the I7 watchlist · ~1 day after I14
 - **I11** · DISARM framework (P15) · LATER · disinformation TTPs; outside typical CVE workflows · ~1 to 2 days
 - **I12** · NIST CSF subcategory mapping (P15) · LATER · compliance audiences · ~1 to 2 days
 - **I18** · Content-hash cache busting on Pages · LATER · clients must pull a fresh `entity_index.json` after each run · ~1 to 2 hours
@@ -255,6 +256,8 @@ Task ISAs for P10, I29, and later work live in the maintainer's private workspac
 ## 11. Decisions log
 
 Append-only, newest first. Older entries are kept verbatim.
+
+- 2026-11-03: I14b added to LATER as an extension of I14, by the maintainer. Source: Fazmin/cve-intel (created 2026-10-18), whose headline feature is remembering what was decided about a CVE, why, and whether the reasons still hold. TIP already has both halves it needs, the I7 watchlist and the I8 change log, so the verdict and its assumptions live in the note and the change log is what marks them stale. It does not move ahead of I17, which carries the dated repo-size deadline.
 
 - 2026-10-20: plan trued up to `main` at `c72e752`. §3 re-measured; §5 gained every non-docs PR merged since 2026-09-27 that it was missing (#14, #15, #18 to #20, #22, #28 to #32, #36 to #39); docs-only PRs stay out. T16.2 moved to LATER to match its status. Repo growth was measured, not estimated: about 520 MiB of new objects between `7cc25b6` and `c72e752`, which moves the I17 deadline from "early 2027" to between late December 2026 and late January 2027.
 
