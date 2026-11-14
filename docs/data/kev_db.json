@@ -1,4 +1,22 @@
 {
+    "CVE-2026-114713": {
+        "inKEV": true,
+        "dateAdded": "2026-11-13",
+        "dueDate": "2026-11-16",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "UnrealIRCd",
+        "product": "UnrealIRCd"
+    },
+    "CVE-2026-123039": {
+        "inKEV": true,
+        "dateAdded": "2026-11-13",
+        "dueDate": "2026-11-16",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Check Point",
+        "product": "Multiple Products"
+    },
     "CVE-2026-124194": {
         "inKEV": true,
         "dateAdded": "2026-11-10",
@@ -519,7 +537,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
         "vendorProject": "Adobe",
-        "product": "Commerce and Magento "
+        "product": "Commerce and Magento"
     },
     "CVE-2026-93952": {
         "inKEV": true,
@@ -1032,7 +1050,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
         "vendorProject": "Cisco",
-        "product": "Secure Firewall Adaptive Security Appliance (ASA) and Secure Firewall Threat Defense (FTD) "
+        "product": "Secure Firewall Adaptive Security Appliance (ASA) and Secure Firewall Threat Defense (FTD)"
     },
     "CVE-2026-68820": {
         "inKEV": true,
@@ -1041,7 +1059,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
         "vendorProject": "Microsoft",
-        "product": "Windows Ancillary Function Driver for WinSock "
+        "product": "Windows Ancillary Function Driver for WinSock"
     },
     "CVE-2026-72898": {
         "inKEV": true,
@@ -1419,7 +1437,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
         "vendorProject": "Widget Factory",
-        "product": "Joomla Content Editor "
+        "product": "Joomla Content Editor"
     },
     "CVE-2026-54420": {
         "inKEV": true,
@@ -1446,7 +1464,7 @@
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
         "vendorProject": "Oracle",
-        "product": " PeopleSoft Enterprise PeopleTools"
+        "product": "PeopleSoft Enterprise PeopleTools"
     },
     "CVE-2026-10520": {
         "inKEV": true,
@@ -2184,7 +2202,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Ivanti",
-        "product": " Endpoint Manager (EPM)"
+        "product": "Endpoint Manager (EPM)"
     },
     "CVE-2017-7921": {
         "inKEV": true,
@@ -2481,7 +2499,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Sangoma",
-        "product": "FreePBX "
+        "product": "FreePBX"
     },
     "CVE-2019-19006": {
         "inKEV": true,
@@ -2580,7 +2598,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Synacor",
-        "product": " Zimbra Collaboration Suite (ZCS)"
+        "product": "Zimbra Collaboration Suite (ZCS)"
     },
     "CVE-2025-34026": {
         "inKEV": true,
@@ -3172,7 +3190,7 @@
         "dateAdded": "2025-10-02",
         "dueDate": "2025-10-23",
         "knownRansomwareCampaignUse": "Unknown",
-        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable. ",
+        "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "GNU",
         "product": "GNU Bash"
     },
@@ -4884,7 +4902,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "BeyondTrust",
-        "product": "Privileged Remote Access (PRA) and Remote Support (RS) "
+        "product": "Privileged Remote Access (PRA) and Remote Support (RS)"
     },
     "CVE-2021-40407": {
         "inKEV": true,
@@ -5280,7 +5298,7 @@
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Microsoft",
-        "product": "Windows "
+        "product": "Windows"
     },
     "CVE-2024-9380": {
         "inKEV": true,
@@ -5334,7 +5352,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply remediations or mitigations per vendor instructions or discontinue use of the product if remediation or mitigations are unavailable.",
         "vendorProject": "Qualcomm",
-        "product": "Multiple Chipsets "
+        "product": "Multiple Chipsets"
     },
     "CVE-2024-45519": {
         "inKEV": true,
@@ -5856,7 +5874,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Microsoft",
-        "product": "Windows "
+        "product": "Windows"
     },
     "CVE-2024-38112": {
         "inKEV": true,
@@ -5982,7 +6000,7 @@
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Justice AV Solutions",
-        "product": "Viewer "
+        "product": "Viewer"
     },
     "CVE-2024-5274": {
         "inKEV": true,
@@ -6124,7 +6142,7 @@
         "dateAdded": "2024-04-23",
         "dueDate": "2024-05-14",
         "knownRansomwareCampaignUse": "Unknown",
-        "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.  ",
+        "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
         "vendorProject": "Microsoft",
         "product": "Windows"
     },
