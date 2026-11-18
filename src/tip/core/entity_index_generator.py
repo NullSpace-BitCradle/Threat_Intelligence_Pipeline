@@ -150,6 +150,8 @@ def build_cve_entity_record(
         record["published"] = cve_data["PUBLISHED"]
     if cve_data.get("LAST_MODIFIED"):
         record["last_modified"] = cve_data["LAST_MODIFIED"]
+    if cve_data.get("VULN_STATUS"):
+        record["vuln_status"] = cve_data["VULN_STATUS"]
     refs = cve_data.get("REFERENCES")
     if isinstance(refs, list) and refs:
         record["references"] = refs

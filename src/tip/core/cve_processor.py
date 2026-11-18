@@ -409,6 +409,10 @@ class CVEProcessor:
                 # Extract publication / modification timestamps
                 published = cve_data.get('cve', {}).get('published', '')
                 last_modified = cve_data.get('cve', {}).get('lastModified', '')
+                # NVD's record status ("Rejected", "Analyzed", ...). A
+                # rejected CVE stays in the corpus and its shard, flagged, so
+                # the site and MCP can say it is not a real vulnerability.
+                vuln_status = cve_data.get('cve', {}).get('vulnStatus', '')
 
                 # Extract deduplicated reference URLs
                 reference_urls: List[str] = []
@@ -429,6 +433,8 @@ class CVEProcessor:
                     'LAST_MODIFIED': last_modified,
                     'REFERENCES': reference_urls,
                 }
+                if isinstance(vuln_status, str) and vuln_status:
+                    record['VULN_STATUS'] = vuln_status
                 if cvss_score is not None:
                     record['CVSS'] = {
                         'score': cvss_score,
@@ -539,6 +545,7 @@ class CVEProcessor:
         # Fields preserved verbatim from ingest (raw NVD data) through enrichment.
         PRESERVED_FIELDS = (
             'DESCRIPTION', 'PUBLISHED', 'LAST_MODIFIED', 'REFERENCES', 'CVSS',
+            'VULN_STATUS',
         )
 
         for cve_id, data in cve_data.items():

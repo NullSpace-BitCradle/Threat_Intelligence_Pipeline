@@ -129,6 +129,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     }
     if (payload.PUBLISHED) synthEntity.published = payload.PUBLISHED;
     if (payload.LAST_MODIFIED) synthEntity.last_modified = payload.LAST_MODIFIED;
+    if (typeof payload.VULN_STATUS === 'string') synthEntity.vuln_status = payload.VULN_STATUS;
     if (Array.isArray(payload.REFERENCES) && payload.REFERENCES.length > 0) {
         synthEntity.references = payload.REFERENCES;
     }
@@ -284,6 +285,16 @@ function renderEntityHeader(container, entity, related, detail) {
     if (entity.type === 'cve') {
         const kevDetail = (detail && detail.kev) ? detail.kev : null;
         const ssvc = (detail && detail.ssvc) ? detail.ssvc : null;
+        // NVD keeps rejected IDs in its corpus; this is not a vulnerability.
+        if (entity.vuln_status === 'Rejected') {
+            const rejBadge = document.createElement('span');
+            rejBadge.className = 'badge badge-rejected';
+            rejBadge.style.background = '#63636325';
+            rejBadge.style.color = 'var(--text-muted)';
+            rejBadge.textContent = 'Rejected';
+            rejBadge.title = 'NVD status: Rejected. This CVE ID does not describe a vulnerability.';
+            badges.appendChild(rejBadge);
+        }
         if (entity.kev) {
             const kevBadge = document.createElement('span');
             kevBadge.className = 'badge';
