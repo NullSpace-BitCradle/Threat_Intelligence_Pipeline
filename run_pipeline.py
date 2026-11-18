@@ -58,12 +58,12 @@ Examples:
             print("\nDatabase Status:")
             db_status = status['database_status']
             for db_name, db_info in db_status.items():
-                if db_info.get('exists'):
-                    entries = db_info.get('entries', 'Unknown')
-                    last_modified = db_info.get('last_modified', 'Unknown')
-                    print(f"  [OK] {db_name.upper()}: {entries} entries (updated: {last_modified})")
-                else:
+                if not db_info.get('exists'):
                     print(f"  [X] {db_name.upper()}: Not found")
+                elif 'error' in db_info:
+                    print(f"  [ERROR] {db_name.upper()}: unreadable ({db_info['error']})")
+                else:
+                    print(f"  [OK] {db_name.upper()}: {db_info['entries']} entries (updated: {db_info['last_modified']})")
             
             # Last update
             last_update = status.get('last_update')

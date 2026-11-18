@@ -27,7 +27,7 @@ from tip.utils.http import download_timeout, fetch_stix_bundle, get_with_retry
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor, attributions_collapsed
-from tip.core.epss_processor import EPSSProcessor, count_epss
+from tip.core.epss_processor import EPSSProcessor
 from tip.core.ctid_processor import CTIDProcessor, count_ctid
 from tip.core.owasp_processor import owasp_mapping_from_cwe_xml
 from tip.core.technique_revocation import build_revocation_map
@@ -636,36 +636,46 @@ class DatabaseManager:
         
         return results
     
+    @staticmethod
+    def _count_entries(db_name: str, file_path: str) -> int:
+        """Records in a reference DB file, counted the way its writer counts
+        them (JSONL line records, groups, OWASP categories, CTID CVEs),
+        except EPSS: the curated scores the file holds, not the bulk total
+        its floor check uses. Raises on an unreadable or misshapen file."""
+        if file_path.endswith('.jsonl'):
+            records: Dict[str, Any] = {}
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        records.update(json.loads(line))
+            return len(records)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if db_name == 'epss':
+            scores = data.get('scores') if isinstance(data, dict) else None
+            if not isinstance(scores, dict):
+                raise ValueError("epss_curated.json has no scores map")
+            return len(scores)
+        counter = {'groups': count_groups, 'owasp': count_owasp, 'ctid': count_ctid}.get(db_name, count_records)
+        return counter(data)
+
     def get_database_status(self) -> Dict[str, Any]:
-        """Get status of all databases"""
-        status = {}
-        
-        for db_name, config in self.databases.items():
-            if db_name == 'techniques':
-                # Handle techniques special case
-                file_path = config['file']
-            else:
-                file_path = config['file']
-            
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    status[db_name] = {
-                        'exists': True,
-                        'entries': count_epss(data) if db_name == 'epss' else count_ctid(data) if db_name == 'ctid' else len(data),
-                        'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
-                    }
-                except Exception as e:
-                    status[db_name] = {
-                        'exists': True,
-                        'error': str(e)
-                    }
-            else:
+        """Per database: whether its file exists, its record count and
+        modification time, or the error that kept it from being read."""
+        status: Dict[str, Any] = {}
+        for db_name, db_config in self.databases.items():
+            file_path = db_config['file']
+            if not os.path.exists(file_path):
+                status[db_name] = {'exists': False}
+                continue
+            try:
                 status[db_name] = {
-                    'exists': False
+                    'exists': True,
+                    'entries': self._count_entries(db_name, file_path),
+                    'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
                 }
-        
+            except (OSError, ValueError, AttributeError) as e:
+                status[db_name] = {'exists': True, 'error': str(e)}
         return status
 
 def main():
