@@ -96,7 +96,7 @@ Features:
 | Source | What it provides | Update frequency |
 |--------|------------------|------------------|
 | NVD API 2.0 | CVE records, CVSS scores, CWE assignments, descriptions, references | Weekly (Actions) |
-| MITRE ATT&CK | Attack techniques from the enterprise bundle (697 in ATT&CK 19.2) | Daily (Actions) |
+| MITRE ATT&CK | Attack techniques from the enterprise bundle (706 in ATT&CK 20.1), plus the map from each revoked technique to its replacement | Daily (Actions) |
 | MITRE ATT&CK Groups | 176 threat groups with aliases, technique usage, and the CVEs ATT&CK cites for each | Daily (Actions) |
 | MITRE ATT&CK Campaigns | 56 named campaigns with attribution and timelines | Weekly (Actions) |
 | MITRE D3FEND | Defensive countermeasure mappings per technique | Daily (Actions) |
@@ -160,9 +160,11 @@ Four automated workflows keep the code honest, the data fresh, and the site work
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | Unit Tests and Types | Push to `main`, every pull request | Installs from the hash-locked requirements and runs the unit suite (`pytest -q --ignore=tests/smoke`) with a 90% coverage floor on `src/tip_mcp`, plus `mypy` |
-| Update Reference Databases | Daily 06:00 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, the MITRE CTID KEV mappings, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
-| Run CVE Pipeline | Weekly Sunday 08:00 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
-| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily 07:00 UTC canary | Local job serves `docs/` from the checkout and gates what's actually being pushed; the daily job runs the same 107-test Playwright suite against the deployed site, then checks the deployed `freshness.json` (stale-data canary) |
+| Update Reference Databases | Daily, scheduled 06:17 UTC | Downloads KEV, Vulnrichment, ATT&CK, D3FEND, CWE, CAPEC, Groups, the MITRE CTID KEV mappings, and the EPSS bulk file (publishes only the curated-tier `epss_curated.json`) |
+| Run CVE Pipeline | Weekly, scheduled Sunday 08:37 UTC | Fetches new CVEs from NVD, runs full enrichment chain |
+| Site Smoke Test | Push / PR touching `docs/` or `tests/smoke/`, plus a daily canary scheduled 08:47 UTC | Local job serves `docs/` from the checkout and gates what's actually being pushed by people; the daily job runs the same 122-test Playwright suite against the deployed site, then a separate alert job checks the deployed `freshness.json` (stale-data canary) |
+
+GitHub starts scheduled runs late, often by hours: in November 2026 the daily database run started between 13:06 and 16:25 UTC (the 18 scheduled runs from 11-01 to 11-18). The bots' data commits do not trigger the push smoke gate, because they push with `GITHUB_TOKEN` and are tagged `[skip ci]`; the daily canary checks the site after them, once it is deployed.
 
 The two data workflows auto-commit results back to the repo, share one `concurrency` group so they never overlap, and never force-push: a rebase conflict against `main` fails the run instead. Each commits only when something under `docs/data` or `docs/database` actually changed. Only the weekly CVE pipeline needs `NVD_API_KEY` as a repository secret; the daily reference-database update and both test workflows need no secrets. Both data workflows pass the built-in `GITHUB_TOKEN` to the pipeline step so the CTID tree listing is not rate limited per IP; it is sent as a request header only. Every workflow pins its actions to full commit SHAs. CodeQL runs as GitHub's default setup (actions + Python) and Dependabot proposes weekly updates for pip and GitHub Actions; a ruleset on `main` blocks force push and deletion but requires no status checks (decided 2026-09-27, I33), so these are CI gates a maintainer checks before merging, not enforced required checks.
 
@@ -181,7 +183,7 @@ Runs fail closed, so the remaining risk is silent staleness. Three pieces cover 
 | A data workflow run fails, or is cancelled (a job timeout cancels) | `pipeline-failure` | `Data workflow failing: <workflow name>` | that workflow's `Alert on failure` step; later failures comment on the same issue | the next successful run of that workflow, with a recovery comment |
 | Any source in the deployed `freshness.json` is past its threshold, or the file cannot be read | `pipeline-stale` | `Published data is stale` | the daily 07:00 UTC smoke canary; later days comment | the first canary that finds every source fresh |
 
-The stale canary is what catches runs that never happened at all (a disabled schedule, an Actions outage). It alerts only when the workflow runs from `main`. The repository has no watchers, so every new alert and every repeat comment starts with an @mention of the repository owner (`github.repository_owner`, passed through `env:` and used only when it is a valid GitHub login); recovery comments carry no mention. Labels are created idempotently on first use. In the data workflows the script never fails the job: any alerting error is logged as a workflow warning and it exits 0. The canary is the opposite: when it cannot alert (bad token, missing permission, Issues disabled, API outage) it prints an error and exits 1, so the `canary-alerts` job goes red; stale data it did alert on exits 0. `issues: write` is granted only on the three jobs that alert, and none of them runs pipeline code or installs a package: `publish` in each data workflow, and `canary-alerts` in the smoke workflow, which runs after `smoke-live` (read token, no persisted credentials) whatever its outcome, and every workflow value reaches the script through `env:`, never through an expression inside a `run:` block. One expected false alarm: a merge between 06:00 and 07:00 UTC, before the first run that writes `freshness.json`, makes the canary open a stale issue that the next day's canary closes.
+The stale canary is what catches runs that never happened at all (a disabled schedule, an Actions outage). It alerts only when the workflow runs from `main`. The repository has no watchers, so every new alert and every repeat comment starts with an @mention of the repository owner (`github.repository_owner`, passed through `env:` and used only when it is a valid GitHub login); recovery comments carry no mention. Labels are created idempotently on first use. In the data workflows the script never fails the job: any alerting error is logged as a workflow warning and it exits 0. The canary is the opposite: when it cannot alert (bad token, missing permission, Issues disabled, API outage) it prints an error and exits 1, so the `canary-alerts` job goes red; stale data it did alert on exits 0. `issues: write` is granted only on the three jobs that alert, and none of them runs pipeline code or installs a package: `publish` in each data workflow, and `canary-alerts` in the smoke workflow, which runs after `smoke-live` (read token, no persisted credentials) whatever its outcome, and every workflow value reaches the script through `env:`, never through an expression inside a `run:` block. One expected false alarm: a merge after the day's database run has started and before the first run that writes `freshness.json`, makes the canary open a stale issue that the next day's canary closes.
 
 ### Change log (what changed)
 
@@ -212,7 +214,7 @@ Expose TIP's threat intelligence graph to Claude agents via the Model Context Pr
 
 | Tool | What it returns | Example prompt |
 |---|---|---|
-| `lookup_entity(entity_id)` | One entity record and its relationships; any of the 398,520 ingested CVEs via the shard fallback | "What is CVE-2023-44487?" |
+| `lookup_entity(entity_id)` | One entity record and its relationships; any of the 425,838 ingested CVEs (2026-11-18) via the shard fallback | "What is CVE-2023-44487?" |
 | `pivot_from_entity(entity_id, target_type?)` | Related entities, optionally filtered by type, with the same shard fallback | "Which ATT&CK techniques does CVE-2023-44487 map to?" |
 | `search_threat_intel(query, limit?, types?)` | Ranked hits from the inverted index | "Find TIP entities about HTTP/2 denial of service." |
 | `build_attack_chain(technique_id, limit?)` | The CVEs linked to a technique (KEV first, then CVSS), each explained by its CWE and CAPEC path, plus its D3FEND defenses; every element carries the tier of its weakest hop and its link's own source and tier (a CTID or inferred CVE is labeled by that link), inherited CWE links are flagged, and an empty chain says why | "What is the attack chain behind T1499, and which KEV CVEs sit on it?" |
@@ -227,6 +229,8 @@ CVE lookups carry the full intelligence the pipeline stores in the shards: KEV d
 ```bash
 pip install -r requirements-mcp.txt
 ```
+
+The hash-locked `requirements-dev.txt` and `requirements-mcp.txt` are compiled for Linux, where CI installs them. On Windows, pip in hash-checking mode stops at the Windows-only packages they do not list: `colorama` (pytest) and `pywin32` (mcp).
 
 Requires TIP's pre-built indexes at `docs/data/entity_index.json` and `docs/data/search_index.json` (plus `docs/data/kev_db.json` for `kev_status`). Run the pipeline first if they are missing.
 
@@ -325,7 +329,7 @@ python -m http.server 8000 --directory docs &
 BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium
 ```
 
-Current suite: 834 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the change log, the alert script, and the workflow guards, plus 107 Playwright smoke tests; mypy is clean across all 33 source files. Unit tests (with the 90% `src/tip_mcp` coverage floor) and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site.
+Current suite: 947 unit tests across pipeline processors, the MCP layer, the shared intelligence contract (cross-seam parity), freshness recording, the change log, the alert script, and the workflow guards, plus 122 Playwright smoke tests; mypy is clean across all 36 source files. Unit tests (with the 90% `src/tip_mcp` coverage floor) and mypy run in CI on every push to `main` and every pull request; the smoke suite runs on people's pushes and pull requests touching `docs/` or `tests/smoke/`, plus a daily canary against the deployed site. The unit suite runs on Windows too; one test that needs a non-root POSIX user is skipped there.
 
 ## License
 

@@ -273,15 +273,15 @@ CVE-2023-44487 maps to; T1498 has no CAPEC link in TIP data.
 
 Three layers, all served:
 
-- **Entity graph** (`docs/data/entity_index.json`): 4,348 entities on
-  2026-09-27, including 1,734 curated CVEs (KEV, APT-linked because MITRE
+- **Entity graph** (`docs/data/entity_index.json`): 4,431 entities on
+  2026-11-18, including 1,790 curated CVEs (KEV, APT-linked because MITRE
   ATT&CK cites the CVE for the group, or SSVC exploitation `active`) with
   their CWE, CAPEC, technique, D3FEND, APT group, OWASP, and campaign links. CVE records
   carry description, CVSS, dates, references, and the `tip_intel` blocks
   (`kev_detail`, `ssvc`, `cisa_cvss`, `cvss_version`, `cvss_source`, `epss`) when the
   pipeline captured them, so these survive without the shards.
-- **All-IDs index** (`docs/data/cve_ids_index.json`): all 398,520 ingested CVE
-  IDs on 2026-09-27. A CVE ID not listed there returns `not_found` without reading a shard.
+- **All-IDs index** (`docs/data/cve_ids_index.json`): all 425,838 ingested CVE
+  IDs on 2026-11-18. A CVE ID not listed there returns `not_found` without reading a shard.
 - **Year shards** (`docs/database/CVE-1999.jsonl.gz` to `CVE-2026.jsonl.gz`):
   any ingested CVE outside the curated graph is served from its year shard
   (`meta.source` is `shard`). Curated CVEs also read the shard to add D3FEND

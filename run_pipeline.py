@@ -19,19 +19,19 @@ def main() -> int:
         description='Threat Intelligence Pipeline (TIP) - CVE to CAPEC to ATT&CK Pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  tip                          # Run complete pipeline (fetches all CVEs from 1999)
-  tip --force                 # Force update even if not needed
-  tip --cve-only              # Process CVEs only (resumes locally from cve_progress.json)
-  tip --cve-only --clear-progress  # Start CVE retrieval from beginning
-  tip --db-only               # Update databases only
-  tip --status                # Show pipeline status
-  tip --verbose               # Enable verbose logging
+Examples (from the repository root):
+  python run_pipeline.py                    # Full pipeline; skipped if NVD shards are under 24 hours old
+  python run_pipeline.py --force            # Full pipeline even if NVD shards are under 24 hours old
+  python run_pipeline.py --cve-only         # Process CVEs only (resumes locally from cve_progress.json)
+  python run_pipeline.py --cve-only --clear-progress  # Start CVE retrieval from beginning
+  python run_pipeline.py --db-only          # Update databases only
+  python run_pipeline.py --status           # Show pipeline status
+  python run_pipeline.py --verbose          # Enable verbose logging
         """
     )
     
     parser.add_argument('--force', action='store_true',
-                       help='Force update even if not needed')
+                       help='Run the full pipeline even if NVD shards are under 24 hours old')
     parser.add_argument('--db-only', action='store_true',
                        help='Run only database updates')
     parser.add_argument('--cve-only', action='store_true',
