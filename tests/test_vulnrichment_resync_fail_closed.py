@@ -148,7 +148,12 @@ def test_clone_failing_twice_keeps_everything(resync_env, monkeypatch):
     assert not state.exists()
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root lists a mode 000 directory anyway")
+# os.geteuid does not exist on Windows, where chmod(0) also leaves a
+# directory listable, so the case only runs as a non-root POSIX user.
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="needs a non-root POSIX user: root and Windows both list a mode 000 directory",
+)
 def test_bootstrap_aborts_on_unlistable_directory(resync_env):
     """A clone subtree that cannot be listed aborts the resync. rglob skipped
     it silently, so a partial DB passed the floor and advanced the sha."""

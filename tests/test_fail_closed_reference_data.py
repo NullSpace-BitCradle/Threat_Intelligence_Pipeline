@@ -50,8 +50,10 @@ def vr_env(tmp_path):
     db = tmp_path / "vulnrichment_db.json"
     state = tmp_path / "vulnrichment_state.json"
     existing = {f"CVE-2024-000{i}": {"ssvcExploitStatus": "none"} for i in range(1, 4)}
-    db.write_text(json.dumps(existing, indent=2))
-    state.write_text(json.dumps({"last_commit_sha": OLD_SHA}))
+    # newline="\n": the processor writes LF on every OS, and the tests
+    # compare bytes, so a CRLF fixture on Windows would differ on its own.
+    db.write_text(json.dumps(existing, indent=2), newline="\n")
+    state.write_text(json.dumps({"last_commit_sha": OLD_SHA}), newline="\n")
     proc = VulnrichmentProcessor()
     proc.db_path = str(db)
     proc.state_path = str(state)
