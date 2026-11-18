@@ -21,6 +21,13 @@ let epssCurated = null;
 let epssLoading = null;
 let epssFailed = false;
 
+// The daily CISA KEV catalog (kev_db.json, keyed by CVE ID); lazily loaded
+// once. The shards and the curated graph change weekly, so it decides KEV
+// status whenever it loads. Resolves to null when absent or broken.
+let kevDb = null;
+let kevLoading = null;
+let kevFailed = false;
+
 // Layer 3: per-year CVE shards. A shard unzips to hundreds of MB (CVE-2026
 // was 398 MB on 2026-10-29), so it is streamed and only the CVEs asked for
 // are kept: year -> Map<cve_id, payload or null when not in the shard>.
@@ -136,6 +143,48 @@ async function loadEpssCurated() {
         }
     })();
     return epssLoading;
+}
+
+async function loadKevDb() {
+    if (kevDb) return kevDb;
+    // Like EPSS: a failed load is remembered for the page lifetime, and the
+    // weekly KEV values then stand.
+    if (kevFailed) return null;
+    if (kevLoading) return kevLoading;
+    kevLoading = (async function() {
+        try {
+            const res = await fetch('data/kev_db.json');
+            if (!res.ok) { kevFailed = true; return null; }
+            const data = await res.json();
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                kevFailed = true;
+                return null;
+            }
+            kevDb = data;
+            return kevDb;
+        } catch (e) {
+            kevFailed = true;
+            return null;
+        } finally {
+            kevLoading = null;
+        }
+    })();
+    return kevLoading;
+}
+
+// KEV status for a CVE as {listed, entry}. When kev_db.json has loaded it
+// decides both ways: a CVE it lists is in KEV with its entry, even if the
+// weekly shard or graph predates the listing, and a CVE it does not list is
+// not, even if a weekly record says it was. Without it, the weekly flag and
+// entry passed in stand. The MCP applies the same rule (_apply_kev_db).
+function pickKev(cveId, weeklyListed, weeklyEntry) {
+    if (kevDb) {
+        var e = Object.prototype.hasOwnProperty.call(kevDb, cveId) ? kevDb[cveId] : null;
+        if (e && typeof e === 'object') return { listed: true, entry: e };
+        return { listed: !!e, entry: null };
+    }
+    var w = (weeklyListed && weeklyEntry && typeof weeklyEntry === 'object') ? weeklyEntry : null;
+    return { listed: !!weeklyListed, entry: w };
 }
 
 function isProbability(x) {
@@ -592,9 +641,11 @@ async function fetchEntityDetail(entityId) {
                 detail.aliases = groupEntry.aliases || [];
             }
         } else if (entity.type === 'cve') {
-            var kevDb = await fetchJson('data/kev_db.json');
-            var kevEntry = kevDb[entityId];
-            if (kevEntry) {
+            // Same daily catalog the shard path reads; renderEntityPage
+            // decides the badge from it with pickKev.
+            var dailyKev = await loadKevDb();
+            var kevEntry = dailyKev ? dailyKev[entityId] : null;
+            if (kevEntry && typeof kevEntry === 'object') {
                 detail.kev = kevEntry;
             }
         } else if (entity.type === 'campaign') {

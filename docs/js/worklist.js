@@ -63,10 +63,14 @@ async function resolveWorklistRow(id) {
                 if (typeof payload.CVSS.score === 'number') row.cvss = payload.CVSS.score;
                 row.severity = payload.CVSS.severity || '';
             }
-            if (payload.KEV && typeof payload.KEV === 'object' && payload.KEV.inKEV) {
+            // The shard's KEV block is weekly; the daily catalog, loaded
+            // before the rows, wins (pickKev).
+            var shardKev = (payload.KEV && typeof payload.KEV === 'object' && payload.KEV.inKEV) ? payload.KEV : null;
+            var kev = pickKev(id, !!shardKev, shardKev);
+            if (kev.listed) {
                 row.kev = true;
-                row.ransomware = payload.KEV.knownRansomwareCampaignUse || '';
-                row.due = payload.KEV.dueDate || '';
+                row.ransomware = (kev.entry && kev.entry.knownRansomwareCampaignUse) || '';
+                row.due = (kev.entry && kev.entry.dueDate) || '';
             }
             if (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') {
                 row.ssvc = payload.VULNRICHMENT.ssvcExploitStatus || '';
@@ -233,7 +237,8 @@ async function buildWorklist(raw, tableContainer, statusEl, gen) {
     var capNotice = worklistCapNotice(allIds.length);
     statusEl.textContent = (capNotice ? capNotice + ' ' : '') + 'Resolving ' + ids.length + ' entities...';
     tableContainer.textContent = '';
-    await loadEpssCurated();
+    // Loaded once before the rows, so each row reads the cached files.
+    await Promise.all([loadEpssCurated(), loadKevDb()]);
     var rows = await Promise.all(ids.map(resolveWorklistRow));
     // The user navigated away or started another build while this one ran:
     // drop the result instead of overwriting the page or the URL.
