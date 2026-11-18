@@ -1,4 +1,13 @@
 {
+    "CVE-2026-115731": {
+        "inKEV": true,
+        "dateAdded": "2026-11-17",
+        "dueDate": "2026-12-01",
+        "knownRansomwareCampaignUse": "Unknown",
+        "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+        "vendorProject": "Perforce",
+        "product": "Puppet Enterprise"
+    },
     "CVE-2026-114713": {
         "inKEV": true,
         "dateAdded": "2026-11-13",
@@ -1364,7 +1373,7 @@
         "dueDate": "2026-07-02",
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
-        "vendorProject": "SimpleHelp ",
+        "vendorProject": "SimpleHelp",
         "product": "SimpleHelp"
     },
     "CVE-2026-12569": {
@@ -1805,7 +1814,7 @@
         "dueDate": "2026-05-08",
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
-        "vendorProject": "SimpleHelp ",
+        "vendorProject": "SimpleHelp",
         "product": "SimpleHelp"
     },
     "CVE-2024-57726": {
@@ -1814,7 +1823,7 @@
         "dueDate": "2026-05-08",
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
-        "vendorProject": "SimpleHelp ",
+        "vendorProject": "SimpleHelp",
         "product": "SimpleHelp"
     },
     "CVE-2026-39987": {
@@ -2813,7 +2822,7 @@
         "dueDate": "2025-12-29",
         "knownRansomwareCampaignUse": "Unknown",
         "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
-        "vendorProject": "Array Networks ",
+        "vendorProject": "Array Networks",
         "product": "ArrayOS AG"
     },
     "CVE-2025-55182": {
@@ -4595,7 +4604,7 @@
         "dueDate": "2025-03-06",
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
-        "vendorProject": "SimpleHelp ",
+        "vendorProject": "SimpleHelp",
         "product": "SimpleHelp"
     },
     "CVE-2025-24200": {
@@ -5027,7 +5036,7 @@
         "dueDate": "2024-12-16",
         "knownRansomwareCampaignUse": "Known",
         "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
-        "vendorProject": "Array Networks ",
+        "vendorProject": "Array Networks",
         "product": "AG/vxAG ArrayOS"
     },
     "CVE-2024-21287": {
