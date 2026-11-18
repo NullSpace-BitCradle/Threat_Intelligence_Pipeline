@@ -230,7 +230,7 @@ CVE lookups carry the full intelligence the pipeline stores in the shards: KEV d
 pip install -r requirements-mcp.txt
 ```
 
-The hash-locked `requirements-dev.txt` and `requirements-mcp.txt` are compiled for Linux, where CI installs them. On Windows, pip in hash-checking mode stops at the Windows-only packages they do not list: `colorama` (pytest) and `pywin32` (mcp).
+The hash-locked files are compiled with uv's universal resolution, so they install on Linux, macOS and Windows; Windows-only packages such as `colorama` (pytest) and `pywin32` (mcp) carry environment markers and are skipped elsewhere.
 
 Requires TIP's pre-built indexes at `docs/data/entity_index.json` and `docs/data/search_index.json` (plus `docs/data/kev_db.json` for `kev_status`). Run the pipeline first if they are missing.
 
