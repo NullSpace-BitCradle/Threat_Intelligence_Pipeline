@@ -133,7 +133,7 @@ def test_nvd_with_no_new_cves_counts_as_success(tmp_path):
 @pytest.mark.parametrize("db, source", DB_FAILURES)
 def test_step_that_wrote_nothing_fresh_does_not_advance(tmp_path, db, source):
     """A step can succeed without fresh data (processor skipped, existing
-    file kept; D3FEND written without its ontology). It must not advance."""
+    file kept, as EPSS does with no entity index yet). It must not advance."""
     path = tmp_path / "freshness.json"
     _seed(path)
     fresh = [k for k in ALL_DB_OK if k != db]
@@ -333,12 +333,12 @@ def test_d3fend_with_ontology_is_fresh(manager, monkeypatch):
 
 
 @pytest.mark.parametrize("ontology", [lambda: _Resp(503), _raise])
-def test_d3fend_without_ontology_is_not_fresh(manager, monkeypatch, ontology):
-    """The ontology failure is swallowed (fragment names stand in for D3 ids),
-    so the run stays green, but that data is not a fresh success."""
+def test_d3fend_without_ontology_fails_and_is_not_fresh(manager, monkeypatch, ontology):
+    """An ontology failure fails the step (audit 2026-11-18 M1): fragment
+    names no longer stand in for D3 IDs under a green run."""
     m, dm, _ = manager
     monkeypatch.setattr(dm.requests, "get", _d3fend_get(ontology))
-    assert m.update_database("defend") is True
+    assert m.update_database("defend") is False
     assert "defend" not in m.fresh_writes
 
 

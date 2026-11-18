@@ -53,7 +53,7 @@ def _binding(fragment):
 def _d3fend_manager():
     dm = DatabaseManager.__new__(DatabaseManager)
     dm.logger = logging.getLogger("test_audit_pipeline")
-    dm._d3fend_canonical_ids = {}
+    dm._d3fend_canonical_ids = {"FileAnalysis": "D3-FA", "UserAccountManagement": "D3-UAM"}
     return dm
 
 
@@ -62,7 +62,8 @@ def test_one_bad_d3fend_binding_costs_only_itself():
         _binding("FileAnalysis"), {"def_tech": "not-an-object"}, None, _binding("UserAccountManagement"),
     ]}}}
     got = _d3fend_manager()._extract_d3fend_techniques(reply)
-    assert [t["id"] for t in got] == ["FileAnalysis", "UserAccountManagement"]
+    assert [t["id"] for t in got] == ["D3-FA", "D3-UAM"]
+    assert [t["d3fend_fragment"] for t in got] == ["FileAnalysis", "UserAccountManagement"]
 
 
 @pytest.mark.parametrize("reply", [{}, {"off_to_def": {"results": {}}}, {"off_to_def": []}])

@@ -3,6 +3,11 @@
 A 404 means "no mapping for this technique". A timeout, connection error,
 5xx, 429 after retries, or bad JSON fails the update so the previous
 defend_db stays on disk and a db-only run exits 1.
+
+The ontology that maps fragment names to canonical D3 IDs is required too
+(audit 2026-11-18 M1): without it the step used to write fragment names in
+place of D3 IDs and still succeed, so a green run changed every published
+D3FEND ID.
 """
 import json
 import sys
@@ -63,6 +68,12 @@ def _outcome_404():
     return _Resp(404)
 
 
+ONTOLOGY = {"@graph": [
+    {"@id": "d3f:ExecutableAllowlisting", "d3f:d3fend-id": "D3-EAL"},
+    {"@id": "d3f:DefensiveTechnique"},  # a class without an ID is skipped
+]}
+
+
 @pytest.fixture
 def defend_env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -77,10 +88,10 @@ def defend_env(tmp_path, monkeypatch):
     monkeypatch.setattr(dm_mod.time, "sleep", lambda s: None)
     calls = {"T1003": 0}
 
-    def install(t1003_outcome):
+    def install(t1003_outcome, ontology=lambda: _Resp(200, ONTOLOGY)):
         def fake_get(url, timeout=None, **kw):
             if url.endswith("d3fend.json"):
-                return _Resp(404)  # ontology unavailable: fragment names are used
+                return ontology()
             if url.endswith("T1001.json"):
                 return _Resp(200, BINDINGS)
             if url.endswith("T1002.json"):
@@ -126,6 +137,38 @@ def test_d3fend_404_is_no_mapping_and_update_succeeds(defend_env):
     assert manager.update_database("defend") is True
     written = [json.loads(line) for line in defend.read_text().splitlines()]
     assert [next(iter(r)) for r in written] == ["T1001"]
+    assert written[0]["T1001"]["defensive_techniques"][0]["id"] == "D3-EAL"
+    assert written[0]["T1001"]["defensive_techniques"][0]["d3fend_fragment"] == "ExecutableAllowlisting"
+    assert "defend" in manager.fresh_writes
+
+
+@pytest.mark.parametrize("ontology", [
+    lambda: _Resp(404),
+    lambda: _Resp(200, bad_json=True),
+    lambda: _Resp(200, {"@graph": []}),            # no mappings at all
+    lambda: _Resp(200, {"@context": {}}),           # no @graph
+    lambda: _Resp(200, ["not", "an", "object"]),
+    _outcome_connection,
+])
+def test_d3fend_ontology_failure_fails_the_step_and_keeps_the_file(defend_env, ontology):
+    manager, defend, install, calls = defend_env
+    install(_outcome_404, ontology=ontology)
+    before = defend.read_bytes()
+
+    assert manager.update_database("defend") is False
+    assert defend.read_bytes() == before
+    assert "defend" not in manager.fresh_writes
+    assert calls["T1003"] == 0  # no technique is fetched without the ontology
+
+
+def test_d3fend_fragment_missing_from_the_ontology_fails_the_step(defend_env):
+    manager, defend, install, calls = defend_env
+    install(_outcome_404, ontology=lambda: _Resp(200, {"@graph": [
+        {"@id": "d3f:SomethingElse", "d3f:d3fend-id": "D3-SE"}]}))
+    before = defend.read_bytes()
+
+    assert manager.update_database("defend") is False
+    assert defend.read_bytes() == before
 
 
 def test_d3fend_transient_error_then_success_recovers(defend_env):

@@ -41,6 +41,7 @@ CAPEC_CSV_MEMBER = "1000.csv"
 # 5xx) are retried this many times in total before the update fails.
 D3FEND_ATTEMPTS = 3
 D3FEND_BACKOFF_SECONDS = 2.0
+D3FEND_ONTOLOGY_URL = 'https://d3fend.mitre.org/ontologies/d3fend.json'
 
 class DatabaseManager:
     """Unified database management for all Threat Intelligence Pipeline databases"""
@@ -53,12 +54,13 @@ class DatabaseManager:
         self.epss_processor = EPSSProcessor()
         # Databases whose last update_database call wrote fresh upstream data.
         # A successful update is not always fresh: a processor can skip and
-        # keep the existing file (returns None), and D3FEND can be written
-        # without its ontology. freshness.json advances only on these.
+        # keep the existing file (returns None). freshness.json advances
+        # only on these.
         self.fresh_writes: set[str] = set()
-        # Set by _process_defend_data when the ontology fetch failed.
-        self._d3fend_degraded = False
-        
+        # D3FEND ontology fragment -> canonical id (FileAnalysis -> D3-FA),
+        # filled by _process_defend_data before any technique is read.
+        self._d3fend_canonical_ids: Dict[str, str] = {}
+
         # Database configurations
         self.databases = {
             'capec': {
@@ -352,29 +354,11 @@ class DatabaseManager:
             d3fend_base_url = config.get('api.d3fend.base_url')
             timeout = config.get('api.d3fend.timeout', 30)
 
-            # Fetch D3FEND ontology to get canonical IDs (D3-FA, D3-NTA, etc.)
-            # A failure here is survivable (fragment names stand in for the
-            # D3 ids) but the result is degraded, not fresh.
-            self._d3fend_canonical_ids = {}
-            self._d3fend_degraded = True
-            try:
-                ontology_url = 'https://d3fend.mitre.org/ontologies/d3fend.json'
-                self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
-                ont_response = get_with_retry(ontology_url, timeout=download_timeout())
-                if ont_response.status_code == 200:
-                    ont_data = ont_response.json()
-                    for item in ont_data.get('@graph', []):
-                        d3id = item.get('d3f:d3fend-id')
-                        at_id = item.get('@id', '')
-                        if d3id and at_id.startswith('d3f:'):
-                            fragment = at_id.replace('d3f:', '')
-                            self._d3fend_canonical_ids[fragment] = d3id
-                    self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
-                    self._d3fend_degraded = False
-                else:
-                    self.logger.warning(f"Could not fetch D3FEND ontology (HTTP {ont_response.status_code}), using fragment names as IDs")
-            except Exception as e:
-                self.logger.warning(f"Could not fetch D3FEND ontology: {e}, using fragment names as IDs")
+            # The ontology gives the canonical IDs (D3-FA, D3-NTA, ...). Fail
+            # closed without it: fragment names in place of D3 IDs would
+            # change every published D3FEND ID while the run read green.
+            self._d3fend_canonical_ids = self._fetch_d3fend_canonical_ids()
+            self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
 
             self.logger.info(f"Fetching D3FEND countermeasures for {len(techniques_db)} techniques...")
             
@@ -418,6 +402,35 @@ class DatabaseManager:
             self.logger.error(f"Error processing D3FEND data: {e}")
             raise
     
+    def _fetch_d3fend_canonical_ids(self) -> Dict[str, str]:
+        """Map each D3FEND ontology fragment to its canonical ID.
+
+        Raises on anything but a 200 whose @graph yields at least one
+        mapping, so the defend step fails and keeps the previous file.
+        """
+        ontology_url = D3FEND_ONTOLOGY_URL
+        self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
+        response = get_with_retry(ontology_url, timeout=download_timeout())
+        if response.status_code != 200:
+            raise RuntimeError(f"D3FEND ontology returned HTTP {response.status_code}")
+        try:
+            graph = response.json().get('@graph')
+        except (ValueError, AttributeError) as e:
+            raise RuntimeError(f"D3FEND ontology is not a JSON-LD object: {e}") from e
+        if not isinstance(graph, list):
+            raise RuntimeError("D3FEND ontology has no @graph list")
+        canonical: Dict[str, str] = {}
+        for item in graph:
+            if not isinstance(item, dict):
+                continue
+            d3id = item.get('d3f:d3fend-id')
+            at_id = item.get('@id', '')
+            if isinstance(d3id, str) and d3id and isinstance(at_id, str) and at_id.startswith('d3f:'):
+                canonical[at_id[len('d3f:'):]] = d3id
+        if not canonical:
+            raise RuntimeError("D3FEND ontology yielded no canonical ID mappings")
+        return canonical
+
     def _d3fend_get(self, url: str, timeout: float) -> requests.Response:
         """GET a D3FEND technique URL, returning only a 200 or 404 response.
 
@@ -466,8 +479,15 @@ class DatabaseManager:
                     # Extract fragment from URI (e.g., "http://d3fend.mitre.org/ontologies/d3fend.owl#UserAccountManagement")
                     if '#' in def_tech_uri:
                         fragment = def_tech_uri.split('#')[-1]
-                        # Use canonical D3FEND ID (e.g., D3-FA) if available, fall back to fragment name
-                        technique_info['id'] = self._d3fend_canonical_ids.get(fragment, fragment)
+                        # Canonical D3FEND ID (e.g., D3-FA). A fragment the
+                        # ontology does not name fails the step rather than
+                        # publishing a fragment name as an ID.
+                        canonical_id = self._d3fend_canonical_ids.get(fragment)
+                        if canonical_id is None:
+                            raise RuntimeError(
+                                f"D3FEND technique {fragment!r} is not in the ontology's canonical IDs"
+                            )
+                        technique_info['id'] = canonical_id
                         technique_info['d3fend_fragment'] = fragment
 
                 # Extract technique label/name
@@ -587,10 +607,7 @@ class DatabaseManager:
                     return False
             counter = {'groups': count_groups, 'owasp': count_owasp}.get(db_name, count_records)
             self._save_database(data, db_config['file'], counter)
-            if db_name == 'defend' and self._d3fend_degraded:
-                self.logger.warning("defend: written without the D3FEND ontology; not recorded as fresh")
-            else:
-                self.fresh_writes.add(db_name)
+            self.fresh_writes.add(db_name)
             return True
 
         except Exception as e:
