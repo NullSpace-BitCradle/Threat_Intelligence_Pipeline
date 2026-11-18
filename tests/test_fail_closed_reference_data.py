@@ -223,6 +223,7 @@ WRITERS = {
     "capec": (*_write_via_manager("capec"), _big),
     "cwe": (*_write_via_manager("cwe"), _big),
     "techniques": (*_write_via_manager("techniques"), _big),
+    "technique_revocations": (*_write_via_manager("technique_revocations"), _big),
     "defend": (*_write_via_manager("defend", ".jsonl"), _big),
     "kev_manager": (*_write_via_manager("kev"), _big),
     "vulnrichment_manager": (*_write_via_manager("vulnrichment"), _big),

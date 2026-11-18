@@ -61,10 +61,11 @@ _DB_STEPS: Dict[str, tuple[str, ...]] = {
     "kev": ("kev",),
     "vulnrichment": ("vulnrichment",),
     "epss": ("epss",),
-    # owasp_db.json is derived from the CWE archive, so it counts toward CWE.
+    # owasp_db.json is derived from the CWE archive, technique_revocations
+    # from the ATT&CK bundle, so each counts toward its source.
     "cwe": ("cwe", "owasp"),
     "capec": ("capec",),
-    "attack": ("techniques", "groups"),
+    "attack": ("techniques", "technique_revocations", "groups"),
     "d3fend": ("defend",),
     "ctid": ("ctid",),
 }

@@ -30,6 +30,7 @@ from tip.core.apt_processor import APTProcessor, attributions_collapsed
 from tip.core.epss_processor import EPSSProcessor, count_epss
 from tip.core.ctid_processor import CTIDProcessor, count_ctid
 from tip.core.owasp_processor import owasp_mapping_from_cwe_xml
+from tip.core.technique_revocation import build_revocation_map
 
 config = get_config()
 config.setup_logging()
@@ -82,6 +83,12 @@ class DatabaseManager:
                 # exports are version-pinned upstream and rot on release.
                 'file': config.get_database_path('techniques'),
                 'processor': self._process_techniques_data
+            },
+            'technique_revocations': {
+                # Revoked and deprecated technique IDs mapped to their live
+                # replacement, from the same STIX bundle (fetched once).
+                'file': config.get_database_path('technique_revocations'),
+                'processor': self._process_technique_revocations
             },
             'defend': {
                 'file': config.get_database_path('defend'),
@@ -300,6 +307,22 @@ class DatabaseManager:
             self.logger.error(f"Error processing techniques data: {e}")
             raise
     
+    @log_operation("process_technique_revocations", "database_update")
+    def _process_technique_revocations(self) -> Dict[str, Any]:
+        """Map revoked and deprecated ATT&CK technique IDs to their live
+        replacements (None when there is none), from the STIX bundle."""
+        stix_url = config.get(
+            'database.groups.url',
+            'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json'
+        )
+        revocations = build_revocation_map(fetch_stix_bundle(stix_url))
+        replaced = sum(1 for v in revocations.values() if v is not None)
+        self.logger.info(
+            f"Mapped {len(revocations)} retired techniques: {replaced} to a live "
+            f"replacement, {len(revocations) - replaced} with none"
+        )
+        return dict(revocations)
+
     @log_operation("process_defend", "database_update")
     def _process_defend_data(self) -> Optional[Dict[str, Any]]:
         """
@@ -582,7 +605,7 @@ class DatabaseManager:
 
         # Update databases in dependency order
         update_order = [
-            'capec', 'cwe', 'owasp', 'techniques', 'defend',
+            'capec', 'cwe', 'owasp', 'techniques', 'technique_revocations', 'defend',
             'kev', 'vulnrichment', 'groups', 'epss', 'ctid',
         ]
         
@@ -634,7 +657,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='Update Threat Intelligence Pipeline databases')
     parser.add_argument('--database', '-d',
-                       choices=['capec', 'cwe', 'owasp', 'techniques', 'defend', 'all'],
+                       choices=['capec', 'cwe', 'owasp', 'techniques', 'technique_revocations', 'defend', 'all'],
                        default='all', help='Database to update')
     parser.add_argument('--status', '-s', action='store_true',
                        help='Show database status')

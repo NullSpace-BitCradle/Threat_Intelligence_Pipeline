@@ -23,6 +23,7 @@ from tip.core.epss_processor import EPSSProcessor, EPSSSnapshot
 from tip.core.id_normalize import cwe_number, cwe_parents, split_cwe_list
 from tip.core.ctid_processor import load_ctid_db
 from tip.core.technique_inference import extra_technique_links
+from tip.core.technique_revocation import RevocationMap, load_revocation_map, resolve_technique_ids
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
 config = get_config()
@@ -95,6 +96,11 @@ class CVEProcessor:
     # without TECHNIQUES_CTID and TECHNIQUES_INFERRED, and the entity index
     # generator derives both itself (I21).
     ctid_db: Optional[Dict[str, Any]] = None
+    # technique_revocations.json: revoked or deprecated ATT&CK technique ID
+    # -> live replacement, or None to drop it. CAPEC's technique IDs pass
+    # through it so the chain carries only live techniques. None means
+    # unavailable: IDs then pass through unchanged.
+    technique_revocations: Optional[RevocationMap] = None
 
     def __init__(self):
         self.config = config
@@ -478,12 +484,16 @@ class CVEProcessor:
             return []
     
     def get_techniques_for_capec(self, capec_id: str) -> List[str]:
-        """Get techniques for a CAPEC ID"""
+        """Live ATT&CK techniques for a CAPEC ID: CAPEC's own technique IDs,
+        with revoked ones replaced and those with no replacement dropped."""
         try:
             capec_data = self.capec_db.get(capec_id, {})
             techniques_string = capec_data.get("techniques", "")
             if techniques_string:
-                return safe_parse_capec_techniques(techniques_string)
+                return resolve_technique_ids(
+                    safe_parse_capec_techniques(techniques_string),
+                    self.technique_revocations,
+                )
             return []
         except Exception as e:
             self.logger.warning(f"Exception for CAPEC-{capec_id}: {str(e)}")
@@ -707,6 +717,16 @@ class CVEProcessor:
                 "and inferred techniques, and the entity index derives them"
             )
 
+    def _load_technique_revocations(self) -> None:
+        """Read technique_revocations.json as the database step left it."""
+        self.technique_revocations = load_revocation_map(config.get(
+            'database.technique_revocations.file', 'docs/data/technique_revocations.json'))
+        if self.technique_revocations is None:
+            self.logger.warning(
+                "technique_revocations.json unavailable; CAPEC technique IDs are "
+                "written as CAPEC gives them, revoked ones included"
+            )
+
     def process_file(self, input_file: Optional[str] = None) -> bool:
         """Process CVE data from file"""
         file_path = input_file or self.cve_file
@@ -750,6 +770,7 @@ class CVEProcessor:
                 # complete one in the shard; fail the step instead.
                 self.logger.error("No OWASP mapping loaded; refusing to write CVE records without it")
                 return False
+            self._load_technique_revocations()
             self.kev_processor.load()
             self.vulnrichment_processor.load()
             self.apt_processor.load()
