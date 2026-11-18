@@ -25,7 +25,8 @@ def test_process_file_reads_kev_the_database_step_wrote(tmp_path, monkeypatch):
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db, proc.capec_db = {}, {}
     proc.logger = logging.getLogger("test_audit_pipeline")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set(),
+                                         load=lambda: True, cwe_owasp_mapping={"79": ["A03:2021"]})
     proc.kev_processor = KEVProcessor()
     proc.kev_processor.db_path = str(kev_path)
     proc.kev_processor.load()

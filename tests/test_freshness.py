@@ -20,9 +20,9 @@ OLD_ISO = "2026-09-01T06:00:00Z"
 NOW_ISO = "2026-09-26T06:30:00Z"
 
 ALL_DB_OK = {
-    "capec": True, "cwe": True, "techniques": True, "defend": True,
-    "kev": True, "vulnrichment": True, "groups": True, "epss": True,
-    "ctid": True,
+    "capec": True, "cwe": True, "owasp": True, "techniques": True,
+    "defend": True, "kev": True,
+    "vulnrichment": True, "groups": True, "epss": True, "ctid": True,
 }
 
 
@@ -84,6 +84,8 @@ DB_FAILURES = [
     ("capec", "capec"), ("cwe", "cwe"), ("defend", "d3fend"), ("kev", "kev"),
     ("vulnrichment", "vulnrichment"), ("epss", "epss"),
     ("techniques", "attack"), ("groups", "attack"), ("ctid", "ctid"),
+    # Derived from the CWE archive.
+    ("owasp", "cwe"),
 ]
 
 

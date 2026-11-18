@@ -265,7 +265,8 @@ def _processor(groups_db: dict) -> CVEProcessor:
     proc.cwe_db = {"20": {"ChildOf": [], "RelatedAttackPatterns": ["10"]}}
     proc.capec_db = {"10": {"techniques": "::TAXONOMY NAME:ATTACK:ENTRY ID:1190::"}}
     proc.logger = logging.getLogger("test_i32")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set(),
+                                         load=lambda: True, cwe_owasp_mapping={"79": ["A03:2021"]})
     proc.kev_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     proc.get_defend_techniques = lambda t: []

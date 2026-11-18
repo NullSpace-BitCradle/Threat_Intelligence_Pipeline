@@ -112,8 +112,8 @@ class CVEProcessor:
         self.cwe_db = self._load_cwe_db()
         self.capec_db = self._load_capec_db()
         
-        # Initialize OWASP processor
-        self.owasp_processor = OWASPProcessor(self.config.config)
+        # OWASP Top 10 2021 categories from owasp_db.json (CWE-1344 view)
+        self.owasp_processor = OWASPProcessor()
 
         # Initialize KEV processor
         self.kev_processor = KEVProcessor()
@@ -744,6 +744,12 @@ class CVEProcessor:
             # failed read keeps what was loaded at start.
             self.cwe_db = self._load_cwe_db() or self.cwe_db
             self.capec_db = self._load_capec_db() or self.capec_db
+            self.owasp_processor.load()
+            if not self.owasp_processor.cwe_owasp_mapping:
+                # Every record would lose its OWASP lists and replace a
+                # complete one in the shard; fail the step instead.
+                self.logger.error("No OWASP mapping loaded; refusing to write CVE records without it")
+                return False
             self.kev_processor.load()
             self.vulnrichment_processor.load()
             self.apt_processor.load()

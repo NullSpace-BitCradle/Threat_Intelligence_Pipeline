@@ -98,7 +98,7 @@ Features:
 | MITRE D3FEND | Defensive countermeasure mappings per technique | Daily (Actions) |
 | MITRE CWE | Weakness definitions and parent relationships | Daily (Actions) |
 | MITRE CAPEC | Attack pattern definitions and technique mappings | Daily (Actions) |
-| OWASP Top 10 | CWE to OWASP category mappings | Bundled |
+| OWASP Top 10 2021 | CWE to OWASP category mappings: MITRE's CWE-1344 view, derived from the CWE XML each run and published as `docs/data/owasp_db.json` | Daily (Actions) |
 | CISA KEV | Known exploited vulnerabilities, ransomware use, remediation deadlines | Daily (Actions) |
 | MITRE CTID Mappings Explorer (KEV) | Analyst-mapped ATT&CK techniques for KEV CVEs (exploitation technique, primary and secondary impact) with comments; the newest enterprise KEV file is picked from the repository tree (`docs/data/ctid_db.json`) | Daily (Actions) |
 | CISA Vulnrichment | SSVC decisions (exploit status, automatable, impact), CISA CVSS overrides | Daily (Actions) |

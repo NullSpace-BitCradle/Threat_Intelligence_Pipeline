@@ -10,6 +10,7 @@ import json
 import csv
 import time
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
 from typing import Callable, Dict, Any, List, Optional
@@ -21,13 +22,14 @@ from tip.utils.error_handler import (
     log_operation, NetworkError, FileOperationError,
     get_logger, create_api_context
 )
-from tip.utils.atomic_io import write_reference_db, count_records, count_groups
+from tip.utils.atomic_io import write_reference_db, count_records, count_groups, count_owasp
 from tip.utils.http import download_timeout, fetch_stix_bundle, get_with_retry
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor, attributions_collapsed
 from tip.core.epss_processor import EPSSProcessor, count_epss
 from tip.core.ctid_processor import CTIDProcessor, count_ctid
+from tip.core.owasp_processor import owasp_mapping_from_cwe_xml
 
 config = get_config()
 config.setup_logging()
@@ -67,6 +69,12 @@ class DatabaseManager:
                 'url': config.get('database.cwe.url'),
                 'file': config.get_database_path('cwe'),
                 'processor': self._process_cwe_data
+            },
+            'owasp': {
+                # MITRE's CWE-1344 view, read from the same CWE archive.
+                'url': config.get('database.cwe.url'),
+                'file': config.get_database_path('owasp'),
+                'processor': self._process_owasp_data
             },
             'techniques': {
                 # Sourced from the same always-latest ATT&CK STIX bundle as
@@ -160,29 +168,40 @@ class DatabaseManager:
             self.logger.error(f"Error processing CAPEC data: {e}")
             raise
     
+    @staticmethod
+    def _read_cwe_xml(zip_file: str) -> ET.Element:
+        """Parse the single expected cwec_*.xml member straight out of the
+        CWE archive; nothing is extracted to disk."""
+        with ZipFile(zip_file, 'r') as zip_ref:
+            xml_files = [
+                f for f in zip_ref.namelist()
+                if f.endswith('.xml') and '/' not in f and f.startswith('cwec_')
+            ]
+            if len(xml_files) != 1:
+                raise FileOperationError(
+                    f"Expected exactly one cwec_*.xml member in CWE zip, found {xml_files}",
+                    file_path=zip_file,
+                )
+            with zip_ref.open(xml_files[0]) as xml_stream:
+                return ET.parse(xml_stream).getroot()
+
+    @log_operation("process_owasp", "database_update")
+    def _process_owasp_data(self, zip_file: str) -> Dict[str, Any]:
+        """Derive owasp_db.json from the CWE-1344 view in the CWE archive.
+        Raises unless all ten OWASP Top Ten 2021 categories are present."""
+        mapping = owasp_mapping_from_cwe_xml(self._read_cwe_xml(zip_file))
+        self.logger.info(
+            f"Derived OWASP Top Ten 2021 mapping: {len(mapping['categories'])} categories, "
+            f"{len(mapping['cwe_mapping'])} CWEs"
+        )
+        return mapping
+
     @log_operation("process_cwe", "database_update")
     def _process_cwe_data(self, zip_file: str) -> Dict[str, Any]:
         """Process CWE XML data"""
         try:
-            import xml.etree.ElementTree as ET
-            
-            # Read the single expected XML member straight out of the archive;
-            # nothing is extracted to disk.
-            with ZipFile(zip_file, 'r') as zip_ref:
-                xml_files = [
-                    f for f in zip_ref.namelist()
-                    if f.endswith('.xml') and '/' not in f and f.startswith('cwec_')
-                ]
-                if len(xml_files) != 1:
-                    raise FileOperationError(
-                        f"Expected exactly one cwec_*.xml member in CWE zip, found {xml_files}",
-                        file_path=zip_file,
-                    )
-                with zip_ref.open(xml_files[0]) as xml_stream:
-                    tree = ET.parse(xml_stream)
-
             cwe_data: Dict[str, Any] = {}
-            root = tree.getroot()
+            root = self._read_cwe_xml(zip_file)
             # MITRE bumps the namespace with each schema major (cwe-7 to cwe-8 in CWE 5.0), so take it from the root.
             ns = root.tag[:root.tag.index('}') + 1] if root.tag.startswith('{') else ''
 
@@ -511,7 +530,7 @@ class DatabaseManager:
 
         try:
             data: Optional[Dict[str, Any]]
-            if db_name in ('capec', 'cwe'):
+            if db_name in ('capec', 'cwe', 'owasp'):
                 with tempfile.TemporaryDirectory(prefix=f"tip_{db_name}_") as tmp:
                     zip_file = str(Path(tmp) / f"{db_name}_data.zip")
                     self._download_file(db_config['url'], zip_file)
@@ -543,7 +562,7 @@ class DatabaseManager:
                 if refused:
                     self.logger.warning(f"groups: not written: {refused}")
                     return False
-            counter = count_groups if db_name == 'groups' else count_records
+            counter = {'groups': count_groups, 'owasp': count_owasp}.get(db_name, count_records)
             self._save_database(data, db_config['file'], counter)
             if db_name == 'defend' and self._d3fend_degraded:
                 self.logger.warning("defend: written without the D3FEND ontology; not recorded as fresh")
@@ -562,7 +581,10 @@ class DatabaseManager:
         self.fresh_writes = set()
 
         # Update databases in dependency order
-        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment', 'groups', 'epss', 'ctid']
+        update_order = [
+            'capec', 'cwe', 'owasp', 'techniques', 'defend',
+            'kev', 'vulnrichment', 'groups', 'epss', 'ctid',
+        ]
         
         for db_name in update_order:
             self.logger.info(f"Updating {db_name} database...")
@@ -611,7 +633,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Update Threat Intelligence Pipeline databases')
-    parser.add_argument('--database', '-d', choices=['capec', 'cwe', 'techniques', 'defend', 'all'],
+    parser.add_argument('--database', '-d',
+                       choices=['capec', 'cwe', 'owasp', 'techniques', 'defend', 'all'],
                        default='all', help='Database to update')
     parser.add_argument('--status', '-s', action='store_true',
                        help='Show database status')
