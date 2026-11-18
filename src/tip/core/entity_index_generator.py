@@ -408,6 +408,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                         if defend_id not in entities:
                             defend_entity_count += 1
                         ensure(defend_id, "defend", defend_name, "defense")
+                        # Additive: D3FEND's own pages are keyed by the
+                        # ontology fragment, not the D3 ID, so the site and
+                        # MCP need it to link to the source.
+                        if fragment and "d3fend_fragment" not in entities[defend_id]:
+                            entities[defend_id]["d3fend_fragment"] = fragment
                         link(defend_id, "technique", attack_tech_id, "defend")
                         technique_to_defend[attack_tech_id].add(defend_id)
     else:

@@ -566,7 +566,15 @@ function buildExternalLink(entity) {
         case 'campaign':
             return 'https://attack.mitre.org/campaigns/' + encodeURIComponent(id) + '/';
         case 'defend':
-            return 'https://d3fend.mitre.org/technique/d3f:' + encodeURIComponent(id) + '/';
+            // D3FEND's pages are keyed by the ontology fragment
+            // (d3f:SystemCallFiltering); the D3 ID form (d3f:D3-SCF) is a
+            // 404. An index written before entities carried the fragment
+            // links to the D3FEND home page instead of a dead page.
+            // Fragments are letters, digits and hyphens (Multi-factorAuthentication).
+            if (typeof entity.d3fend_fragment === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*$/.test(entity.d3fend_fragment)) {
+                return 'https://d3fend.mitre.org/technique/d3f:' + entity.d3fend_fragment + '/';
+            }
+            return 'https://d3fend.mitre.org/';
         case 'owasp':
             // OWASP IDs like A03:2021; canonical URL is the top 10 landing page
             return 'https://owasp.org/Top10/';
