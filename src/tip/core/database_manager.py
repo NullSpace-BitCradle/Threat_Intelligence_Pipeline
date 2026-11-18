@@ -10,6 +10,7 @@ import json
 import csv
 import time
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
 from typing import Callable, Dict, Any, List, Optional
@@ -21,13 +22,15 @@ from tip.utils.error_handler import (
     log_operation, NetworkError, FileOperationError,
     get_logger, create_api_context
 )
-from tip.utils.atomic_io import write_reference_db, count_records, count_groups
+from tip.utils.atomic_io import write_reference_db, count_records, count_groups, count_owasp
 from tip.utils.http import download_timeout, fetch_stix_bundle, get_with_retry
 from tip.core.kev_processor import KEVProcessor
 from tip.core.vulnrichment_processor import VulnrichmentProcessor
 from tip.core.apt_processor import APTProcessor, attributions_collapsed
-from tip.core.epss_processor import EPSSProcessor, count_epss
+from tip.core.epss_processor import EPSSProcessor
 from tip.core.ctid_processor import CTIDProcessor, count_ctid
+from tip.core.owasp_processor import owasp_mapping_from_cwe_xml
+from tip.core.technique_revocation import build_revocation_map
 
 config = get_config()
 config.setup_logging()
@@ -38,6 +41,7 @@ CAPEC_CSV_MEMBER = "1000.csv"
 # 5xx) are retried this many times in total before the update fails.
 D3FEND_ATTEMPTS = 3
 D3FEND_BACKOFF_SECONDS = 2.0
+D3FEND_ONTOLOGY_URL = 'https://d3fend.mitre.org/ontologies/d3fend.json'
 
 class DatabaseManager:
     """Unified database management for all Threat Intelligence Pipeline databases"""
@@ -50,12 +54,13 @@ class DatabaseManager:
         self.epss_processor = EPSSProcessor()
         # Databases whose last update_database call wrote fresh upstream data.
         # A successful update is not always fresh: a processor can skip and
-        # keep the existing file (returns None), and D3FEND can be written
-        # without its ontology. freshness.json advances only on these.
+        # keep the existing file (returns None). freshness.json advances
+        # only on these.
         self.fresh_writes: set[str] = set()
-        # Set by _process_defend_data when the ontology fetch failed.
-        self._d3fend_degraded = False
-        
+        # D3FEND ontology fragment -> canonical id (FileAnalysis -> D3-FA),
+        # filled by _process_defend_data before any technique is read.
+        self._d3fend_canonical_ids: Dict[str, str] = {}
+
         # Database configurations
         self.databases = {
             'capec': {
@@ -68,12 +73,24 @@ class DatabaseManager:
                 'file': config.get_database_path('cwe'),
                 'processor': self._process_cwe_data
             },
+            'owasp': {
+                # MITRE's CWE-1344 view, read from the same CWE archive.
+                'url': config.get('database.cwe.url'),
+                'file': config.get_database_path('owasp'),
+                'processor': self._process_owasp_data
+            },
             'techniques': {
                 # Sourced from the same always-latest ATT&CK STIX bundle as
                 # groups (database.groups.url); the legacy per-domain XLSX
                 # exports are version-pinned upstream and rot on release.
                 'file': config.get_database_path('techniques'),
                 'processor': self._process_techniques_data
+            },
+            'technique_revocations': {
+                # Revoked and deprecated technique IDs mapped to their live
+                # replacement, from the same STIX bundle (fetched once).
+                'file': config.get_database_path('technique_revocations'),
+                'processor': self._process_technique_revocations
             },
             'defend': {
                 'file': config.get_database_path('defend'),
@@ -160,29 +177,40 @@ class DatabaseManager:
             self.logger.error(f"Error processing CAPEC data: {e}")
             raise
     
+    @staticmethod
+    def _read_cwe_xml(zip_file: str) -> ET.Element:
+        """Parse the single expected cwec_*.xml member straight out of the
+        CWE archive; nothing is extracted to disk."""
+        with ZipFile(zip_file, 'r') as zip_ref:
+            xml_files = [
+                f for f in zip_ref.namelist()
+                if f.endswith('.xml') and '/' not in f and f.startswith('cwec_')
+            ]
+            if len(xml_files) != 1:
+                raise FileOperationError(
+                    f"Expected exactly one cwec_*.xml member in CWE zip, found {xml_files}",
+                    file_path=zip_file,
+                )
+            with zip_ref.open(xml_files[0]) as xml_stream:
+                return ET.parse(xml_stream).getroot()
+
+    @log_operation("process_owasp", "database_update")
+    def _process_owasp_data(self, zip_file: str) -> Dict[str, Any]:
+        """Derive owasp_db.json from the CWE-1344 view in the CWE archive.
+        Raises unless all ten OWASP Top Ten 2021 categories are present."""
+        mapping = owasp_mapping_from_cwe_xml(self._read_cwe_xml(zip_file))
+        self.logger.info(
+            f"Derived OWASP Top Ten 2021 mapping: {len(mapping['categories'])} categories, "
+            f"{len(mapping['cwe_mapping'])} CWEs"
+        )
+        return mapping
+
     @log_operation("process_cwe", "database_update")
     def _process_cwe_data(self, zip_file: str) -> Dict[str, Any]:
         """Process CWE XML data"""
         try:
-            import xml.etree.ElementTree as ET
-            
-            # Read the single expected XML member straight out of the archive;
-            # nothing is extracted to disk.
-            with ZipFile(zip_file, 'r') as zip_ref:
-                xml_files = [
-                    f for f in zip_ref.namelist()
-                    if f.endswith('.xml') and '/' not in f and f.startswith('cwec_')
-                ]
-                if len(xml_files) != 1:
-                    raise FileOperationError(
-                        f"Expected exactly one cwec_*.xml member in CWE zip, found {xml_files}",
-                        file_path=zip_file,
-                    )
-                with zip_ref.open(xml_files[0]) as xml_stream:
-                    tree = ET.parse(xml_stream)
-
             cwe_data: Dict[str, Any] = {}
-            root = tree.getroot()
+            root = self._read_cwe_xml(zip_file)
             # MITRE bumps the namespace with each schema major (cwe-7 to cwe-8 in CWE 5.0), so take it from the root.
             ns = root.tag[:root.tag.index('}') + 1] if root.tag.startswith('{') else ''
 
@@ -281,6 +309,22 @@ class DatabaseManager:
             self.logger.error(f"Error processing techniques data: {e}")
             raise
     
+    @log_operation("process_technique_revocations", "database_update")
+    def _process_technique_revocations(self) -> Dict[str, Any]:
+        """Map revoked and deprecated ATT&CK technique IDs to their live
+        replacements (None when there is none), from the STIX bundle."""
+        stix_url = config.get(
+            'database.groups.url',
+            'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json'
+        )
+        revocations = build_revocation_map(fetch_stix_bundle(stix_url))
+        replaced = sum(1 for v in revocations.values() if v is not None)
+        self.logger.info(
+            f"Mapped {len(revocations)} retired techniques: {replaced} to a live "
+            f"replacement, {len(revocations) - replaced} with none"
+        )
+        return dict(revocations)
+
     @log_operation("process_defend", "database_update")
     def _process_defend_data(self) -> Optional[Dict[str, Any]]:
         """
@@ -310,29 +354,11 @@ class DatabaseManager:
             d3fend_base_url = config.get('api.d3fend.base_url')
             timeout = config.get('api.d3fend.timeout', 30)
 
-            # Fetch D3FEND ontology to get canonical IDs (D3-FA, D3-NTA, etc.)
-            # A failure here is survivable (fragment names stand in for the
-            # D3 ids) but the result is degraded, not fresh.
-            self._d3fend_canonical_ids = {}
-            self._d3fend_degraded = True
-            try:
-                ontology_url = 'https://d3fend.mitre.org/ontologies/d3fend.json'
-                self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
-                ont_response = get_with_retry(ontology_url, timeout=download_timeout())
-                if ont_response.status_code == 200:
-                    ont_data = ont_response.json()
-                    for item in ont_data.get('@graph', []):
-                        d3id = item.get('d3f:d3fend-id')
-                        at_id = item.get('@id', '')
-                        if d3id and at_id.startswith('d3f:'):
-                            fragment = at_id.replace('d3f:', '')
-                            self._d3fend_canonical_ids[fragment] = d3id
-                    self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
-                    self._d3fend_degraded = False
-                else:
-                    self.logger.warning(f"Could not fetch D3FEND ontology (HTTP {ont_response.status_code}), using fragment names as IDs")
-            except Exception as e:
-                self.logger.warning(f"Could not fetch D3FEND ontology: {e}, using fragment names as IDs")
+            # The ontology gives the canonical IDs (D3-FA, D3-NTA, ...). Fail
+            # closed without it: fragment names in place of D3 IDs would
+            # change every published D3FEND ID while the run read green.
+            self._d3fend_canonical_ids = self._fetch_d3fend_canonical_ids()
+            self.logger.info(f"Loaded {len(self._d3fend_canonical_ids)} D3FEND canonical ID mappings")
 
             self.logger.info(f"Fetching D3FEND countermeasures for {len(techniques_db)} techniques...")
             
@@ -376,6 +402,35 @@ class DatabaseManager:
             self.logger.error(f"Error processing D3FEND data: {e}")
             raise
     
+    def _fetch_d3fend_canonical_ids(self) -> Dict[str, str]:
+        """Map each D3FEND ontology fragment to its canonical ID.
+
+        Raises on anything but a 200 whose @graph yields at least one
+        mapping, so the defend step fails and keeps the previous file.
+        """
+        ontology_url = D3FEND_ONTOLOGY_URL
+        self.logger.info("Fetching D3FEND ontology for canonical ID mapping...")
+        response = get_with_retry(ontology_url, timeout=download_timeout())
+        if response.status_code != 200:
+            raise RuntimeError(f"D3FEND ontology returned HTTP {response.status_code}")
+        try:
+            graph = response.json().get('@graph')
+        except (ValueError, AttributeError) as e:
+            raise RuntimeError(f"D3FEND ontology is not a JSON-LD object: {e}") from e
+        if not isinstance(graph, list):
+            raise RuntimeError("D3FEND ontology has no @graph list")
+        canonical: Dict[str, str] = {}
+        for item in graph:
+            if not isinstance(item, dict):
+                continue
+            d3id = item.get('d3f:d3fend-id')
+            at_id = item.get('@id', '')
+            if isinstance(d3id, str) and d3id and isinstance(at_id, str) and at_id.startswith('d3f:'):
+                canonical[at_id[len('d3f:'):]] = d3id
+        if not canonical:
+            raise RuntimeError("D3FEND ontology yielded no canonical ID mappings")
+        return canonical
+
     def _d3fend_get(self, url: str, timeout: float) -> requests.Response:
         """GET a D3FEND technique URL, returning only a 200 or 404 response.
 
@@ -424,8 +479,15 @@ class DatabaseManager:
                     # Extract fragment from URI (e.g., "http://d3fend.mitre.org/ontologies/d3fend.owl#UserAccountManagement")
                     if '#' in def_tech_uri:
                         fragment = def_tech_uri.split('#')[-1]
-                        # Use canonical D3FEND ID (e.g., D3-FA) if available, fall back to fragment name
-                        technique_info['id'] = self._d3fend_canonical_ids.get(fragment, fragment)
+                        # Canonical D3FEND ID (e.g., D3-FA). A fragment the
+                        # ontology does not name fails the step rather than
+                        # publishing a fragment name as an ID.
+                        canonical_id = self._d3fend_canonical_ids.get(fragment)
+                        if canonical_id is None:
+                            raise RuntimeError(
+                                f"D3FEND technique {fragment!r} is not in the ontology's canonical IDs"
+                            )
+                        technique_info['id'] = canonical_id
                         technique_info['d3fend_fragment'] = fragment
 
                 # Extract technique label/name
@@ -511,7 +573,7 @@ class DatabaseManager:
 
         try:
             data: Optional[Dict[str, Any]]
-            if db_name in ('capec', 'cwe'):
+            if db_name in ('capec', 'cwe', 'owasp'):
                 with tempfile.TemporaryDirectory(prefix=f"tip_{db_name}_") as tmp:
                     zip_file = str(Path(tmp) / f"{db_name}_data.zip")
                     self._download_file(db_config['url'], zip_file)
@@ -543,12 +605,9 @@ class DatabaseManager:
                 if refused:
                     self.logger.warning(f"groups: not written: {refused}")
                     return False
-            counter = count_groups if db_name == 'groups' else count_records
+            counter = {'groups': count_groups, 'owasp': count_owasp}.get(db_name, count_records)
             self._save_database(data, db_config['file'], counter)
-            if db_name == 'defend' and self._d3fend_degraded:
-                self.logger.warning("defend: written without the D3FEND ontology; not recorded as fresh")
-            else:
-                self.fresh_writes.add(db_name)
+            self.fresh_writes.add(db_name)
             return True
 
         except Exception as e:
@@ -562,7 +621,10 @@ class DatabaseManager:
         self.fresh_writes = set()
 
         # Update databases in dependency order
-        update_order = ['capec', 'cwe', 'techniques', 'defend', 'kev', 'vulnrichment', 'groups', 'epss', 'ctid']
+        update_order = [
+            'capec', 'cwe', 'owasp', 'techniques', 'technique_revocations', 'defend',
+            'kev', 'vulnrichment', 'groups', 'epss', 'ctid',
+        ]
         
         for db_name in update_order:
             self.logger.info(f"Updating {db_name} database...")
@@ -574,36 +636,46 @@ class DatabaseManager:
         
         return results
     
+    @staticmethod
+    def _count_entries(db_name: str, file_path: str) -> int:
+        """Records in a reference DB file, counted the way its writer counts
+        them (JSONL line records, groups, OWASP categories, CTID CVEs),
+        except EPSS: the curated scores the file holds, not the bulk total
+        its floor check uses. Raises on an unreadable or misshapen file."""
+        if file_path.endswith('.jsonl'):
+            records: Dict[str, Any] = {}
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        records.update(json.loads(line))
+            return len(records)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if db_name == 'epss':
+            scores = data.get('scores') if isinstance(data, dict) else None
+            if not isinstance(scores, dict):
+                raise ValueError("epss_curated.json has no scores map")
+            return len(scores)
+        counter = {'groups': count_groups, 'owasp': count_owasp, 'ctid': count_ctid}.get(db_name, count_records)
+        return counter(data)
+
     def get_database_status(self) -> Dict[str, Any]:
-        """Get status of all databases"""
-        status = {}
-        
-        for db_name, config in self.databases.items():
-            if db_name == 'techniques':
-                # Handle techniques special case
-                file_path = config['file']
-            else:
-                file_path = config['file']
-            
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    status[db_name] = {
-                        'exists': True,
-                        'entries': count_epss(data) if db_name == 'epss' else count_ctid(data) if db_name == 'ctid' else len(data),
-                        'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
-                    }
-                except Exception as e:
-                    status[db_name] = {
-                        'exists': True,
-                        'error': str(e)
-                    }
-            else:
+        """Per database: whether its file exists, its record count and
+        modification time, or the error that kept it from being read."""
+        status: Dict[str, Any] = {}
+        for db_name, db_config in self.databases.items():
+            file_path = db_config['file']
+            if not os.path.exists(file_path):
+                status[db_name] = {'exists': False}
+                continue
+            try:
                 status[db_name] = {
-                    'exists': False
+                    'exists': True,
+                    'entries': self._count_entries(db_name, file_path),
+                    'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
                 }
-        
+            except (OSError, ValueError, AttributeError) as e:
+                status[db_name] = {'exists': True, 'error': str(e)}
         return status
 
 def main():
@@ -611,7 +683,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Update Threat Intelligence Pipeline databases')
-    parser.add_argument('--database', '-d', choices=['capec', 'cwe', 'techniques', 'defend', 'all'],
+    parser.add_argument('--database', '-d',
+                       choices=['capec', 'cwe', 'owasp', 'techniques', 'technique_revocations', 'defend', 'all'],
                        default='all', help='Database to update')
     parser.add_argument('--status', '-s', action='store_true',
                        help='Show database status')

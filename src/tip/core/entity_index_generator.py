@@ -26,6 +26,7 @@ from tip.core.id_normalize import (
 )
 from tip.core.ctid_processor import SOURCE as CTID_SOURCE, TIER as CTID_TIER, load_ctid_db
 from tip.core.technique_inference import INFERRED_TIER, ctid_links, extra_technique_links
+from tip.core.technique_revocation import load_revocation_map, resolve_technique_ids
 from tip_intel.link_tiers import CTID_DEFEND_SOURCE, INFERRED_DEFEND_SOURCE, INFERRED_FAMILY, TIER_RANK
 
 _jsonl = JSONLManager()
@@ -149,6 +150,8 @@ def build_cve_entity_record(
         record["published"] = cve_data["PUBLISHED"]
     if cve_data.get("LAST_MODIFIED"):
         record["last_modified"] = cve_data["LAST_MODIFIED"]
+    if cve_data.get("VULN_STATUS"):
+        record["vuln_status"] = cve_data["VULN_STATUS"]
     refs = cve_data.get("REFERENCES")
     if isinstance(refs, list) and refs:
         record["references"] = refs
@@ -355,12 +358,16 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     # ── 2. Load CAPEC database ─────────────────────────────────────
     print("Loading CAPEC database...")
     capec_db = _load_json(data_dir / "capec_db.json")
+    # CAPEC still names techniques ATT&CK has revoked; link the live
+    # replacement, as the CVE chain does. Absent map: link as CAPEC gives.
+    revocations = load_revocation_map(data_dir / "technique_revocations.json")
     for capec_num, capec_data in capec_db.items():
         capec_id = f"CAPEC-{capec_num}"
         name = capec_data.get("name", "")
         ensure(capec_id, "capec", name if name else capec_id, "attack_pattern")
 
-        for tid in _parse_capec_technique_ids(capec_data.get("techniques", "")):
+        capec_tids = _parse_capec_technique_ids(capec_data.get("techniques", ""))
+        for tid in resolve_technique_ids(capec_tids, revocations):
             technique_ref = normalize_technique_id(tid)
             if technique_ref:
                 link_one(capec_id, "technique", technique_ref)
@@ -403,6 +410,11 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
                         if defend_id not in entities:
                             defend_entity_count += 1
                         ensure(defend_id, "defend", defend_name, "defense")
+                        # Additive: D3FEND's own pages are keyed by the
+                        # ontology fragment, not the D3 ID, so the site and
+                        # MCP need it to link to the source.
+                        if fragment and "d3fend_fragment" not in entities[defend_id]:
+                            entities[defend_id]["d3fend_fragment"] = fragment
                         link(defend_id, "technique", attack_tech_id, "defend")
                         technique_to_defend[attack_tech_id].add(defend_id)
     else:
@@ -674,7 +686,10 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
         for capec_ref in capec_inh:
             mark_inherited(cve_id, "capec", capec_ref, "cve")
 
-        tech_direct, tech_inh = split(cve_data.get("TECHNIQUES", []), cve_data.get("TECHNIQUES_INHERITED", []),
+        # A record the latest run could not rewrite may still carry a
+        # revoked technique; link its replacement like a rewritten one.
+        tech_direct, tech_inh = split(resolve_technique_ids(cve_data.get("TECHNIQUES") or [], revocations),
+                                      resolve_technique_ids(cve_data.get("TECHNIQUES_INHERITED") or [], revocations),
                                       normalize_technique_id)
         defend_direct: set[str] = set()
         defend_inh: set[str] = set()
@@ -910,6 +925,45 @@ def generate_entity_index(base_dir: str | Path) -> tuple[dict, dict, dict]:
     return entity_index, search_index, cve_ids_index
 
 
+class DanglingGrowthError(RuntimeError):
+    """The new index drops markedly more dangling rel targets than the last."""
+
+
+def dangling_growth_allowance(previous: int) -> int:
+    """How many more dropped dangling rel targets a run may have than the
+    published index: 10% of the previous count, at least 25."""
+    return max(25, previous // 10)
+
+
+def check_dangling_growth(existing_path: Path, entity_index: dict) -> None:
+    """Raise DanglingGrowthError when ``meta.dropped_dangling_rels`` grew past
+    the allowance over the index at ``existing_path``.
+
+    Dropped targets are links an upstream points at something that does not
+    exist (a revoked technique, a retired CWE). Growth means an upstream
+    changed under the chain, so the run fails and alerts instead of quietly
+    publishing fewer links. No existing index, or one without the count,
+    passes.
+    """
+    new_count = (entity_index.get("meta") or {}).get("dropped_dangling_rels")
+    if not isinstance(new_count, int):
+        return
+    try:
+        with open(existing_path, "r", encoding="utf-8") as f:
+            previous = (json.load(f).get("meta") or {}).get("dropped_dangling_rels")
+    except (OSError, ValueError, AttributeError):
+        return
+    if not isinstance(previous, int):
+        return
+    allowance = dangling_growth_allowance(previous)
+    if new_count > previous + allowance:
+        raise DanglingGrowthError(
+            f"refusing to write {existing_path}: dropped dangling rel targets grew "
+            f"from {previous} to {new_count} (allowance {allowance}); an upstream "
+            f"retired IDs the chain still points at"
+        )
+
+
 def write_outputs(
     entity_index: dict,
     search_index: dict,
@@ -923,7 +977,9 @@ def write_outputs(
     All files are serialized in memory, then published together: every temp
     file is written before any target is replaced, so a failure cannot leave
     a mix of old and new indexes. Raises DataFloorError, writing nothing,
-    when the new entity index is empty or under half the existing one.
+    when the new entity index is empty or under half the existing one, and
+    DanglingGrowthError when its dropped dangling count grew past the
+    allowance (``check_dangling_growth``).
     """
     target_dir = Path(out_dir) if out_dir is not None else Path(base_dir) / "docs" / "data"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -942,6 +998,7 @@ def write_outputs(
     # [SKIP] upstream, and must not blank the index the site and MCP read.
     check_floor(target_dir / "entity_index.json", entity_index,
                 counter=lambda d: len(d.get("entities") or {}))
+    check_dangling_growth(target_dir / "entity_index.json", entity_index)
 
     print(f"\nWriting {len(items)} index files to {target_dir}...")
     atomic_replace_many(items)

@@ -57,18 +57,21 @@ jobs:
           BASE_URL="http://localhost:8000/" pytest tests/smoke/ --browser chromium -q
 
   # Daily canary against the deployed site: catches deploy drift, Pages
-  # outages, and external-dependency rot that the local job cannot see.
+  # outages, and external-dependency rot that the local job cannot see. It
+  # installs third-party packages and browser binaries and runs the suite,
+  # so it holds only a read token and keeps no credentials on disk; the
+  # issue-writing alert steps run in canary-alerts below.
   smoke-live:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # playwright install alone ran past 10 minutes on 2026-10-26 and 10-27.
     timeout-minutes: 20
-    # Issue write access only here, for the pipeline-stale canary alert.
     permissions:
       contents: read
-      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
@@ -84,16 +87,33 @@ jobs:
       - name: Run smoke tests against deployed site
         run: pytest tests/smoke/ --browser chromium -q
 
+  # Issue write access only here, for the pipeline-stale canary and the
+  # smoke failure alert. Only checkout and the stdlib alert script run in
+  # this job, so no installed package ever holds the issues token. It runs
+  # after smoke-live whatever its outcome (a timeout cancels it instead of
+  # failing it). It alerts only from main; a dispatch from another ref still
+  # runs the smoke tests but never touches issues.
+  canary-alerts:
+    needs: smoke-live
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
       # Staleness canary (I16): reads the deployed freshness.json and opens a
       # pipeline-stale issue when any source is past its threshold or the file
       # cannot be read, which is how runs that never happened get noticed.
       # Closes the issue once every source is fresh. Runs even when the smoke
       # tests failed. It fails the job only when it cannot alert (bad token,
       # missing permission, Issues disabled), so a broken canary is visible.
-      # It alerts only from main; a dispatch from another ref still runs the
-      # smoke tests but never touches issues.
       - name: Check published data freshness
-        if: always() && github.ref == 'refs/heads/main'
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -102,23 +122,24 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 scripts/pipeline_alert.py stale
 
-      # A timeout cancels the job instead of failing it, so the alert covers
-      # both; the 10-26 and 10-27 runs died in setup and never ran a test.
-      # The script logs and exits 0 on any error, so alerting cannot change
-      # the run's result.
+      # The 10-26 and 10-27 runs died in setup and never ran a test; a
+      # cancelled smoke-live job alerts like a failed one, and so does a
+      # failed freshness check here. The outcome reported is smoke-live's
+      # unless it succeeded. The script logs and exits 0 on any error, so
+      # alerting cannot change the run's result.
       - name: Alert on failure
-        if: (failure() || cancelled()) && github.ref == 'refs/heads/main'
+        if: failure() || cancelled() || needs.smoke-live.result != 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
-          RUN_OUTCOME: ${{ job.status }}
+          RUN_OUTCOME: ${{ needs.smoke-live.result == 'success' && job.status || needs.smoke-live.result }}
           REPO_OWNER: ${{ github.repository_owner }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python3 scripts/pipeline_alert.py run
 
       - name: Close failure alert on success
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() && needs.smoke-live.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}

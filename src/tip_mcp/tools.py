@@ -266,6 +266,8 @@ def _build_shard_record(
         record["published"] = payload["PUBLISHED"]
     if payload.get("LAST_MODIFIED"):
         record["last_modified"] = payload["LAST_MODIFIED"]
+    if payload.get("VULN_STATUS"):
+        record["vuln_status"] = payload["VULN_STATUS"]
     refs = payload.get("REFERENCES")
     if isinstance(refs, list) and refs:
         record["references"] = refs

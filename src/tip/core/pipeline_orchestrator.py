@@ -7,7 +7,7 @@ import sys
 import json
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 import argparse
@@ -30,6 +30,10 @@ from tip.core import change_log
 config = get_config()
 logger = get_logger('pipeline_orchestrator')
 
+# A full run without --force is skipped while the published NVD shards are
+# younger than this.
+FULL_RUN_MIN_AGE_HOURS = 24
+
 class PipelineOrchestrator:
     """Simplified pipeline orchestrator for Threat Intelligence Pipeline"""
     
@@ -39,6 +43,8 @@ class PipelineOrchestrator:
         self.config = config
         # Published state before this run's writes, for the change log (I8).
         self._before: Optional[Dict[str, Any]] = None
+        # Why run_full_pipeline did nothing, or None when it ran.
+        self.skipped_reason: Optional[str] = None
         
         # Initialize components
         self.db_manager = DatabaseManager()
@@ -54,9 +60,10 @@ class PipelineOrchestrator:
         log_info(f"Configuration: force_update={force_update}")
         
         try:
-            # Check if updates are needed
+            # Skip only when the last full NVD refresh is recent; a skip is
+            # reported as one, never as a completed run.
             if not force_update and not self._updates_needed():
-                log_info("No updates needed - all databases are current")
+                log_info(f"Full run skipped: {self.skipped_reason}")
                 return self._create_summary()
 
             self._snapshot_before()
@@ -184,36 +191,35 @@ class PipelineOrchestrator:
                 'timestamp': datetime.now().isoformat()
             }
 
-    def _updates_needed(self) -> bool:
-        """Check if updates are needed based on last update time"""
+    def _updates_needed(self, now: Optional[datetime] = None) -> bool:
+        """True unless the last clean NVD refresh is under FULL_RUN_MIN_AGE_HOURS old.
+
+        Only a run that crawled NVD cleanly advances freshness.json's ``nvd``
+        entry, so the daily --db-only run (which advances lastUpdate.txt)
+        cannot make a full run look unnecessary. Both times are UTC, so the
+        window does not shift with the local timezone. A missing or
+        unreadable entry means a run is needed. Sets ``skipped_reason`` when
+        it returns False.
+        """
+        path = Path(self.config.get('files.freshness', 'docs/data/freshness.json'))
         try:
-            last_update_file = Path(self.config.get('files.last_update', 'lastUpdate.txt'))
-            if not last_update_file.exists():
-                log_info("Last update file not found - updates needed")
-                return True
-            
-            with open(last_update_file, 'r') as f:
-                last_update_str = f.read().strip()
-            
-            try:
-                last_update = datetime.fromisoformat(last_update_str)
-                hours_since_update = (datetime.now() - last_update).total_seconds() / 3600
-                
-                # Check if more than 24 hours have passed
-                if hours_since_update > 24:
-                    log_info(f"Last update was {hours_since_update:.1f} hours ago - updates needed")
-                    return True
-                else:
-                    log_info(f"Last update was {hours_since_update:.1f} hours ago - updates not needed")
-                    return False
-                    
-            except ValueError:
-                log_warning("Invalid last update timestamp - updates needed")
-                return True
-                
-        except Exception as e:
-            log_warning(f"Error checking last update time: {e} - updates needed")
+            sources = json.loads(path.read_text(encoding='utf-8')).get('sources', {})
+            stamp = sources['nvd']['last_success']
+            last = datetime.fromisoformat(str(stamp).replace('Z', '+00:00'))
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+            log_info(f"No readable NVD refresh time in {path} ({e}); a full run is needed")
             return True
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        hours = ((now or datetime.now(timezone.utc)) - last).total_seconds() / 3600
+        if hours >= FULL_RUN_MIN_AGE_HOURS:
+            log_info(f"NVD shards were last refreshed {hours:.1f} hours ago; a full run is needed")
+            return True
+        self.skipped_reason = (
+            f"NVD shards were refreshed {hours:.1f} hours ago (under {FULL_RUN_MIN_AGE_HOURS}); "
+            "use --force to run anyway"
+        )
+        return False
     
     def _update_databases(self) -> Dict[str, Any]:
         """Update all databases"""
@@ -447,7 +453,8 @@ class PipelineOrchestrator:
                 'failed_steps': failed_steps,
                 'degraded_steps': degraded_steps,
                 'partial_steps': partial_steps,
-                'total_steps': len(self.results)
+                'total_steps': len(self.results),
+                'skipped': self.skipped_reason,
             },
             'results': self.results,
             'performance': perf_summary
@@ -555,7 +562,7 @@ class PipelineOrchestrator:
         """Update the last update timestamp"""
         try:
             last_update_file = Path(self.config.get('files.last_update', 'lastUpdate.txt'))
-            atomic_write_text(last_update_file, datetime.now().isoformat())
+            atomic_write_text(last_update_file, datetime.now(timezone.utc).isoformat())
             log_info(f"Updated last update timestamp in {last_update_file}")
         except Exception as e:
             log_warning(f"Failed to update last update timestamp: {e}")
@@ -669,6 +676,8 @@ def main() -> None:
         print("\n" + "="*60)
         print("PIPELINE SUMMARY")
         print("="*60)
+        if summary['pipeline_session'].get('skipped'):
+            print(f"SKIPPED, nothing was run: {summary['pipeline_session']['skipped']}")
         print(f"Total Duration: {summary['pipeline_session']['total_duration']:.2f}s")
         print(f"Successful Steps: {summary['pipeline_session']['successful_steps']}")
         print(f"Failed Steps: {summary['pipeline_session']['failed_steps']}")

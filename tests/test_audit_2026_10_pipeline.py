@@ -25,7 +25,8 @@ def test_process_file_reads_kev_the_database_step_wrote(tmp_path, monkeypatch):
     proc = CVEProcessor.__new__(CVEProcessor)
     proc.cwe_db, proc.capec_db = {}, {}
     proc.logger = logging.getLogger("test_audit_pipeline")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set(),
+                                         load=lambda: True, cwe_owasp_mapping={"79": ["A03:2021"]})
     proc.kev_processor = KEVProcessor()
     proc.kev_processor.db_path = str(kev_path)
     proc.kev_processor.load()
@@ -52,7 +53,7 @@ def _binding(fragment):
 def _d3fend_manager():
     dm = DatabaseManager.__new__(DatabaseManager)
     dm.logger = logging.getLogger("test_audit_pipeline")
-    dm._d3fend_canonical_ids = {}
+    dm._d3fend_canonical_ids = {"FileAnalysis": "D3-FA", "UserAccountManagement": "D3-UAM"}
     return dm
 
 
@@ -61,7 +62,8 @@ def test_one_bad_d3fend_binding_costs_only_itself():
         _binding("FileAnalysis"), {"def_tech": "not-an-object"}, None, _binding("UserAccountManagement"),
     ]}}}
     got = _d3fend_manager()._extract_d3fend_techniques(reply)
-    assert [t["id"] for t in got] == ["FileAnalysis", "UserAccountManagement"]
+    assert [t["id"] for t in got] == ["D3-FA", "D3-UAM"]
+    assert [t["d3fend_fragment"] for t in got] == ["FileAnalysis", "UserAccountManagement"]
 
 
 @pytest.mark.parametrize("reply", [{}, {"off_to_def": {"results": {}}}, {"off_to_def": []}])

@@ -52,16 +52,24 @@ async function renderResultPage(entityId, gen) {
     }
 
     const related = getRelatedEntities(entityId);
-    const fetched = await Promise.all([fetchEntityDetail(entityId), loadEpssCurated()]);
+    const fetched = await Promise.all([fetchEntityDetail(entityId), loadEpssCurated(), loadKevDb()]);
     if (!isCurrentRender(gen)) return;
     // Copy so the cached detail is never mutated.
     const detail = Object.assign({}, fetched[0] || {});
-    if (entity.type === 'cve') detail.epss = pickEpss(entity.id, entity.epss);
+    // The entity's kev flag is from the weekly graph; the daily catalog
+    // decides it when loaded. Copy rather than mutate the index entity.
+    var shown = entity;
+    if (entity.type === 'cve') {
+        detail.epss = pickEpss(entity.id, entity.epss);
+        var kev = pickKev(entity.id, entity.kev, detail.kev || entity.kev_detail);
+        detail.kev = kev.entry;
+        if (kev.listed !== !!entity.kev) shown = Object.assign({}, entity, { kev: kev.listed });
+    }
 
     main.textContent = '';
-    renderEntityHeader(main, entity, related, detail);
-    renderSummaryCards(main, entity, related);
-    renderDetailTabs(main, entity, related, detail);
+    renderEntityHeader(main, shown, related, detail);
+    renderSummaryCards(main, shown, related);
+    renderDetailTabs(main, shown, related, detail);
     renderGraphPanel(graphPanel, entityId, related, null, detail);
 }
 
@@ -79,7 +87,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
 
     var payload;
     try {
-        payload = (await Promise.all([fetchCveFromShard(cveId), loadEpssCurated()]))[0];
+        payload = (await Promise.all([fetchCveFromShard(cveId), loadEpssCurated(), loadKevDb()]))[0];
     } catch (err) {
         if (!isCurrentRender(gen)) return;
         main.textContent = '';
@@ -99,13 +107,17 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     // existing renderers can be reused.
     var description = payload.DESCRIPTION || '';
     var firstSentence = description ? (description.split('. ')[0] || '').trim() : '';
+    // The shard's KEV block is from the weekly run; a CVE CISA listed since
+    // then is in the daily kev_db.json, which wins when it loaded.
+    var shardKev = (payload.KEV && typeof payload.KEV === 'object') ? payload.KEV : null;
+    var kev = pickKev(cveId, !!shardKev, shardKev);
     var synthEntity = {
         id: cveId,
         type: 'cve',
         name: firstSentence || cveId,
         phase: 'vulnerability',
         description: description,
-        kev: !!payload.KEV,
+        kev: kev.listed,
         prov: { source: 'TIP CVE Shard', tier: 'shard' }
     };
     if (payload.CVSS && typeof payload.CVSS === 'object') {
@@ -117,6 +129,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
     }
     if (payload.PUBLISHED) synthEntity.published = payload.PUBLISHED;
     if (payload.LAST_MODIFIED) synthEntity.last_modified = payload.LAST_MODIFIED;
+    if (typeof payload.VULN_STATUS === 'string') synthEntity.vuln_status = payload.VULN_STATUS;
     if (Array.isArray(payload.REFERENCES) && payload.REFERENCES.length > 0) {
         synthEntity.references = payload.REFERENCES;
     }
@@ -174,7 +187,7 @@ async function renderCveFromShard(main, graphPanel, cveId, gen) {
 
     var shardDetail = {
         description: description,
-        kev: (payload.KEV && typeof payload.KEV === 'object') ? payload.KEV : null,
+        kev: kev.entry,
         ssvc: (payload.VULNRICHMENT && typeof payload.VULNRICHMENT === 'object') ? payload.VULNRICHMENT : null,
         epss: pickEpss(cveId, payload.EPSS)
     };
@@ -272,6 +285,16 @@ function renderEntityHeader(container, entity, related, detail) {
     if (entity.type === 'cve') {
         const kevDetail = (detail && detail.kev) ? detail.kev : null;
         const ssvc = (detail && detail.ssvc) ? detail.ssvc : null;
+        // NVD keeps rejected IDs in its corpus; this is not a vulnerability.
+        if (entity.vuln_status === 'Rejected') {
+            const rejBadge = document.createElement('span');
+            rejBadge.className = 'badge badge-rejected';
+            rejBadge.style.background = '#63636325';
+            rejBadge.style.color = 'var(--text-muted)';
+            rejBadge.textContent = 'Rejected';
+            rejBadge.title = 'NVD status: Rejected. This CVE ID does not describe a vulnerability.';
+            badges.appendChild(rejBadge);
+        }
         if (entity.kev) {
             const kevBadge = document.createElement('span');
             kevBadge.className = 'badge';

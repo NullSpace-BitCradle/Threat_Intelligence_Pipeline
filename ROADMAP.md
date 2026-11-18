@@ -31,6 +31,7 @@ The development plan with rationale, sizing, and acceptance criteria lives in [P
 | I30, I32 APT links by ATT&CK citation | 2026-09-27 | A CVE links to a group only where the enterprise ATT&CK bundle cites it, each link official with its citing object; technique-overlap linking removed; first run: 199 pairs, 118 CVEs, 74 groups, curated 1,728 to 1,734; PR #16 |
 | T16.1 refused attributions write fails the run | 2026-09-27 | A `groups_db.json` write refused by the attribution collapse guard is a failed step: the run exits non-zero, publishes nothing, and opens the `pipeline-failure` issue; PR #18 |
 | I31 remove vendored ATT&CK Navigator | 2026-09-27 | The unused Navigator 5.1.0 copy (16 MB, 139 files) under `docs/` deleted; it was served outside the site CSP and shared the watchlist's `localStorage`; PR #19 |
+| Audit 2026-11-18 remediation | 2026-11-18 (branch `fix/audit-2026-11-18`, not merged) | Site reads the daily KEV catalog on shard and worklist pages; revoked ATT&CK techniques map to their replacement (`technique_revocations.json`) and a growing dangling count fails the run; OWASP from MITRE's CWE-1344 view; a failed D3FEND ontology fetch fails the step; D3FEND source links by fragment; full-run gate on the NVD refresh time in UTC; rejected CVEs flagged; true `--status` counts; issues token kept out of the live smoke job; universal lockfiles; unit suite runs on Windows |
 
 ## Next
 

@@ -1,186 +1,128 @@
 """
-OWASP Top 10 mapping processor for Threat Intelligence Pipeline.
+OWASP Top 10 2021 categories for CWEs.
 
-This module handles mapping of CWE and CVE data to OWASP Top 10 2021 categories.
+The mapping is MITRE's CWE-1344 view, "Weaknesses in OWASP Top Ten (2021)".
+Each category is a CWE grouping named "OWASP Top Ten 2021 Category A0x:2021
+- <name>" whose members carry ``View_ID="1344"``. The database step derives
+it from the CWE XML on every run (``owasp_mapping_from_cwe_xml``) and
+publishes it as ``docs/data/owasp_db.json``; the CVE processor reads that
+file through ``OWASPProcessor``. There is no hand-written fallback table: a
+CWE catalog without all ten categories fails the step and keeps the
+published file.
 """
 
 import json
 import logging
+import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List, Set, Any
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set
 
-from tip.utils.atomic_io import write_reference_db, count_owasp
+from tip.utils.atomic_io import PathLike
+from tip.utils.config import get_config
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class OWASPCategory:
-    """OWASP Top 10 2021 category definition"""
-    id: str
-    name: str
-    description: str
-    cwe_ids: List[str]
+OWASP_2021_VIEW_ID = "1344"
+OWASP_2021_CATEGORY_IDS = tuple(f"A{n:02d}:2021" for n in range(1, 11))
+# CWE 5.0 files the categories as <Grouping>; CWE 4.x filed them as
+# <Category>. Both carry this name pattern.
+_CATEGORY_NAME = re.compile(r"^OWASP Top Ten 2021 Category (A(?:0[1-9]|10)):2021 - (.+)$")
+
+
+def _namespace(root: ET.Element) -> str:
+    """The ``{uri}`` prefix of the root tag, or '' (MITRE bumps it per schema major)."""
+    return root.tag[:root.tag.index('}') + 1] if root.tag.startswith('{') else ''
+
+
+def _cwe_sort_key(cwe_id: str) -> tuple[int, str]:
+    return (int(cwe_id), "") if cwe_id.isdigit() else (1 << 30, cwe_id)
+
+
+def owasp_mapping_from_cwe_xml(root: ET.Element) -> Dict[str, Any]:
+    """Build owasp_db.json from a parsed CWE catalog.
+
+    Returns ``{"source", "categories", "cwe_mapping"}`` where each category
+    holds its name, the grouping's summary, the grouping's CWE id, and its
+    member CWE numbers, and ``cwe_mapping`` maps a CWE number to the
+    categories that list it. Raises ValueError unless all ten 2021
+    categories are present with at least one member each.
+    """
+    ns = _namespace(root)
+    categories: Dict[str, Dict[str, Any]] = {}
+    for tag in ("Grouping", "Category"):
+        for element in root.iter(f"{ns}{tag}"):
+            match = _CATEGORY_NAME.match(element.get("Name", ""))
+            if not match:
+                continue
+            category_id = f"{match.group(1)}:2021"
+            members = {
+                member.get("CWE_ID", "")
+                for member in element.iter(f"{ns}Has_Member")
+                if member.get("View_ID") == OWASP_2021_VIEW_ID and member.get("CWE_ID")
+            }
+            summary = element.find(f"{ns}Summary")
+            categories[category_id] = {
+                "name": match.group(2).strip(),
+                "description": (summary.text or "").strip() if summary is not None else "",
+                "cwe_grouping": f"CWE-{element.get('ID', '')}",
+                "cwe_ids": sorted(members, key=_cwe_sort_key),
+            }
+
+    missing = [c for c in OWASP_2021_CATEGORY_IDS if not categories.get(c, {}).get("cwe_ids")]
+    if missing:
+        raise ValueError(
+            f"CWE catalog lacks the CWE-{OWASP_2021_VIEW_ID} OWASP Top Ten 2021 "
+            f"categories {missing}"
+        )
+
+    cwe_mapping: Dict[str, List[str]] = {}
+    for category_id in OWASP_2021_CATEGORY_IDS:
+        for cwe_id in categories[category_id]["cwe_ids"]:
+            cwe_mapping.setdefault(cwe_id, []).append(category_id)
+    return {
+        "source": f"MITRE CWE-{OWASP_2021_VIEW_ID} view, CWE catalog {root.get('Version', 'unknown')}",
+        "categories": {c: categories[c] for c in OWASP_2021_CATEGORY_IDS},
+        "cwe_mapping": {k: cwe_mapping[k] for k in sorted(cwe_mapping, key=_cwe_sort_key)},
+    }
+
 
 class OWASPProcessor:
-    """Processes OWASP Top 10 mappings for CWE and CVE data"""
-    
-    def __init__(self, config: Dict[str, Any]):
-        """Initialize OWASP processor with configuration"""
-        self.config = config
-        self.owasp_db_path = Path("resources/owasp_db.json")
+    """Looks up the OWASP Top 10 2021 categories of CWEs from owasp_db.json."""
+
+    def __init__(self, db_path: Optional[PathLike] = None):
+        self.owasp_db_path = Path(db_path or get_config().get_database_path('owasp'))
         self.cwe_owasp_mapping: Dict[str, List[str]] = {}
         self.owasp_categories: Dict[str, Dict[str, Any]] = {}
-        self._load_owasp_database()
-    
-    def _load_owasp_database(self):
-        """Load OWASP database and CWE mappings"""
+        self.load()
+
+    def load(self) -> bool:
+        """Read owasp_db.json. On any failure the mapping already loaded is
+        kept and False is returned; the caller decides whether that is fatal."""
         try:
-            if self.owasp_db_path.exists():
-                with open(self.owasp_db_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.owasp_categories = data.get('categories', {})
-                    self.cwe_owasp_mapping = data.get('cwe_mapping', {})
-                logger.info(f"Loaded OWASP database with {len(self.owasp_categories)} categories")
-            else:
-                logger.warning("OWASP database not found, creating default mapping")
-                self._create_default_owasp_mapping()
-        except Exception as e:
-            logger.error(f"Error loading OWASP database: {e}")
-            self._create_default_owasp_mapping()
-    
-    def _create_default_owasp_mapping(self):
-        """Create default OWASP Top 10 2021 mapping based on MITRE CWE-1344 and official OWASP sources"""
-        # OWASP Top 10 2021 categories with their associated CWE IDs
-        # Combined from MITRE CWE-1344 and OWASP official documentation
-        self.owasp_categories = {
-            "A01:2021": {
-                "name": "Broken Access Control",
-                "description": "Access control enforces policy such that users cannot act outside of their intended permissions.",
-                "cwe_ids": [
-                    "22", "23", "35", "59", "200", "201", "219", "264", "275", "276", "284", "285",
-                    "352", "359", "377", "402", "425", "441", "497", "538", "540", "548", "552",
-                    "566", "601", "639", "651", "668", "706", "732", "766", "770", "774", "862",
-                    "863", "913", "922", "1275", "1321", "1220"
-                ]
-            },
-            "A02:2021": {
-                "name": "Cryptographic Failures",
-                "description": "Previously known as Sensitive Data Exposure, which was broad symptom rather than a root cause.",
-                "cwe_ids": [
-                    "261", "296", "310", "319", "321", "322", "323", "324", "325", "326", "327",
-                    "328", "329", "330", "331", "335", "336", "337", "338", "340", "347", "359",
-                    "523", "720", "757", "759", "760", "780", "818", "916"
-                ]
-            },
-            "A03:2021": {
-                "name": "Injection",
-                "description": "Injection flaws, such as SQL, NoSQL, OS, and LDAP injection, occur when untrusted data is sent to an interpreter as part of a command or query.",
-                "cwe_ids": [
-                    "20", "74", "75", "77", "78", "79", "80", "83", "87", "88", "89", "90", "91",
-                    "93", "94", "95", "96", "97", "98", "99", "100", "113", "116", "138", "184",
-                    "470", "471", "564", "610", "643", "644", "652", "917", "1275", "1287", "1321"
-                ]
-            },
-            "A04:2021": {
-                "name": "Insecure Design",
-                "description": "Insecure design is a broad category representing different weaknesses, expressed as 'missing or ineffective control design'.",
-                "cwe_ids": [
-                    "73", "183", "184", "209", "213", "235", "256", "257", "266", "269", "280",
-                    "311", "312", "313", "316", "325", "326", "327", "328", "329", "330", "331",
-                    "335", "336", "337", "338", "340", "347", "359", "384", "400", "434", "441",
-                    "501", "522", "525", "539", "540", "595", "598", "602", "642", "646", "650",
-                    "653", "656", "657", "799", "807", "840", "841", "927", "1021", "1173", "1220"
-                ]
-            },
-            "A05:2021": {
-                "name": "Security Misconfiguration",
-                "description": "The application might be vulnerable if the application is: Missing appropriate security hardening across any part of the application stack.",
-                "cwe_ids": [
-                    "2", "11", "13", "15", "16", "260", "315", "520", "526", "537", "541", "547",
-                    "611", "614", "756", "776", "942", "1004", "1032", "1174", "1177", "1188",
-                    "1233", "1236", "1250", "1260", "1262", "1263", "1272", "1275", "1276"
-                ]
-            },
-            "A06:2021": {
-                "name": "Vulnerable and Outdated Components",
-                "description": "You are likely vulnerable if you do not know the versions of all components you use (both client-side and server-side).",
-                "cwe_ids": [
-                    "829", "1035", "1104"
-                ]
-            },
-            "A07:2021": {
-                "name": "Identification and Authentication Failures",
-                "description": "Confirmation of the user's identity, authentication, and session management is critical to protect against authentication-related attacks.",
-                "cwe_ids": [
-                    "255", "259", "287", "288", "290", "294", "295", "297", "300", "302", "304",
-                    "306", "307", "309", "311", "312", "319", "321", "322", "323", "324", "325",
-                    "326", "327", "328", "329", "330", "331", "335", "336", "337", "338", "340",
-                    "347", "384", "521", "522", "523", "549", "560", "561", "562", "563", "564",
-                    "565", "620", "640", "798", "1216", "1244", "1274", "1275", "1295", "1390"
-                ]
-            },
-            "A08:2021": {
-                "name": "Software and Data Integrity Failures",
-                "description": "Software and data integrity failures relate to code and infrastructure that does not protect against integrity violations.",
-                "cwe_ids": [
-                    "345", "353", "426", "494", "502", "565", "784", "829", "830", "912", "915",
-                    "1321"
-                ]
-            },
-            "A09:2021": {
-                "name": "Security Logging and Monitoring Failures",
-                "description": "This category is to help detect, escalate, and respond to active breaches.",
-                "cwe_ids": [
-                    "117", "223", "224", "225", "319", "532", "533", "534", "537", "538", "539",
-                    "540", "541", "778", "779", "780", "862", "863", "1009", "1275", "1295"
-                ]
-            },
-            "A10:2021": {
-                "name": "Server-Side Request Forgery (SSRF)",
-                "description": "SSRF flaws occur whenever a web application is fetching a remote resource without validating the user-supplied URL.",
-                "cwe_ids": [
-                    "918"
-                ]
-            }
-        }
-        
-        # Create reverse mapping from CWE ID to OWASP category
-        self.cwe_owasp_mapping = {}
-        for category_id, category_data in self.owasp_categories.items():
-            for cwe_id in category_data['cwe_ids']:
-                if cwe_id not in self.cwe_owasp_mapping:
-                    self.cwe_owasp_mapping[cwe_id] = []
-                self.cwe_owasp_mapping[cwe_id].append(category_id)
-        
-        # Save the mapping to file
-        self._save_owasp_database()
-    
-    def _save_owasp_database(self) -> None:
-        """Save OWASP database to file"""
-        try:
-            data = {
-                'categories': self.owasp_categories,
-                'cwe_mapping': self.cwe_owasp_mapping
-            }
-            write_reference_db(self.owasp_db_path, data, count_owasp, indent=2, ensure_ascii=False)
-            logger.info(f"Saved OWASP database to {self.owasp_db_path}")
-        except Exception as e:
-            logger.error(f"Error saving OWASP database: {e}")
-    
+            with open(self.owasp_db_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            categories = data.get('categories') if isinstance(data, dict) else None
+            mapping = data.get('cwe_mapping') if isinstance(data, dict) else None
+            if not isinstance(categories, dict) or not isinstance(mapping, dict) or not mapping:
+                raise ValueError("no categories or cwe_mapping")
+        except (OSError, ValueError) as e:
+            logger.error(f"Could not load OWASP mapping from {self.owasp_db_path}: {e}")
+            return False
+        self.owasp_categories = categories
+        self.cwe_owasp_mapping = {str(k): [str(c) for c in v] for k, v in mapping.items() if isinstance(v, list)}
+        logger.info(f"Loaded OWASP mapping: {len(self.owasp_categories)} categories, "
+                    f"{len(self.cwe_owasp_mapping)} CWEs")
+        return True
+
     def get_owasp_categories_for_cwe(self, cwe_id: str) -> List[str]:
-        """Get OWASP categories for a given CWE ID"""
-        # Remove CWE- prefix if present
-        cwe_id = cwe_id.replace("CWE-", "") if cwe_id.startswith("CWE-") else cwe_id
-        
-        categories = self.cwe_owasp_mapping.get(cwe_id, [])
-        logger.debug(f"CWE {cwe_id} maps to OWASP categories: {categories}")
-        return categories
-    
+        """OWASP categories for one CWE (``'79'`` or ``'CWE-79'``)."""
+        cwe_id = cwe_id[4:] if cwe_id.startswith("CWE-") else cwe_id
+        return self.cwe_owasp_mapping.get(cwe_id, [])
+
     def get_owasp_categories_for_cwes(self, cwe_ids: List[str]) -> Set[str]:
-        """Get all OWASP categories for a list of CWE IDs"""
-        all_categories = set()
+        """Every OWASP category any of the CWEs maps to."""
+        all_categories: Set[str] = set()
         for cwe_id in cwe_ids:
-            categories = self.get_owasp_categories_for_cwe(cwe_id)
-            all_categories.update(categories)
+            all_categories.update(self.get_owasp_categories_for_cwe(cwe_id))
         return all_categories

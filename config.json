@@ -28,8 +28,14 @@
             "url": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip",
             "file": "docs/data/cwe_db.json"
         },
+        "owasp": {
+            "file": "docs/data/owasp_db.json"
+        },
         "techniques": {
             "file": "docs/data/techniques_db.json"
+        },
+        "technique_revocations": {
+            "file": "docs/data/technique_revocations.json"
         },
         "defend": {
             "file": "docs/data/defend_db.jsonl"

@@ -23,6 +23,7 @@ from tip.core.epss_processor import EPSSProcessor, EPSSSnapshot
 from tip.core.id_normalize import cwe_number, cwe_parents, split_cwe_list
 from tip.core.ctid_processor import load_ctid_db
 from tip.core.technique_inference import extra_technique_links
+from tip.core.technique_revocation import RevocationMap, load_revocation_map, resolve_technique_ids
 from tip.utils.atomic_io import atomic_write_bytes, atomic_write_json, jsonl_bytes
 
 config = get_config()
@@ -95,6 +96,11 @@ class CVEProcessor:
     # without TECHNIQUES_CTID and TECHNIQUES_INFERRED, and the entity index
     # generator derives both itself (I21).
     ctid_db: Optional[Dict[str, Any]] = None
+    # technique_revocations.json: revoked or deprecated ATT&CK technique ID
+    # -> live replacement, or None to drop it. CAPEC's technique IDs pass
+    # through it so the chain carries only live techniques. None means
+    # unavailable: IDs then pass through unchanged.
+    technique_revocations: Optional[RevocationMap] = None
 
     def __init__(self):
         self.config = config
@@ -112,8 +118,8 @@ class CVEProcessor:
         self.cwe_db = self._load_cwe_db()
         self.capec_db = self._load_capec_db()
         
-        # Initialize OWASP processor
-        self.owasp_processor = OWASPProcessor(self.config.config)
+        # OWASP Top 10 2021 categories from owasp_db.json (CWE-1344 view)
+        self.owasp_processor = OWASPProcessor()
 
         # Initialize KEV processor
         self.kev_processor = KEVProcessor()
@@ -403,6 +409,10 @@ class CVEProcessor:
                 # Extract publication / modification timestamps
                 published = cve_data.get('cve', {}).get('published', '')
                 last_modified = cve_data.get('cve', {}).get('lastModified', '')
+                # NVD's record status ("Rejected", "Analyzed", ...). A
+                # rejected CVE stays in the corpus and its shard, flagged, so
+                # the site and MCP can say it is not a real vulnerability.
+                vuln_status = cve_data.get('cve', {}).get('vulnStatus', '')
 
                 # Extract deduplicated reference URLs
                 reference_urls: List[str] = []
@@ -423,6 +433,8 @@ class CVEProcessor:
                     'LAST_MODIFIED': last_modified,
                     'REFERENCES': reference_urls,
                 }
+                if isinstance(vuln_status, str) and vuln_status:
+                    record['VULN_STATUS'] = vuln_status
                 if cvss_score is not None:
                     record['CVSS'] = {
                         'score': cvss_score,
@@ -478,12 +490,16 @@ class CVEProcessor:
             return []
     
     def get_techniques_for_capec(self, capec_id: str) -> List[str]:
-        """Get techniques for a CAPEC ID"""
+        """Live ATT&CK techniques for a CAPEC ID: CAPEC's own technique IDs,
+        with revoked ones replaced and those with no replacement dropped."""
         try:
             capec_data = self.capec_db.get(capec_id, {})
             techniques_string = capec_data.get("techniques", "")
             if techniques_string:
-                return safe_parse_capec_techniques(techniques_string)
+                return resolve_technique_ids(
+                    safe_parse_capec_techniques(techniques_string),
+                    self.technique_revocations,
+                )
             return []
         except Exception as e:
             self.logger.warning(f"Exception for CAPEC-{capec_id}: {str(e)}")
@@ -529,6 +545,7 @@ class CVEProcessor:
         # Fields preserved verbatim from ingest (raw NVD data) through enrichment.
         PRESERVED_FIELDS = (
             'DESCRIPTION', 'PUBLISHED', 'LAST_MODIFIED', 'REFERENCES', 'CVSS',
+            'VULN_STATUS',
         )
 
         for cve_id, data in cve_data.items():
@@ -707,6 +724,16 @@ class CVEProcessor:
                 "and inferred techniques, and the entity index derives them"
             )
 
+    def _load_technique_revocations(self) -> None:
+        """Read technique_revocations.json as the database step left it."""
+        self.technique_revocations = load_revocation_map(config.get(
+            'database.technique_revocations.file', 'docs/data/technique_revocations.json'))
+        if self.technique_revocations is None:
+            self.logger.warning(
+                "technique_revocations.json unavailable; CAPEC technique IDs are "
+                "written as CAPEC gives them, revoked ones included"
+            )
+
     def process_file(self, input_file: Optional[str] = None) -> bool:
         """Process CVE data from file"""
         file_path = input_file or self.cve_file
@@ -744,6 +771,13 @@ class CVEProcessor:
             # failed read keeps what was loaded at start.
             self.cwe_db = self._load_cwe_db() or self.cwe_db
             self.capec_db = self._load_capec_db() or self.capec_db
+            self.owasp_processor.load()
+            if not self.owasp_processor.cwe_owasp_mapping:
+                # Every record would lose its OWASP lists and replace a
+                # complete one in the shard; fail the step instead.
+                self.logger.error("No OWASP mapping loaded; refusing to write CVE records without it")
+                return False
+            self._load_technique_revocations()
             self.kev_processor.load()
             self.vulnrichment_processor.load()
             self.apt_processor.load()

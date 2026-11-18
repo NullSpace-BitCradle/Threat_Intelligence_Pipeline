@@ -19,19 +19,19 @@ def main() -> int:
         description='Threat Intelligence Pipeline (TIP) - CVE to CAPEC to ATT&CK Pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  tip                          # Run complete pipeline (fetches all CVEs from 1999)
-  tip --force                 # Force update even if not needed
-  tip --cve-only              # Process CVEs only (resumes locally from cve_progress.json)
-  tip --cve-only --clear-progress  # Start CVE retrieval from beginning
-  tip --db-only               # Update databases only
-  tip --status                # Show pipeline status
-  tip --verbose               # Enable verbose logging
+Examples (from the repository root):
+  python run_pipeline.py                    # Full pipeline; skipped if NVD shards are under 24 hours old
+  python run_pipeline.py --force            # Full pipeline even if NVD shards are under 24 hours old
+  python run_pipeline.py --cve-only         # Process CVEs only (resumes locally from cve_progress.json)
+  python run_pipeline.py --cve-only --clear-progress  # Start CVE retrieval from beginning
+  python run_pipeline.py --db-only          # Update databases only
+  python run_pipeline.py --status           # Show pipeline status
+  python run_pipeline.py --verbose          # Enable verbose logging
         """
     )
     
     parser.add_argument('--force', action='store_true',
-                       help='Force update even if not needed')
+                       help='Run the full pipeline even if NVD shards are under 24 hours old')
     parser.add_argument('--db-only', action='store_true',
                        help='Run only database updates')
     parser.add_argument('--cve-only', action='store_true',
@@ -58,12 +58,12 @@ Examples:
             print("\nDatabase Status:")
             db_status = status['database_status']
             for db_name, db_info in db_status.items():
-                if db_info.get('exists'):
-                    entries = db_info.get('entries', 'Unknown')
-                    last_modified = db_info.get('last_modified', 'Unknown')
-                    print(f"  [OK] {db_name.upper()}: {entries} entries (updated: {last_modified})")
-                else:
+                if not db_info.get('exists'):
                     print(f"  [X] {db_name.upper()}: Not found")
+                elif 'error' in db_info:
+                    print(f"  [ERROR] {db_name.upper()}: unreadable ({db_info['error']})")
+                else:
+                    print(f"  [OK] {db_name.upper()}: {db_info['entries']} entries (updated: {db_info['last_modified']})")
             
             # Last update
             last_update = status.get('last_update')
@@ -100,6 +100,15 @@ Examples:
         
         session = summary['pipeline_session']
         exit_code = exit_code_for(summary)
+
+        # A skipped run did nothing; say so instead of reporting success.
+        if session.get('skipped'):
+            print("\n" + "="*60)
+            print("THREAT INTELLIGENCE PIPELINE SKIPPED: NOTHING WAS RUN")
+            print("="*60)
+            print(f"Reason: {session['skipped']}")
+            print("="*60)
+            return exit_code
 
         # Print results
         print("\n" + "="*60)

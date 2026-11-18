@@ -60,7 +60,7 @@ ALL_WORKFLOWS = sorted(p.name for p in WORKFLOWS.glob("*.yml"))
 ALERTING_JOBS = {
     "update-databases.yml": {"publish"},
     "run-pipeline.yml": {"publish"},
-    "smoke-test.yml": {"smoke-live"},
+    "smoke-test.yml": {"canary-alerts"},
 }
 
 
@@ -310,23 +310,44 @@ def test_data_workflow_alerts_on_failure_and_closes_on_success(name):
 
 def test_live_canary_alerts_when_smoke_fails_or_times_out():
     """A timeout cancels the job instead of failing it (2026-10-26 and 10-27
-    runs died in playwright install), so the alert covers both."""
-    job = _jobs((WORKFLOWS / "smoke-test.yml").read_text())["smoke-live"]
-    assert re.search(r"^    timeout-minutes: 20$", job, re.M)
+    runs died in playwright install), so the alert covers both. The alerts
+    run in their own job after smoke-live, whatever its outcome, from main."""
+    jobs = _jobs((WORKFLOWS / "smoke-test.yml").read_text())
+    assert re.search(r"^    timeout-minutes: 20$", jobs["smoke-live"], re.M)
+    job = jobs["canary-alerts"]
+    assert re.search(r"^    needs: smoke-live$", job, re.M)
+    assert re.search(r"^    if: always\(\) && .*github\.ref == 'refs/heads/main'$", job, re.M)
     fail = _step(job, "Alert on failure")
-    assert "if: (failure() || cancelled()) && github.ref == 'refs/heads/main'" in fail
-    assert "RUN_OUTCOME: ${{ job.status }}" in fail
+    assert "if: failure() || cancelled() || needs.smoke-live.result != 'success'" in fail
+    assert ("RUN_OUTCOME: ${{ needs.smoke-live.result == 'success' && job.status"
+            " || needs.smoke-live.result }}") in fail
     ok = _step(job, "Close failure alert on success")
-    assert "if: success() && github.ref == 'refs/heads/main'" in ok
+    assert "if: success() && needs.smoke-live.result == 'success'" in ok
     for step in (fail, ok):
         assert "run: python3 scripts/pipeline_alert.py run" in step
 
 
+def test_live_canary_runs_third_party_code_without_write_access():
+    """Audit 2026-11-18 L5: the job that installs packages and browser
+    binaries holds a read token with no credentials on disk; the job that
+    holds issues: write runs only checkout and the stdlib alert script."""
+    jobs = _jobs((WORKFLOWS / "smoke-test.yml").read_text())
+    live = jobs["smoke-live"]
+    assert re.search(r"^    permissions:\n      contents: read\n    steps:", live, re.M)
+    assert "persist-credentials: false" in live
+    alerts = jobs["canary-alerts"]
+    assert "persist-credentials: false" in alerts
+    runs = [body.strip() for _, body in _run_blocks(alerts)]
+    assert runs and all(r.startswith("python3 scripts/pipeline_alert.py ") for r in runs), runs
+    uses = re.findall(r"uses:\s*(\S+)", alerts)
+    assert len(uses) == 1 and uses[0].startswith("actions/checkout@")
+
+
 def test_live_canary_checks_freshness_even_after_smoke_failure():
     text = (WORKFLOWS / "smoke-test.yml").read_text()
-    job = _jobs(text)["smoke-live"]
+    job = _jobs(text)["canary-alerts"]
     step = _step(job, "Check published data freshness")
-    assert "if: always() && github.ref == 'refs/heads/main'" in step
+    assert "if: always()" in step
     assert "REPO_OWNER: ${{ github.repository_owner }}" in step
     assert "FRESHNESS_URL: https://nullspace-bitcradle.github.io/Threat_Intelligence_Pipeline/data/freshness.json" in step
     assert "run: python3 scripts/pipeline_alert.py stale" in step

@@ -39,7 +39,8 @@ def _processor(tmp_path, monkeypatch, failing_ids):
     proc.cwe_db = {}
     proc.capec_db = {}
     proc.logger = logging.getLogger("test_enrichment_failure")
-    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set())
+    proc.owasp_processor = SimpleNamespace(get_owasp_categories_for_cwes=lambda cwes: set(),
+                                         load=lambda: True, cwe_owasp_mapping={"79": ["A03:2021"]})
     proc.kev_processor = SimpleNamespace(lookup=kev_lookup, load=lambda: False)
     proc.vulnrichment_processor = SimpleNamespace(lookup=lambda cid: None, load=lambda: False)
     proc.apt_processor = SimpleNamespace(lookup_attributions=lambda c: [], load=lambda: False)

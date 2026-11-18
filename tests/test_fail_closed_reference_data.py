@@ -50,8 +50,10 @@ def vr_env(tmp_path):
     db = tmp_path / "vulnrichment_db.json"
     state = tmp_path / "vulnrichment_state.json"
     existing = {f"CVE-2024-000{i}": {"ssvcExploitStatus": "none"} for i in range(1, 4)}
-    db.write_text(json.dumps(existing, indent=2))
-    state.write_text(json.dumps({"last_commit_sha": OLD_SHA}))
+    # newline="\n": the processor writes LF on every OS, and the tests
+    # compare bytes, so a CRLF fixture on Windows would differ on its own.
+    db.write_text(json.dumps(existing, indent=2), newline="\n")
+    state.write_text(json.dumps({"last_commit_sha": OLD_SHA}), newline="\n")
     proc = VulnrichmentProcessor()
     proc.db_path = str(db)
     proc.state_path = str(state)
@@ -217,27 +219,18 @@ def _write_campaigns(path, data):
     return True
 
 
-def _write_owasp(path, data):
-    from tip.core.owasp_processor import OWASPProcessor
-    proc = OWASPProcessor.__new__(OWASPProcessor)
-    proc.owasp_db_path = path
-    proc.owasp_categories = data["categories"]
-    proc.cwe_owasp_mapping = data["cwe_mapping"]
-    proc._save_owasp_database()  # logs and swallows by design; file must hold
-    return True
-
-
 WRITERS = {
     "capec": (*_write_via_manager("capec"), _big),
     "cwe": (*_write_via_manager("cwe"), _big),
     "techniques": (*_write_via_manager("techniques"), _big),
+    "technique_revocations": (*_write_via_manager("technique_revocations"), _big),
     "defend": (*_write_via_manager("defend", ".jsonl"), _big),
     "kev_manager": (*_write_via_manager("kev"), _big),
     "vulnrichment_manager": (*_write_via_manager("vulnrichment"), _big),
     "groups_manager": (*_write_via_manager("groups"), _groups),
     "vulnrichment": (_write_vulnrichment, ".json", _big),
     "campaigns": (_write_campaigns, ".json", _campaigns),
-    "owasp": (_write_owasp, ".json", _owasp),
+    "owasp": (*_write_via_manager("owasp"), _owasp),
 }
 
 
@@ -274,7 +267,7 @@ def test_reference_db_writers_enforce_floor(tmp_path, monkeypatch, name, new_siz
         assert ok is True
         assert path.read_bytes() != before
     else:
-        assert ok is not True or name == "owasp"
+        assert ok is not True
         assert path.read_bytes() == before
     leftovers = [p.name for p in target_dir.iterdir() if p.name.endswith(".tmp")]
     assert leftovers == []

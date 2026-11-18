@@ -4,7 +4,9 @@ CI only sees the process exit code, so every degraded, partial or failed step
 must turn it non-zero, and lastUpdate.txt must only move on a clean run.
 Everything network-facing is stubbed.
 """
+import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -147,3 +149,65 @@ def test_skipped_run_does_not_advance_last_update(offline_orchestrator, monkeypa
     monkeypatch.setattr(orch, "_updates_needed", lambda: False)
     orch.run_full_pipeline(force_update=False)
     assert last_update.read_text() == "2026-01-01T00:00:00"
+
+
+# Audit 2026-11-18 M3 --------------------------------------------------------
+# A full run without --force used to be skipped whenever lastUpdate.txt was
+# under 24 hours old, which the daily --db-only run guarantees, so it skipped
+# with week-old shards. The comparison mixed naive local time with the
+# runner's naive UTC stamp, and the skip printed "COMPLETED SUCCESSFULLY".
+
+def _freshness(tmp_path, nvd_stamp):
+    path = tmp_path / "docs" / "data" / "freshness.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sources = {"kev": {"last_success": "2026-11-18T15:00:00Z"}}
+    if nvd_stamp is not None:
+        sources["nvd"] = {"last_success": nvd_stamp}
+    path.write_text(json.dumps({"schema": 1, "sources": sources}))
+
+
+NOW_UTC = datetime(2026, 11, 18, 20, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("nvd_stamp, needed", [
+    ("2026-11-18T18:00:00Z", False),      # 2 hours old
+    ("2026-11-17T20:00:01Z", False),      # just under 24 hours
+    ("2026-11-17T20:00:00Z", True),       # 24 hours
+    ("2026-11-15T16:36:14Z", True),       # the weekly run, 3 days back
+    ("2026-11-18T18:00:00", False),       # naive stamps are UTC, not local time
+    ("2026-11-18T11:00:00-07:00", False),  # an offset is honored (18:00 UTC)
+    ("yesterday", True),
+    (None, True),                          # no NVD entry yet
+])
+def test_full_run_gate_reads_the_nvd_refresh_time(offline_orchestrator, tmp_path, nvd_stamp, needed):
+    orch, last_update = offline_orchestrator
+    _freshness(tmp_path, nvd_stamp)
+    last_update.write_text(NOW_UTC.isoformat())  # a db-only run just finished
+    assert orch._updates_needed(now=NOW_UTC) is needed
+    assert (orch.skipped_reason is None) is needed
+
+
+def test_full_run_gate_without_a_freshness_file(offline_orchestrator):
+    orch, _ = offline_orchestrator
+    assert orch._updates_needed(now=NOW_UTC) is True
+
+
+def test_skipped_run_is_reported_as_skipped(offline_orchestrator, monkeypatch, capsys):
+    orch, last_update = offline_orchestrator
+    monkeypatch.setattr(orch, "_updates_needed", lambda: setattr(orch, "skipped_reason", "fresh") or False)
+    monkeypatch.setattr(run_pipeline, "PipelineOrchestrator", lambda: orch)
+    monkeypatch.setattr(sys, "argv", ["run_pipeline.py"])
+
+    assert run_pipeline.main() == 0
+    out = capsys.readouterr().out
+    assert "SKIPPED" in out and "fresh" in out
+    assert "COMPLETED SUCCESSFULLY" not in out
+    assert last_update.read_text() == "2026-01-01T00:00:00"
+
+
+def test_last_update_is_written_in_utc(offline_orchestrator, monkeypatch):
+    orch, last_update = offline_orchestrator
+    _stub_full_run(orch, monkeypatch)
+    orch.run_full_pipeline(force_update=True)
+    stamp = datetime.fromisoformat(last_update.read_text())
+    assert stamp.utcoffset() == timedelta(0)
