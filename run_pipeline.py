@@ -101,6 +101,15 @@ Examples:
         session = summary['pipeline_session']
         exit_code = exit_code_for(summary)
 
+        # A skipped run did nothing; say so instead of reporting success.
+        if session.get('skipped'):
+            print("\n" + "="*60)
+            print("THREAT INTELLIGENCE PIPELINE SKIPPED: NOTHING WAS RUN")
+            print("="*60)
+            print(f"Reason: {session['skipped']}")
+            print("="*60)
+            return exit_code
+
         # Print results
         print("\n" + "="*60)
         if exit_code == 0:

@@ -128,7 +128,7 @@ python setup.py
 # Set NVD API key (recommended; get one free at https://nvd.nist.gov/developers/request-an-api-key)
 export NVD_API_KEY="your-key-here"
 
-# Run the full pipeline
+# Run the full pipeline (skipped if the NVD shards are under 24 hours old; see below)
 PYTHONPATH=src python run_pipeline.py
 
 # Serve the static site locally
@@ -139,13 +139,15 @@ python -m http.server 8000 --directory docs
 
 ```bash
 PYTHONPATH=src python run_pipeline.py                   # Full pipeline
-PYTHONPATH=src python run_pipeline.py --force           # Force update even if not needed
+PYTHONPATH=src python run_pipeline.py --force           # Run the full pipeline even if NVD shards are under 24 hours old
 PYTHONPATH=src python run_pipeline.py --db-only         # Update reference databases only
 PYTHONPATH=src python run_pipeline.py --cve-only        # Process CVEs only (resumes locally from cve_progress.json)
 PYTHONPATH=src python run_pipeline.py --clear-progress  # Clear progress file and start CVE retrieval from the beginning
 PYTHONPATH=src python run_pipeline.py --status          # Show pipeline status
 PYTHONPATH=src python run_pipeline.py --verbose         # Enable verbose logging
 ```
+
+Without `--force`, a full run is skipped when `docs/data/freshness.json` says the NVD shards were refreshed under 24 hours ago (UTC). Only a run that crawled NVD cleanly advances that entry, so the daily `--db-only` run does not hold a full run back. A skipped run prints `THREAT INTELLIGENCE PIPELINE SKIPPED: NOTHING WAS RUN` with the reason and exits 0.
 
 There is no web interface or built-in metrics/health-check flag; the monitoring package that backed them was removed as dead code. The site is static and served from `docs/`, as shown above.
 
